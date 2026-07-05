@@ -2,7 +2,7 @@ import os
 import requests
 from datetime import datetime
 
-API_URL = "http://127.0.0.1:8000/multi-mod"
+API_URL = "http://127.0.0.1:5180/multi-mod"
 DOCS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "docs", "validations")
 
 SENSE = "CGUACGCGGAAUACUUCGAUU"

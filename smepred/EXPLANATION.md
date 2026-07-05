@@ -13,7 +13,9 @@ mRNA sequence
     ↓
 Generate 21-mer siRNA candidates (sliding window)
     ↓
-Extract 152-dimensional feature vector per candidate
+Extract feature vector per candidate:
+   → 214-d for naked (Rank) model
+   → 389-d for modified (Single-Mod) model
     ↓
 LightGBM model (gradient-boosted decision trees) predicts raw score
     ↓
@@ -22,32 +24,39 @@ Isotonic calibrator maps raw score → calibrated 0–100 score
 Efficacy label assigned based on thresholds
 ```
 
-### The 152-D Feature Vector (What Goes Into the Model)
+### The Feature Vectors (What Goes Into the Model)
 
-The model does **not** see sequence letters directly — it sees numerical features derived from the sequence. Every siRNA is converted to 152 numbers:
+The model does **not** see sequence letters directly — it sees numerical features derived from the sequence.
+
+**Modified Model (Phase 2, 389-d)** — used in the Single-Mod and Stack tabs:
 
 | Feature Group | Dimensions | What It Captures |
 |---------------|-----------|------------------|
-| **Base MNC (sense + antisense)** | 70 | Mononucleotide composition of the *unmodified* strands — the fraction of each of the 35 nucleotide symbols (A, U, G, C, T + 30 chemical modification symbols) |
-| **Modified MNC (sense + antisense)** | 70 | Mononucleotide composition of the *modified* strands — same 35-bin frequency vector, computed on the actual modified sequence |
-| **Mod density (sense)** | 4 | How heavily modified the sense strand is: overall mod fraction, seed-region (pos 1–8) mod fraction, 3'-tail mod fraction, count of modified positions |
-| **Mod density (antisense)** | 4 | Same as above for the antisense strand |
-| **GC content** | 2 | GC fraction of the unmodified sense and antisense strands |
-| **Assay conditions** | 2 | log₁₀(concentration in nM) and time in hours (default: 10 nM, 24 h at inference) |
+| **Positional chemical-category flags** | 294 | 7 chemical categories (2'-OMe, 2'-F, LNA, MOE, PS, base mod, other) × 21 positions × 2 strands — replaces old one-hot encoding with chemistry-aware grouping |
+| **Aggregate strand stats (×2 strands)** | 80 | Per-strand: 31 category counts + fraction modified + seed/mod cleavage region densities + GC content + terminal PS flags |
+| **log₁₀(concentration)** | 1 | Assay concentration (default 10 nM) |
+| **Engineered biological features** | 14 | Duplex stability asymmetry, modification-position interactions, ΔTm estimates |
 
-**Why both base and modified MNC?** Near-fully-modified strands collapse to mostly M or F composition, losing the underlying sequence. Adding the base (unmodified) composition restores that sequence signal. Empirically, this raises PCC from 0.37 (modified-only) to 0.48 (base + modified).
+**Naked Model (V4, 214-d)** — used in the Rank tab for baseline ranking:
+
+| Feature Group | Dimensions | What It Captures |
+|---------------|-----------|------------------|
+| **Positional one-hot encoding** | 84 | 4 bases (A/U/G/C) × 21 positions |
+| **Trinucleotide composition (×2 strands)** | 64 | Frequency of each 3-mer in sense and antisense |
+| **Baseline MNC (×2 strands)** | 64 | 32-bin mononucleotide composition including DNA/RNA bases |
+| **GC content (×2 strands)** | 2 | GC fraction of each strand |
 
 ### The Model: LightGBM
 
 **LightGBM** is a **gradient-boosted decision tree** algorithm — an ensemble of hundreds of decision trees where each tree corrects the errors of the previous ones.
 
 - **Algorithm**: Gradient-boosted decision trees (GBDT) with leaf-wise tree growth
-- **Training data**: 25,765 modified siRNA sequences with measured % inhibition values
-- **Data source**: Patent data (HelixZero catalog), covering 13 target genes
-- **Trees**: 799 (set by early stopping on a 5% holdout)
-- **Performance**: PCC = **0.68** within genes, MAE = **16.4** points
+- **Training data**: 25,765 modified siRNA sequences + 23,187 hetero-patent rows + 4,618 CMsiRNAdb sequences
+- **Data sources**: HelixZero catalog, patent data, CMsiRNAdb, published literature
+- **Trees**: 1,361 (set by early stopping on a 5% holdout)
+- **Performance**: PCC = **0.688** (hetero-val-303), MAE = **16.4** points
 
-**Why not a neural network / deep learning?** Gradient-boosted trees are the gold standard for tabular data with noisy, mixed-type features. They handle missing values natively, are resistant to outliers, and train quickly without GPU. The 152-d feature vector is engineered RNA chemistry knowledge — the tree model extracts the interactions.
+**Why not a neural network / deep learning?** Gradient-boosted trees are the gold standard for tabular data with noisy, mixed-type features. They handle missing values natively, are resistant to outliers, and train quickly without GPU. The feature vectors are engineered RNA chemistry knowledge — the tree model extracts the interactions.
 
 ### The Calibrator (Isotonic Regression)
 
@@ -61,7 +70,7 @@ IsotonicRegression(out_of_bounds='clip', y_min=0, y_max=100)
 
 It is fitted using **5-fold cross-validation** predictions (to prevent overfitting), then applied at inference time. This spreads the scores to fill the full 0–100 range while preserving rank order.
 
-**Effect**: Raw PCC=0.68 → Calibrated PCC=0.68 (rank order preserved), but absolute scores become more realistic (e.g. raw 67 → calibrated 80).
+**Effect**: Raw PCC=0.688 → Calibrated PCC=0.688 (rank order preserved), but absolute scores become more realistic (e.g. raw 67 → calibrated 80).
 
 ---
 
@@ -291,11 +300,11 @@ A common question: *"Why does the Rank tab show score 55 for a candidate, but af
 | Tab | Model | Training Data | Predicts |
 |-----|-------|-------------|----------|
 | **Rank** | Naked model (model_normal) | 4,060 unmodified siRNAs (4 sources) | **Unmodified (naked) siRNA efficacy** |
-| **Single-Mod** | cm-siRNA model (model_a/b/c) | 25,765 modified siRNAs | **Individual modified variant scores** |
+| **Single-Mod** | cm-siRNA model (model_b) | 53,570 modified siRNAs (patent + hetero + literature) | **Individual modified variant scores** |
 
 The **naked model** (PCC=0.55) was trained only on unmodified siRNAs. It ranks candidates by their predicted efficacy as bare, unmodified sequences — this is the starting point before chemical optimization.
 
-The **cm-siRNA model** (PCC=0.68) was trained on modified siRNAs and knows how modifications affect silencing. When you run Single-Mod on a selected siRNA, it computes the delta: `modified_score - parent_score`. The parent_score uses the **same naked model** the Rank tab uses, so baselines are consistent (both show, e.g., 53.5).
+The **cm-siRNA model** (PCC=0.688) was trained on modified siRNAs and knows how modifications affect silencing. When you run Single-Mod on a selected siRNA, it computes the delta: `modified_score - parent_score`. The parent_score uses the **same naked model** the Rank tab uses, so baselines are consistent (both show, e.g., 53.5).
 
 **Rank**: Scores each 21-mer candidate with the naked model and ranks by baseline (unmodified) efficacy.
 
@@ -305,24 +314,24 @@ The **cm-siRNA model** (PCC=0.68) was trained on modified siRNAs and knows how m
 
 ## 8. Model Training Summary
 
-### cm-siRNA Model (model_a/b/c)
+### cm-siRNA Model (model_b, Phase 2)
 
 | Aspect | Detail |
 |--------|--------|
 | **Algorithm** | LightGBM (gradient-boosted decision trees) |
-| **Features** | 152-d (MNC + mod density + GC + conditions) |
-| **Training data** | 25,765 modified siRNAs (13 genes, patent data) |
+| **Features** | 389-d (294 positional category flags + 80 aggregate stats + 1 concentration + 14 engineered) |
+| **Training data** | 53,570 modified siRNAs (23,187 hetero-patent + 25,765 HelixZero catalog + 4,618 CMsiRNAdb) |
 | **Validation** | 5% holdout with early stopping |
-| **Trees** | 799 |
-| **Performance** | Within-gene PCC = 0.68, MAE = 16.4 |
+| **Trees** | 1,361 |
+| **Performance** | PCC = 0.688 (hetero-val-303), MAE = 16.4 |
 | **Calibrator** | Isotonic regression (fitted via 5-fold CV) |
 
-### Naked Model (model_normal)
+### Naked Model (model_normal, V4)
 
 | Aspect | Detail |
 |--------|--------|
 | **Algorithm** | LightGBM |
-| **Features** | 156-d (152 seq + 4 source one-hot) |
+| **Features** | 214-d (84 pos one-hot + 64 TNC sense + 64 TNC antisense + 2 GC) |
 | **Training data** | 4,060 unmodified siRNAs from 4 published sources |
 | **Sources** | Huesken (2005), Takayuki (2007), Mix (Reynolds/Ui-Tei/Vickers), internal |
 | **Performance** | All-source PCC = 0.55, Best source (Taka) = 0.69 |

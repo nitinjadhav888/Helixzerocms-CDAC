@@ -32,7 +32,7 @@ warnings.filterwarnings('ignore', message='X does not have valid feature names')
 
 from .parser import load_sequence
 from .sirna_generator import generate_candidates, generate_dsirna_candidate, SiRNACandidate
-from .features import extract_batch_v4, extract_positional_features_batch
+from .features import extract_batch_v4, extract_positional_features_batch, extract_phase2
 from .modification_engine import single_mod_scan, multimod_gen, CmSiRNA, _apply_mod
 from .filters import annotate_candidates, toxicity_for_modified
 from .biophysics import calculate_adjusted_efficacy
@@ -336,7 +336,7 @@ def predict_modified(
     parent_v4_matrix = extract_batch_v4([sense], [antisense])
     raw_parent_score = float(_normalize_scores(_predict_naked(parent_v4_matrix), calibrator_key="normal")[0])
     
-    parent_b_matrix = extract_positional_features_batch([sense], [antisense], [sense], [antisense])
+    parent_b_matrix = extract_phase2([sense], [antisense], [sense], [antisense])
     model_b = _get_model("B")
     raw_model_b_score = float(_normalize_scores(np.array([model_b.predict(parent_b_matrix)[0]]), mode="rescale")[0])
 
@@ -377,7 +377,7 @@ def predict_modified(
     ps_list = [v.parent_sense for v in variants]
     pa_list = [v.parent_antisense for v in variants]
     
-    feature_matrix = extract_positional_features_batch(s_list, a_list, ps_list, pa_list)
+    feature_matrix = extract_phase2(s_list, a_list, ps_list, pa_list)
 
     # 4. Predict
     raw_variant_scores = model_b.predict(feature_matrix)

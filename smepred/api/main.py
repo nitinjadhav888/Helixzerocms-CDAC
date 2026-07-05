@@ -41,7 +41,7 @@ from src.predictor import (
 from src.biophysics import calculate_adjusted_efficacy
 from src.filters import get_toxicity_score, get_toxicity_label, _extract_seed
 from src.offtarget import get_offtarget_engine
-from src.features import extract_batch_v4, extract_positional_features_batch
+from src.features import extract_batch_v4, extract_positional_features_batch, extract_phase2
 from src.modification_engine import multi_mod_scan
 
 # Configure module-level logger
@@ -333,7 +333,7 @@ def multi_mod_scan_endpoint(req: MultiModScanRequest):
             raw_parent_score, req.sense, req.antisense, req.sense, req.antisense
         )
         
-        parent_features_b = extract_positional_features_batch(
+        parent_features_b = extract_phase2(
             [req.sense], [req.antisense], [req.sense], [req.antisense]
         )
         model_b = _get_model(req.model)
@@ -421,7 +421,7 @@ def multi_mod_from_single_endpoint(req: MultiModFromSingleRequest):
         else:
             parent_baseline = req.parent_score
 
-        features_b = extract_positional_features_batch([req.sense], [req.antisense], [req.sense], [req.antisense])
+        features_b = extract_phase2([req.sense], [req.antisense], [req.sense], [req.antisense])
         mb = _get_model("B")
         raw_b = float(mb.predict(features_b)[0])
         mb_adj, _, _ = calculate_adjusted_efficacy(raw_b, req.sense, req.antisense, req.sense, req.antisense)

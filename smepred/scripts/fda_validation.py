@@ -4,7 +4,7 @@ import json
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.features import extract_positional_features_batch
+from src.features import extract_phase2
 from src.predictor import _get_model
 from src.biophysics import calculate_adjusted_efficacy
 
@@ -52,7 +52,7 @@ def run_validation():
         mod_sense = t["sense_mods"]
         mod_anti = t["anti_mods"]
 
-        X = extract_positional_features_batch([mod_sense], [mod_anti], [sense], [antisense])
+        X = extract_phase2([mod_sense], [mod_anti], [sense], [antisense])
         raw_score = float(model_b.predict(X)[0])
         adj_score, penalties, total_pen = calculate_adjusted_efficacy(raw_score, mod_sense, mod_anti, sense, antisense)
 

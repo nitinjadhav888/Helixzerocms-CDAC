@@ -69,7 +69,7 @@ def fig_architecture():
     box(ax, 8.5, 3.8, 1.2, 0.6, 'Parser\nparser.py', bs2, fontsize=7)
 
     # Data layer
-    box(ax, 1, 2.2, 2, 0.7, 'Feature Extraction\nfeatures.py\n214-d / 1467-d', bs3, fontsize=7)
+    box(ax, 1, 2.2, 2, 0.7, 'Feature Extraction\nfeatures.py\n214-d / 389-d (P2)', bs3, fontsize=7)
     box(ax, 3.8, 2.2, 2, 0.7, 'LightGBM Model\nmodel_b.pkl', bs, fontsize=8, color=C_PURPLE)
     box(ax, 6.5, 2.2, 2, 0.7, 'Safety Filters\nfilters.py', bs4, fontsize=7)
     box(ax, 0.3, 0.8, 2, 0.7, 'Biophysical\nAdjustment\nbiophysics.py', bs3, fontsize=7)
@@ -119,7 +119,7 @@ def fig_workflow():
         ('Rank Candidates\nwith Annotations', 2.5),
         ('Modify Selected\nDuplex?', 2.5),
         ('Enumerate Mods\nor Beam Search', 2.5),
-        ('Extract 1467-d\nModified Features', 2.5),
+        ('Extract 389-d\nPhase 2 Features', 2.5),
         ('Score Model B\n+ Adjust Biophysics', 2.5),
         ('JSON/Table\nRanked Output', 2.5),
     ]
@@ -185,7 +185,7 @@ def fig_data_composition():
 
     # Feature dimension bar
     models = ['Naked\n(V4)', 'Modified\n(Model B v4)']
-    dims = [214, 1467]
+    dims = [214, 389]
     bars = ax2.bar(models, dims, color=[C_GREEN, C_PURPLE], width=0.5, edgecolor='black', linewidth=1.2)
     for bar, d in zip(bars, dims):
         ax2.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 30, f'{d}-d',

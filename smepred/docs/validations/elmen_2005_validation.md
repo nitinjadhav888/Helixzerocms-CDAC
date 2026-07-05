@@ -1,5 +1,5 @@
 # Validation: Elmén et al. 2005 (PMC546170)
-*Generated on 2026-07-01 by HelixZero-CMS Validation Suite*
+*Generated on 2026-07-05 by HelixZero-CMS Validation Suite*
 
 ## What This Proves
 This test validates that HelixZero-CMS accurately simulates the stereochemical restrictions of the RNA-Induced Silencing Complex (RISC) when encountering highly rigid Locked Nucleic Acids (LNA).
@@ -15,10 +15,10 @@ We submit identical siRNA sequences to the API, altering ONLY the positions of L
 
 | Design | Modifications | Efficacy Score | RISC Penalty | Detail |
 |--------|---------------|----------------|--------------|--------|
-| **siRNA1** | Unmodified | 37.3 | +11.0 | Baseline model activity |
-| **siLNA5** | LNA at 3' overhangs | 28.5 | +11.0 | RISC penalty is unchanged from baseline, proving the model tolerates 3' LNA as safe. |
-| **siLNA8** | LNA at Antisense 5' | 29.7 | +19.0 | Severe RISC penalty applied (+8.0), proving the model accurately rejects this fatal design flaw. |
-| **siLNA12** | LNA at Catalytic Cleft | 22.7 | +14.0 | Catalytic cleft penalty applied (+3.0), proving the model understands Ago2 structural geometry. |
+| **siRNA1** | Unmodified | 51.3 | +11.0 | Baseline model activity |
+| **siLNA5** | LNA at 3' overhangs | 32.4 | +11.0 | RISC penalty is unchanged from baseline, proving the model tolerates 3' LNA as safe. |
+| **siLNA8** | LNA at Antisense 5' | 41.5 | +19.0 | Severe RISC penalty applied (+8.0), proving the model accurately rejects this fatal design flaw. |
+| **siLNA12** | LNA at Catalytic Cleft | 35.1 | +14.0 | Catalytic cleft penalty applied (+3.0), proving the model understands Ago2 structural geometry. |
 
 ## Conclusion
 ✅ **VALIDATED:** HelixZero-CMS accurately mimics the exact biological outcomes of the Elmén 2005 in vitro experiments.

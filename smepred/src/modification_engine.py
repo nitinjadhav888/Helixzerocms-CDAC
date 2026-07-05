@@ -264,7 +264,7 @@ def multi_mod_scan(
     """
     # Lazy imports required to prevent circular dependency with predictor.py
     from .predictor import predict_modified, _get_model, _normalize_scores
-    from .features import extract_positional_features_batch
+    from .features import extract_phase2
     from .biophysics import calculate_adjusted_efficacy
     from collections import defaultdict
 
@@ -299,7 +299,7 @@ def multi_mod_scan(
             ps_list = [v.parent_sense for v in chunk]
             pa_list = [v.parent_antisense for v in chunk]
 
-            feature_matrix = extract_positional_features_batch(s_list, a_list, ps_list, pa_list)
+            feature_matrix = extract_phase2(s_list, a_list, ps_list, pa_list)
             raw_predictions = model.predict(feature_matrix)
             normalized_scores = _normalize_scores(raw_predictions, mode="rescale")
 

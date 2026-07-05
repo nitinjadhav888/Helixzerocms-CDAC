@@ -1,2 +1,10 @@
 data/*.fasta
+data/raw/
 Outputs/
+papers/
+papers_text.json
+pitch/HelixZero_External_Whitepaper.html
+DEMO_SCRIPT.md
+__pycache__/
+*.pyc
+.DS_Store

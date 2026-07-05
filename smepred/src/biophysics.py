@@ -28,8 +28,8 @@ __all__ = [
     "calculate_serum_penalty",
 ]
 
-# Set of standard 2' ribose modifications
-_MOD_2PRIME: FrozenSet[str] = frozenset("FMLEBD")
+# Set of 2' ribose modifications providing nuclease resistance
+_MOD_2PRIME: FrozenSet[str] = frozenset("FMLEBD89Y")
 
 
 def _has_homopolymer(sequence: str, consecutive_limit: int = 5) -> bool:
@@ -95,6 +95,15 @@ def calculate_nuclease_penalty(
             total_penalty += 1.0
             details["Sense terminal PS missing (pos 0 or 1)"] = 1.0
 
+    # --- Internal PS over-density penalty ---
+    # Dense internal PS (body region) impairs RISC loading and causes
+    # non-specific protein binding (Sakamuri 2020). Termini-only pattern
+    # (Alnylam AT3) puts PS at AS pos 0,1,20,21; internal >3 is excessive.
+    as_body_ps = sum(1 for i in range(2, min(19, len(antisense))) if antisense[i] == "S")
+    if as_body_ps > 3:
+        total_penalty += 2.0
+        details["Internal PS over-density in AS body (>3)"] = 2.0
+
     # --- 2'-mod density ---
     combined_strands = sense + antisense
     mod_count = sum(1 for char in combined_strands if char in _MOD_2PRIME)
@@ -156,7 +165,7 @@ def calculate_immuno_penalty(
     mod_combined = list(sense + antisense)
     covered_mask = [False] * len(mod_combined)
 
-    for motif in ["GUUGU", "GUGU", "UGU"]:
+    for motif in ["GUUGU", "GUGU", "UGU", "GUCCUUCAA"]:
         motif_len = len(motif)
         
         # Build search string masking already-penalized motifs
@@ -178,6 +187,27 @@ def calculate_immuno_penalty(
                 total_penalty += 3.0
                 details[f"Unmasked TLR motif '{motif}'"] = details.get(f"Unmasked TLR motif '{motif}'", 0.0) + 3.0
                 for j in range(idx, idx + motif_len):
+                    covered_mask[j] = True
+            idx += 1
+
+    # AU-rich motifs (TLR8 agonists — Hornung 2005, Forsbach 2008)
+    for motif in ["AUUU", "UAUU", "AAUU"]:
+        motif_len = 4
+        search_str = "".join(
+            base_combined[i] if not covered_mask[i] else "."
+            for i in range(len(base_combined))
+        )
+        idx = 0
+        while True:
+            idx = search_str.find(motif, idx)
+            if idx == -1:
+                break
+            region_mod = mod_combined[idx : idx + 4]
+            region_base = base_combined[idx : idx + 4]
+            if all(m == region_base[j] for j, m in enumerate(region_mod)):
+                total_penalty += 2.0
+                details[f"Unmasked TLR motif '{motif}'"] = details.get(f"Unmasked TLR motif '{motif}'", 0.0) + 2.0
+                for j in range(idx, idx + 4):
                     covered_mask[j] = True
             idx += 1
 
@@ -216,16 +246,28 @@ def calculate_risc_penalty(
         total_penalty += 5.0
         details["Missing 5'-phosphate anchor"] = 5.0
 
-    # PS ("S") at position 1 slightly distorts the binding pocket
-    if antisense[0] == "S":
-        total_penalty += 2.0
-        details["PS at position 1 (distorts pocket)"] = 2.0
-
-    # Bulky modifications in the seed region (2-8) generally impair target recognition,
-    # EXCEPT for UNA ("6") at position 7, which therapeutically disrupts off-targets.
+    # Bulky modifications in the seed region (2-8) impair target recognition.
+    # Only genuinely bulky/modified-backbone sugars are penalized — standard
+    # 2'-F and 2'-OMe (ESC chemistry, all FDA-approved siRNAs) are NOT bulky.
+    # Hoerter & Walter 2007 (RNA 13:1887) confirms 2'-OMe at AS 5'-end is
+    # protective against exonucleolytic degradation, not disruptive to RISC.
+    # UNA ("6") at position 7 is exempt (Bramsen 2010 — therapeutic off-target
+    # disruption). GNA ("8") has its own specific rules below.
+    _BULKY_SEED_MODS: FrozenSet[str] = frozenset(
+        "L"   # LNA — locked ribose, rigid
+        "E"   # MOE — large 2'-O-methoxyethyl side chain
+        "B"   # Benzyl — aromatic ribose substituent
+        "Y"   # ENA — ethylene-bridged, rigid
+        "9"   # TNA — threose backbone, shifted register
+        "D"   # DNA — B-form helix, suboptimal in A-form seed
+    )
+    # GNA ("8") has its own positional rules below (+4 early, -2 late)
+    # and is NOT included here to avoid double-counting.
     seed_mods = sum(
         1 for i in range(1, min(8, len(antisense)))
-        if antisense[i] != base_antisense[i] and not (antisense[i] == "6" and i == 6)
+        if antisense[i] in _BULKY_SEED_MODS
+        and antisense[i] != base_antisense[i]
+        and not (antisense[i] == "6" and i == 6)
     )
     if seed_mods > 0:
         total_penalty += seed_mods * 2.0
@@ -247,11 +289,12 @@ def calculate_risc_penalty(
 
     # ── Elmén 2005 Fig 3: LNA at AS positions 10, 12, 14 disrupts catalytic cleft ──
     # These positions flank the Ago2 cleavage site (between pos 10-11)
-    # Single LNA substitution at each causes clear activity loss across 3 target genes
-    for i in [9, 11, 13]:  # 0-indexed (paper's pos 10, 12, 14)
+    # Position 10 (directly at cleavage) is most damaging; 14 is more variable.
+    _LNA_CLEFT_WEIGHTS = {9: 4.0, 11: 3.0, 13: 2.0}  # 0-indexed → paper's 10,12,14
+    for i, w in _LNA_CLEFT_WEIGHTS.items():
         if i < len(antisense) and antisense[i] == "L":
-            total_penalty += 3.0
-            details[f"LNA at catalytic cleft (AS pos {i+1}, Elmén 2005)"] = 3.0
+            total_penalty += w
+            details[f"LNA at catalytic cleft (AS pos {i+1}, weight={w:.0f}, Elmén 2005)"] = w
 
     # MOE ("E") is bulky and disrupts the central catalytic cleft (positions 3-12)
     # Positions 1-2 and 13+ are clinically validated in Inclisiran (FDA 2021)
@@ -260,15 +303,16 @@ def calculate_risc_penalty(
             total_penalty += 3.0
             details[f"MOE in catalytic cleft (pos {i+1})"] = 3.0
 
-    # GNA ("8") is disruptive in the early seed (2-5), but beneficial in the late seed (6-8)
+    # GNA ("8") is disruptive in the early seed (2-5), but therapeutically
+    # beneficial at exactly position 7 (ESC+ design, Schlegel 2022).
+    # Only position 7 has clinical proof of off-target seed-disruption benefit.
     for i in range(1, min(5, len(antisense))):
         if antisense[i] == "8":
             total_penalty += 4.0
             details[f"GNA in early seed (pos {i+1})"] = 4.0
-    for i in range(5, min(8, len(antisense))):
-        if antisense[i] == "8":
-            total_penalty -= 2.0
-            details[f"GNA in late seed (therap. bonus) (pos {i+1})"] = -2.0  # Therapeutic bonus
+    if len(antisense) > 6 and antisense[6] == "8":
+        total_penalty -= 2.0
+        details["GNA at pos 7 (therap. bonus, off-target disruption)"] = -2.0
 
     # ENA ("Y") causes severe steric clash in the seed, and over-stabilization in the body
     for i in range(1, min(8, len(antisense))):
@@ -290,20 +334,24 @@ def calculate_risc_penalty(
             total_penalty += 1.0
             details[f"TNA in body (pos {i+1})"] = 1.0
 
-    # 2'-F is optimal for pyrimidines to maintain A-form helix geometry
-    f_on_pyrimidines = sum(
-        1 for i in range(len(antisense))
-        if antisense[i] == "F" and base_antisense[i] in "UC"
-    )
-    total_pyrimidines = sum(1 for b in base_antisense if b in "UC")
+    # 2'-F on pyrimidines maintains A-form helix geometry across the siRNA duplex.
+    # ESC chemistry places 2'-F on both strands; checking only antisense would
+    # miss sense-strand 2'-F coverage which contributes to duplex stability.
+    def _f_on_pyrimidines(strand, base_strand):
+        return sum(1 for i in range(len(strand)) if strand[i] == "F" and base_strand[i] in "UC")
+    def _total_pyrimidines(base_strand):
+        return sum(1 for b in base_strand if b in "UC")
     
-    if total_pyrimidines > 0:
-        if (f_on_pyrimidines / total_pyrimidines) < 0.2:
+    combined_f = _f_on_pyrimidines(sense, base_sense) + _f_on_pyrimidines(antisense, base_antisense)
+    combined_py = _total_pyrimidines(base_sense) + _total_pyrimidines(base_antisense)
+    
+    if combined_py > 0:
+        if (combined_f / combined_py) < 0.2:
             total_penalty += 6.0
-            details["Low 2'-F pyrimidine coverage (<20%)"] = 6.0
-        elif (f_on_pyrimidines / total_pyrimidines) < 0.4:
+            details["Low 2'-F pyrimidine coverage across duplex (<20%)"] = 6.0
+        elif (combined_f / combined_py) < 0.4:
             total_penalty += 3.0
-            details["Suboptimal 2'-F pyrimidine coverage (<40%)"] = 3.0
+            details["Suboptimal 2'-F pyrimidine coverage across duplex (<40%)"] = 3.0
 
     # Exotic modification micro-penalties to break ties and reflect biological uncertainty
     exotic_mods = frozenset("BJVINOPRHKZQWX7")
@@ -337,10 +385,13 @@ def calculate_thermo_penalty(
     base_seq = base_sense.upper()
 
     gc_content = calculate_gc_percentage(base_seq)
-    if gc_content < 30.0 or gc_content > 65.0:
-        total_penalty += 8.0
-        details[f"Extreme GC Content ({gc_content:.1f}%)"] = 8.0
-    elif gc_content < 35.0 or gc_content > 55.0:
+    # Heavily modified siRNAs (PS + 2'-F/OMe) tolerate wider GC ranges
+    # than unmodified RNA. Penalties reduced and ranges widened per
+    # modern clinical evidence (patisiran GC=33%, inclisiran GC=42%).
+    if gc_content < 25.0 or gc_content > 72.0:
+        total_penalty += 6.0
+        details[f"Extreme GC Content ({gc_content:.1f}%)"] = 6.0
+    elif gc_content < 32.0 or gc_content > 62.0:
         total_penalty += 3.0
         details[f"Suboptimal GC Content ({gc_content:.1f}%)"] = 3.0
 
@@ -352,13 +403,14 @@ def calculate_thermo_penalty(
         total_penalty += 5.0
         details["Homopolymer run detected"] = 5.0
 
-    # Schwarz/Khvorova 2003: Positional nucleotide preferences for RISC strand loading
-    if base_antisense[0].upper() not in ('A', 'U'):
-        total_penalty += 4.0
-        details["Guide 5' not A/U (poor Ago2 loading)"] = 4.0  # Guide 5' end should be A/U for optimal Ago2 loading
-    if len(base_sense) >= 19 and base_sense[18].upper() not in ('G', 'C'):
+    # Schwarz/Khvorova 2003: Thermodynamic asymmetry for RISC strand loading.
+    # RISC loads the strand with the weaker (more AU-rich) 5' end.
+    # Checking a 4-base window at each 5' end is more accurate than single-nucleotide.
+    sense_5p_gc = sum(1 for i in range(min(4, len(base_sense))) if base_sense[i].upper() in "GC")
+    guide_5p_gc = sum(1 for i in range(min(4, len(base_antisense))) if base_antisense[i].upper() in "GC")
+    if sense_5p_gc <= guide_5p_gc:
         total_penalty += 3.0
-        details["Sense 3' pos 19 not G/C (asymmetry flaw)"] = 3.0  # Sense 3' position 19 should be G/C for thermodynamic asymmetry
+        details[f"Thermodynamic asymmetry: sense 5' GC ({sense_5p_gc}/4) not > guide 5' GC ({guide_5p_gc}/4)"] = 3.0
 
     if re.search(r"[GC]{6}", base_seq):
         total_penalty += 3.0
@@ -393,8 +445,10 @@ def calculate_serum_penalty(
         details["FATAL: GalNAc at AS 5' end abolishes activity (Weingärtner 2020)"] = 40.0
 
     # --- Unprotected antisense termini ---
-    if antisense[0] not in ("S", "1", "4") and antisense[0] not in "AUCG":
-        pass  # Has some other modification — not penalized here
+    # Only conjugates ("4") and cap analogs block exonucleases at the 5' terminus.
+    # 2'-sugar mods (F, M, L, E, etc.) do NOT protect against 5'→3' exonucleases.
+    if antisense[0] in ("4",):
+        pass  # Conjugate protecting 5' terminus
     elif antisense[0] not in ("S", "1"):
         total_penalty += 4.0
         details["Unprotected AS 5' terminus"] = 4.0

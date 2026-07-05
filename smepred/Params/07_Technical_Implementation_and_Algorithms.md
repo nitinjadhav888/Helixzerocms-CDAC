@@ -10,27 +10,32 @@ When designing the core Efficacy Predictor (the AI that predicts the exact % gen
 
 Here is our engineering logic:
 
-1. **Tabular Data Supremacy:** We do not feed raw RNA sequences (like `AUCG`) into the model. We engineer the sequences into a **152-dimensional tabular feature vector** containing explicit chemical knowledge (e.g., fractional composition of 2'-OMe vs 2'-F). For structured tabular data, Gradient Boosted Trees consistently outperform Deep Learning.
+1. **Tabular Data Supremacy:** We do not feed raw RNA sequences (like `AUCG`) into the model. For the modified model, we engineer sequences into a **389-dimensional tabular feature vector** containing explicit chemical knowledge (294 positional category flags + 80 aggregate stats + 1 concentration + 14 engineered features). For the naked baseline, we use a 214-d vector. For structured tabular data, Gradient Boosted Trees consistently outperform Deep Learning.
 2. **Interpretability & Feature Importance:** Unlike a neural network "black box," LightGBM allows us to exactly trace which chemical features the model relied on to make its prediction. 
 3. **Robustness to Noisy Biology Data:** Biological assay data is inherently noisy. Decision trees are highly resistant to outliers and do not require massive data scaling or normalization.
 4. **CPU Inference Speed:** Our server architecture requires us to run Beam Search over thousands of variants in milliseconds. LightGBM allows blazing-fast inference on standard CPUs, entirely eliminating the need for expensive GPU clusters.
 
 ### The Model Specification
-- **Training Data:** 25,765 chemically modified siRNAs mapped to physical laboratory efficacy results.
-- **Algorithm:** LightGBM Regressor (799 trees).
+- **Training Data:** 53,570 chemically modified siRNAs (23,187 hetero-patent + 25,765 HelixZero catalog + 4,618 CMsiRNAdb) mapped to physical laboratory efficacy results.
+- **Algorithm:** LightGBM Regressor (1,361 trees).
 - **Calibrator:** Isotonic Regression (to perfectly map the raw tree outputs to a strict 0-100% biological bounds).
 
 ---
 
 ## 2. Feature Extraction (How the AI "Sees" Biology)
 
-The AI cannot read a sequence string like `MSMMFFFSS`. Instead, the `features.py` engine translates the sequence into **152 mathematical dimensions**. 
+The AI cannot read a sequence string like `MSMMFFFSS`. Instead, the `features.py` engine translates the sequence into **389 mathematical dimensions** (Phase 2 modified model) or **214 dimensions** (V4 naked model). 
 
-### The 152-D Vector:
-- **70 Dimensions:** Mononucleotide Composition (MNC) of the *unmodified* sequence.
-- **70 Dimensions:** Mononucleotide Composition of the *chemically modified* sequence.
-- **8 Dimensions:** Modification Density (How heavily armored the sequence is at the tips vs the seed).
-- **4 Dimensions:** GC Content and Assay Conditions.
+### The 389-D Vector (Phase 2, Modified Model):
+- **294 Dimensions:** Positional chemical-category flags — 7 chemical categories (2'-OMe, 2'-F, LNA, MOE, PS, base mod, other) × 21 positions × 2 strands. This replaces old one-hot encoding with chemistry-aware grouping for better generalization.
+- **80 Dimensions:** Aggregate strand statistics — per-strand counts of each chemical category + modification density metrics + GC content + terminal PS flags.
+- **1 Dimension:** log₁₀(concentration) — assay condition.
+- **14 Dimensions:** Engineered biological features — duplex stability asymmetry, modification-position interactions, ΔTm estimates.
+
+### The 214-D Vector (V4, Naked/Rank Model):
+- **84 Dimensions:** Positional one-hot encoding (4 bases × 21 positions).
+- **128 Dimensions:** Trinucleotide composition — 64-bin frequency vector for each strand.
+- **2 Dimensions:** GC content of sense and antisense strands.
 
 ### Code Snippet: Feature Translation
 Here is a simplified look at how the code converts chemistry into math. It counts how many times each specific chemical symbol appears and divides by the length of the drug.

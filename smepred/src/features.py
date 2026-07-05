@@ -6,19 +6,26 @@ chemical modifications) into structured, fixed-dimensional numeric tensors for
 ingestion by the LightGBM models.
 
 Pipelines:
-1. Model B v4 (HelixZero Unified Model):
+1. Model B (Phase 2 — HelixZero Unified Model):
    - Extracts 1,467-dimensional positional binary features.
    - Captures exact modification types (30 unique symbols) per position.
    - Extracts aggregate structural statistics (GC%, cleavage site LNA count, etc.).
 
-2. Naked V4 Model (Baseline Unmodified Model):
+2. Model B Phase 2 (Redesigned Feature Space):
+   - Replaces 31-way one-hot positional encoding with 7 chemical-category flags
+   - Reduces positional dimensions from 1,302 -> 294 with minimal signal loss
+   - Adds engineered biological features (wing asymmetry, pattern periodicity, etc.)
+   - Total: ~395 dimensions
+
+3. Naked V4 Model (Baseline Unmodified Model):
    - Extracts 214-dimensional sequence-composition features.
    - Includes positional one-hot encoding for A/U/G/C.
    - Computes Tri-Nucleotide Composition (TNC) frequencies.
 """
 
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Tuple
 import numpy as np
+from collections import Counter
 
 
 # ─── Model B (Modified) Feature Extractor ─────────────────────────────────────
@@ -46,6 +53,29 @@ _MOD_CATEGORIES: List[str] = sorted(
 )
 _POSITION_RANGE = range(1, 22)
 
+# ─── Phase 2: Chemical-category encoding ──────────────────────────────────────
+# Instead of 31-way one-hot per position, group by chemical function.
+# This preserves WHERE a modification occurs while reducing dimensions 4.4x.
+
+_CHEM_CATEGORIES: Dict[str, List[str]] = {
+    'is_2F':            ['F'],
+    'is_2OMe':          ['M'],
+    'is_other_ribose':  ['L', 'E', 'I', 'Y', 'Z', 'N', '6', '7', '8', '9'],
+    'is_backbone_mod':  ['S', 'P', 'R', 'H', '1', '2', '3', '5'],
+    'is_base_mod':      ['V', 'W', 'J', 'K', 'O'],
+    'is_other':         ['B', '4', 'Q', 'U', 'X'],
+}
+
+# Build reverse map: mod_char -> category name
+_CHEM_CHAR_TO_CAT: Dict[str, str] = {}
+for cat_name, chars in _CHEM_CATEGORIES.items():
+    for ch in chars:
+        _CHEM_CHAR_TO_CAT[ch] = cat_name
+
+_CHEM_CATEGORY_NAMES: List[str] = sorted(_CHEM_CATEGORIES.keys())
+_N_CHEM_CATS = len(_CHEM_CATEGORY_NAMES)  # 6
+_N_POSITIONAL_FLAGS_P2 = _N_CHEM_CATS + 1  # 6 categories + is_modified = 7
+
 
 def extract_positional_features_batch(
     sense_list: List[str],
@@ -56,6 +86,7 @@ def extract_positional_features_batch(
 ) -> np.ndarray:
     """
     Batch extraction of 1,467-dimensional positional features for chemically modified siRNAs.
+    Note: includes is_canonical flag (33 flags per position) for backward compatibility.
     """
     num_samples = len(sense_list)
     
@@ -172,12 +203,226 @@ def _extract_single_modified_features(
     if conc_nM is not None and conc_nM > 0:
         log_concentration = float(np.log1p(conc_nM))
     else:
-        # Default proxy for standard 10nM transfection experiments
         log_concentration = float(np.log1p(10.0))
         
     features.append(log_concentration)
 
     return features
+
+
+# ─── Phase 2 Feature Extractor (Chemical category encoding) ────────────────────
+
+def _get_chem_category(mod_char: str) -> str:
+    """Map a modification character to its chemical category."""
+    return _CHEM_CHAR_TO_CAT.get(mod_char, 'is_other')
+
+
+def _make_nucleotide_array(seq: str, base_seq: str, length: int = 21) -> np.ndarray:
+    """
+    Build a (length, n_cats+1) array: for each position, a one-hot over
+    chemical categories + is_modified flag.
+    Returns shape (length, n_flags).
+    """
+    n_flags = _N_POSITIONAL_FLAGS_P2  # 6 cats + 1 is_modified = 7
+    arr = np.zeros((length, n_flags), dtype=np.float32)
+    for pos in range(min(len(seq), length)):
+        nuc = seq[pos]
+        base_nuc = base_seq[pos] if pos < len(base_seq) else ''
+        if nuc != base_nuc:
+            cat = _get_chem_category(nuc)
+            if cat in _CHEM_CATEGORY_NAMES:
+                arr[pos, _CHEM_CATEGORY_NAMES.index(cat)] = 1.0
+            arr[pos, n_flags - 1] = 1.0  # is_modified
+    return arr
+
+
+def _new_engineered_features(sense: str, antisense: str,
+                              base_sense: str, base_antisense: str) -> List[float]:
+    """Engineered biological features added in Phase 2."""
+    eng: List[float] = []
+
+    def gc_content(seq: str) -> float:
+        if not seq:
+            return 0.5
+        return sum(1 for c in seq[:21].upper() if c in 'GC') / min(len(seq), 21)
+
+    def count_mods(seq: str, base_seq: str, chars: str) -> int:
+        return sum(1 for i in range(min(len(seq), 21))
+                   if i < len(base_seq) and seq[i] != base_seq[i] and seq[i] in chars)
+
+    sense_gc = gc_content(base_sense)
+    anti_gc = gc_content(base_antisense)
+    
+    # 1. Wing GC asymmetry (absolute difference)
+    eng.append(abs(sense_gc - anti_gc))
+    
+    # 2. Seed region (pos 2-8) modification density (antisense)
+    seed_mods = sum(1 for i in range(1, min(8, len(antisense)))
+                    if i < len(base_antisense) and antisense[i] != base_antisense[i])
+    eng.append(seed_mods / 7.0)
+    
+    # 3. Seed 2F/2OMe alternation score (antisense pos 2-8)
+    seed_alt = 0
+    for i in range(1, min(7, len(antisense))):
+        c1 = antisense[i] if i < len(antisense) and antisense[i] != (base_antisense[i] if i < len(base_antisense) else '') else ''
+        c2 = antisense[i+1] if i+1 < len(antisense) and antisense[i+1] != (base_antisense[i+1] if i+1 < len(base_antisense) else '') else ''
+        if c1 in ('F', 'M') and c2 in ('F', 'M') and c1 != c2:
+            seed_alt += 1
+    eng.append(seed_alt / 6.0 if min(7, len(antisense)) > 1 else 0.0)
+    
+    # 4. Cleavage zone (pos 9-11) total modification burden
+    cleave_mods = sum(1 for i in range(8, min(11, len(antisense)))
+                      if i < len(base_antisense) and antisense[i] != base_antisense[i])
+    eng.append(cleave_mods / 3.0)
+    
+    # 5. 5' PS protection density (first 3 positions, sense + antisense)
+    for strand_key, seq, base_seq in [
+        ("ss", sense, base_sense), ("as", antisense, base_antisense)
+    ]:
+        ps_5 = sum(1 for i in range(min(3, len(seq))) if seq[i] == 'S')
+        eng.append(ps_5 / 3.0)
+    
+    # 6. 3' PS protection density (last 3 positions, sense + antisense)
+    for strand_key, seq, base_seq in [
+        ("ss", sense, base_sense), ("as", antisense, base_antisense)
+    ]:
+        ps_3 = sum(1 for i in range(max(0, len(seq)-3), len(seq)) if i < len(seq) and seq[i] == 'S')
+        eng.append(ps_3 / 3.0)
+    
+    # 7. Modification Shannon entropy per strand
+    for strand_key, seq, base_seq in [
+        ("ss", sense, base_sense), ("as", antisense, base_antisense)
+    ]:
+        counts: Dict[str, int] = {}
+        total = 0
+        for i in range(min(len(seq), 21)):
+            if i < len(base_seq) and seq[i] != base_seq[i]:
+                ch = seq[i]
+                counts[ch] = counts.get(ch, 0) + 1
+                total += 1
+        entropy = 0.0
+        if total > 0:
+            for c in counts.values():
+                p = c / total
+                entropy -= p * np.log2(p) if p > 0 else 0
+        eng.append(entropy / np.log2(7) if total > 1 else 0.0)  # normalize to [0,1]
+    
+    # 8. Terminal GC clamp (last 2 bases, sense + antisense)
+    for strand_key, seq in [("ss", base_sense), ("as", base_antisense)]:
+        tail = seq[-2:] if len(seq) >= 2 else seq
+        gc_tail = sum(1 for c in tail.upper() if c in 'GC')
+        eng.append(gc_tail / len(tail) if tail else 0.5)
+    
+    # 9. 5' sense base identity (A/U vs G/C — affects RISC loading)
+    for strand_key, seq in [("ss", base_sense), ("as", base_antisense)]:
+        first = seq[0].upper() if seq else 'A'
+        eng.append(float(first in 'GC'))
+    
+    return eng
+
+
+def extract_phase2(
+    sense_list: List[str],
+    antisense_list: List[str],
+    base_sense_list: Optional[List[str]] = None,
+    base_antisense_list: Optional[List[str]] = None,
+    conc_list: Optional[List[float]] = None,
+) -> np.ndarray:
+    """
+    Phase 2 feature extraction (~395 dimensions).
+    
+    Replaces 31-way one-hot positional encoding with 7 chemical-category flags,
+    keeps all proven aggregate features, and adds engineered biological features.
+    """
+    num_samples = len(sense_list)
+    base_senses = base_sense_list if base_sense_list is not None else [None] * num_samples
+    base_antisenses = base_antisense_list if base_antisense_list is not None else [None] * num_samples
+    concentrations = conc_list if conc_list is not None else [None] * num_samples
+    
+    # Pre-compute dimension sizes
+    n_pos_flags = _N_POSITIONAL_FLAGS_P2  # 7
+    n_pos_total = n_pos_flags * 21 * 2  # 294
+    n_counts = len(_MOD_CATEGORIES)  # 31
+    n_strand_agg = n_counts + 9  # 31 + fraction_modified, seed_2f, seed_2ome, cleave_2f, cleave_2ome, cleave_lna, gc_content, term_5_ps, term_3_ps = 40
+    n_agg_total = n_strand_agg * 2  # 80
+    n_exp = 1  # log_concentration
+    n_eng = 14  # engineered features
+    
+    n_total = n_pos_total + n_agg_total + n_exp + n_eng
+    
+    feature_matrix = np.zeros((num_samples, n_total), dtype=np.float32)
+    
+    for row_idx in range(num_samples):
+        sense = sense_list[row_idx]
+        anti = antisense_list[row_idx]
+        bs = base_senses[row_idx] if base_senses[row_idx] is not None else sense
+        ba = base_antisenses[row_idx] if base_antisenses[row_idx] is not None else anti
+        conc = concentrations[row_idx]
+        
+        row_features = []
+        
+        # ── A. Positional chemical-category encoding ──
+        for seq, base_seq in [(sense, bs), (anti, ba)]:
+            arr = _make_nucleotide_array(seq, base_seq, 21)
+            row_features.extend(arr.flatten().tolist())
+        
+        # ── B. Aggregate chemistry (mod counts) ──
+        for seq, base_seq in [(sense, bs), (anti, ba)]:
+            seq_len = min(len(seq), 21)
+            mod_counts = Counter()
+            total_mods = 0
+            for i in range(seq_len):
+                nuc = seq[i]
+                base_nuc = base_seq[i] if i < len(base_seq) else ''
+                if nuc != base_nuc:
+                    total_mods += 1
+                    type_name = _MODIFICATION_MAP.get(nuc, '').replace('is_', '')
+                    if type_name:
+                        mod_counts[type_name] += 1
+            
+            for mod_type in _MOD_CATEGORIES:
+                row_features.append(float(mod_counts[mod_type]))
+            
+            fraction_modified = total_mods / 21.0
+            
+            # Sub-region: Seed (2-8) and Cleavage (9-11)
+            seed_2f = sum(1 for p in range(1, 8) if p < seq_len and seq[p] == 'F')
+            seed_2ome = sum(1 for p in range(1, 8) if p < seq_len and seq[p] == 'M')
+            cleave_2f = sum(1 for p in range(8, 11) if p < seq_len and seq[p] == 'F')
+            cleave_2ome = sum(1 for p in range(8, 11) if p < seq_len and seq[p] == 'M')
+            cleave_lna = sum(1 for p in range(8, 11) if p < seq_len and seq[p] == 'L')
+            
+            gc_count = sum(1 for char in base_seq[:21].upper() if char in ('G', 'C'))
+            gc_content_val = gc_count / min(len(base_seq), 21) if base_seq else 0.5
+            
+            term_5_ps = 1.0 if (len(seq) > 0 and seq[0] == 'S') else 0.0
+            term_3_ps = 1.0 if (len(seq) > 20 and seq[20] == 'S') else 0.0
+            
+            row_features.extend([
+                fraction_modified,
+                seed_2f / 7.0,
+                seed_2ome / 7.0,
+                float(cleave_2f),
+                float(cleave_2ome),
+                float(cleave_lna),
+                gc_content_val,
+                term_5_ps,
+                term_3_ps,
+            ])
+        
+        # ── C. Experimental parameters ──
+        if conc is not None and conc > 0:
+            log_conc = float(np.log1p(conc))
+        else:
+            log_conc = float(np.log1p(10.0))
+        row_features.append(log_conc)
+        
+        # ── D. New engineered features ──
+        row_features.extend(_new_engineered_features(sense, anti, bs, ba))
+        
+        feature_matrix[row_idx] = row_features
+    
+    return feature_matrix
 
 
 # ─── Naked V4 (Unmodified) Feature Extractor ──────────────────────────────────

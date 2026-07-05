@@ -15,7 +15,7 @@ Key checks:
 import sys
 import warnings; warnings.filterwarnings('ignore')
 from src.biophysics import calculate_adjusted_efficacy
-from src.features import extract_positional_features_batch
+from src.features import extract_phase2
 from src.predictor import _get_model, _get_efficacy_label
 
 
@@ -83,28 +83,39 @@ for name, sense, antisense in SEQUENCES:
 
     # Score via pipeline
     model = _get_model("B")
-    X = extract_positional_features_batch([esc_s], [esc_a], [sense], [antisense])
+    X = extract_phase2([esc_s], [esc_a], [sense], [antisense])
     raw_esc = float(model.predict(X)[0])
     adj_esc, pen_esc, total_esc = calculate_adjusted_efficacy(raw_esc, esc_s, esc_a, sense, antisense)
     esc_adj = round(adj_esc, 2)
     esc_label = _get_efficacy_label(esc_adj)
 
-    X2 = extract_positional_features_batch([escp_s], [escp_a], [sense], [antisense])
+    X2 = extract_phase2([escp_s], [escp_a], [sense], [antisense])
     raw_escp = float(model.predict(X2)[0])
     adj_escp, pen_escp, total_escp = calculate_adjusted_efficacy(raw_escp, escp_s, escp_a, sense, antisense)
     escp_adj = round(adj_escp, 2)
     escp_label = _get_efficacy_label(escp_adj)
 
+    risc_esc = pen_esc['risc']['total'] if isinstance(pen_esc['risc'], dict) else pen_esc['risc']
+    risc_escp = pen_escp['risc']['total'] if isinstance(pen_escp['risc'], dict) else pen_escp['risc']
+    nuc_esc = pen_esc['nuclease']['total'] if isinstance(pen_esc['nuclease'], dict) else pen_esc['nuclease']
+    immu_esc = pen_esc['immuno']['total'] if isinstance(pen_esc['immuno'], dict) else pen_esc['immuno']
+    thermo_esc = pen_esc['thermo']['total'] if isinstance(pen_esc['thermo'], dict) else pen_esc['thermo']
+    serum_esc = pen_esc['serum']['total'] if isinstance(pen_esc['serum'], dict) else pen_esc['serum']
+    nuc_escp = pen_escp['nuclease']['total'] if isinstance(pen_escp['nuclease'], dict) else pen_escp['nuclease']
+    immu_escp = pen_escp['immuno']['total'] if isinstance(pen_escp['immuno'], dict) else pen_escp['immuno']
+    thermo_escp = pen_escp['thermo']['total'] if isinstance(pen_escp['thermo'], dict) else pen_escp['thermo']
+    serum_escp = pen_escp['serum']['total'] if isinstance(pen_escp['serum'], dict) else pen_escp['serum']
+
     # Risk assessment
-    nuc_ok = pen_esc['nuclease'] <= 5
-    imm_ok = pen_esc['immuno'] <= 6
-    risc_ok = pen_esc['risc'] <= 20
-    thermo_ok = pen_esc['thermo'] <= 8
-    serum_ok = pen_esc['serum'] <= 4
+    nuc_ok = nuc_esc <= 5
+    imm_ok = immu_esc <= 6
+    risc_ok = risc_esc <= 20
+    thermo_ok = thermo_esc <= 8
+    serum_ok = serum_esc <= 4
 
     esc_pass = esc_adj >= 50
     escp_pass = escp_adj >= 50
-    gna_bonus = pen_escp['risc'] - pen_esc['risc']  # should be -2
+    gna_bonus = risc_escp - risc_esc  # should be -2
 
     seq_pass = esc_pass and escp_pass and gna_bonus == -2
     if not seq_pass:
@@ -114,9 +125,9 @@ for name, sense, antisense in SEQUENCES:
     print(f"  Sense:     {esc_s}")
     print(f"  Antisense: {esc_a}")
     print(f"  Raw={raw_esc:.1f}  Adj={esc_adj:.1f}  Label={esc_label}")
-    print(f"  Nuc={pen_esc['nuclease']:.0f}  Immu={pen_esc['immuno']:.0f}  "
-          f"RISC={pen_esc['risc']:.0f}  Thermo={pen_esc['thermo']:.0f}  "
-          f"Serum={pen_esc['serum']:.0f}  Total={total_esc:.0f}")
+    print(f"  Nuc={nuc_esc:.0f}  Immu={immu_esc:.0f}  "
+          f"RISC={risc_esc:.0f}  Thermo={thermo_esc:.0f}  "
+          f"Serum={serum_esc:.0f}  Total={total_esc:.0f}")
     print(f"  PK check: Nuc≤5? {nuc_ok}  Immu≤6? {imm_ok}  "
           f"RISC≤20? {risc_ok}  Thermo≤8? {thermo_ok}  Serum≤4? {serum_ok}")
     print(f"  {'✅ PASS (>=50)' if esc_pass else '❌ FAIL (<50)'}")
@@ -124,9 +135,9 @@ for name, sense, antisense in SEQUENCES:
     print(f"  ── ESC+ (GNA@7) ──")
     print(f"  Antisense: {escp_a}")
     print(f"  Raw={raw_escp:.1f}  Adj={escp_adj:.1f}  Label={escp_label}")
-    print(f"  Nuc={pen_escp['nuclease']:.0f}  Immu={pen_escp['immuno']:.0f}  "
-          f"RISC={pen_escp['risc']:.0f}  Thermo={pen_escp['thermo']:.0f}  "
-          f"Serum={pen_escp['serum']:.0f}  Total={total_escp:.0f}")
+    print(f"  Nuc={nuc_escp:.0f}  Immu={immu_escp:.0f}  "
+          f"RISC={risc_escp:.0f}  Thermo={thermo_escp:.0f}  "
+          f"Serum={serum_escp:.0f}  Total={total_escp:.0f}")
     print(f"  RISC delta ESC+ − ESC = {gna_bonus:.0f} ({'GNA@7 bonus applied ✓' if gna_bonus == -2 else 'UNEXPECTED'})")
     print(f"  {'✅ PASS (>=50)' if escp_pass else '❌ FAIL (<50)'}")
 
