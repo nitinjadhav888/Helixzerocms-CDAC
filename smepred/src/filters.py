@@ -96,28 +96,47 @@ _SEED_RESCUING_MODS = frozenset({"M", "F", "L", "E"})
 _MOD_NOMENCLATURE = {"M": "2'-OMe", "F": "2'-Fluoro", "L": "LNA", "E": "2'-MOE"}
 
 
-def check_seed_rescue(modified_antisense: str) -> Tuple[List[Tuple[int, str]], str]:
+# Position-specific weights for seed rescue modifications
+# Position 2 is the most critical for seed nucleation (strongest miRNA-like pairing anchor)
+# Positions 3-5 are moderate contributors to seed hybridization
+# Positions 6-7 are minor contributors (distal seed)
+# Jackson et al. 2006, RNA; Bramsen & Kjems 2010, Front Genet
+_SEED_RESCUE_WEIGHTS = {2: 1.0, 3: 0.7, 4: 0.7, 5: 0.7, 6: 0.5, 7: 0.5}
+
+
+def check_seed_rescue(modified_antisense: str) -> Tuple[List[Tuple[int, str]], str, float]:
     """
     Detects if seed-rescuing chemical modifications are present in the critical region.
     
     Why: A biologically toxic sequence can be "rescued" (rendered safe) if specific 
     steric modifications are placed in the seed region (positions 2-7), which disrupts 
     off-target miRNA-like binding (Jackson et al., RNA 2006).
+    
+    Returns:
+        Tuple of (list of (position, symbol) pairs, human-readable note, rescue strength).
+        Rescue strength is a 0.0-1.0 score where 0 = no rescue, 1.0 = optimal rescue.
     """
     upper_mod_strand = modified_antisense.upper()
     rescue_modifications = []
+    rescue_strength = 0.0
     
-    # Scan positions 2 through 7 (indices 1 through 6)
+    # Scan positions 2 through 7 (indices 1 through 6) with position-dependent weights
     for i in range(1, min(7, len(upper_mod_strand))):
         if upper_mod_strand[i] in _SEED_RESCUING_MODS:
-            rescue_modifications.append((i + 1, upper_mod_strand[i]))
+            pos = i + 1
+            weight = _SEED_RESCUE_WEIGHTS.get(pos, 0.5)
+            rescue_modifications.append((pos, upper_mod_strand[i]))
+            rescue_strength += weight
+            
+    # Normalize: max possible strength = sum of all weights = 4.1
+    rescue_strength = min(rescue_strength / 4.1, 1.0)
             
     if not rescue_modifications:
-        return [], ""
+        return [], "", 0.0
         
     mitigation_notes = [f"{_MOD_NOMENCLATURE[symbol]} @ pos {pos}" for pos, symbol in rescue_modifications]
-    tooltip_note = "Seed off-target rescue: " + ", ".join(mitigation_notes)
-    return rescue_modifications, tooltip_note
+    tooltip_note = f"Seed off-target rescue ({rescue_strength:.0%}): " + ", ".join(mitigation_notes)
+    return rescue_modifications, tooltip_note, rescue_strength
 
 
 def toxicity_for_modified(
@@ -136,7 +155,7 @@ def toxicity_for_modified(
     baseline_viability = get_toxicity_score(base_antisense)
     baseline_label = get_toxicity_label(baseline_viability)
     
-    rescue_mods, mitigation_note = check_seed_rescue(modified_antisense)
+    rescue_mods, mitigation_note, rescue_strength = check_seed_rescue(modified_antisense)
     
     if rescue_mods:
         if baseline_label in {"Toxic", "Caution"}:

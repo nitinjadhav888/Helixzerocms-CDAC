@@ -293,34 +293,12 @@ def rank_by_naked_score(
 
 # ─── Workflow 2: Modified siRNA Prediction ────────────────────────────────────
 
-def _perform_mini_scan(
-    sense: str, antisense: str
-) -> Tuple[List[str], List[str], List[str], List[str]]:
-    """
-    Generates a rapid, low-compute 40-variant scan using the 4 most 
-    effective modifications (E, D, Q, L) on antisense positions 1-10.
-    """
-    sense_variants, antisense_variants = [], []
-    parent_sense, parent_antisense = [], []
-    
-    for symbol in ('E', 'D', 'Q', 'L'):
-        for position in range(1, 11):
-            modified_antisense = _apply_mod(antisense, position, symbol)
-            
-            sense_variants.append(sense)
-            antisense_variants.append(modified_antisense)
-            parent_sense.append(sense)
-            parent_antisense.append(antisense)
-            
-    return sense_variants, antisense_variants, parent_sense, parent_antisense
-
-
 def predict_modified(
     sense: str,
     antisense: str,
     mode: str = "scan",
     model_key: str = "B",
-    full_scan: bool = False,
+    full_scan: bool = True,
     sense_mods: str = "",
     sense_positions: str = "",
     antisense_mods: str = "",
@@ -342,21 +320,7 @@ def predict_modified(
 
     # 2. Generate variants
     if mode == "scan":
-        if full_scan:
-            variants = single_mod_scan(sense, antisense)
-        else:
-            s_vars, a_vars, ps_vars, pa_vars = _perform_mini_scan(sense, antisense)
-            variants = []
-            for i in range(len(s_vars)):
-                variants.append(CmSiRNA(
-                    sense=s_vars[i], 
-                    antisense=a_vars[i],
-                    mod_symbol='E' if i < 10 else 'D' if i < 20 else 'Q' if i < 30 else 'L',
-                    mod_position=(i % 10) + 1,
-                    mod_strand='antisense',
-                    parent_sense=ps_vars[i], 
-                    parent_antisense=pa_vars[i],
-                ))
+        variants = single_mod_scan(sense, antisense)
     elif mode == "multimod":
         variants = [multimod_gen(
             sense, antisense,

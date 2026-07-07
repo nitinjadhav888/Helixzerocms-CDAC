@@ -73,30 +73,34 @@ class OffTargetEngine:
 
     def _calculate_asymmetry(self, sense: str, antisense: str) -> float:
         """
-        Calculates the thermodynamic asymmetry between the 5' ends of the siRNA.
+        Calculates the thermodynamic asymmetry between the 5' ends of the siRNA
+        using RNA nearest-neighbor ΔG (Gibbs free energy) at 37°C.
         
         Why: Ago2 protein preferentially loads the strand with the less thermodynamically 
-        stable 5' terminus. If the Sense strand is weaker, it will be loaded into RISC, 
-        causing widespread Sense-Strand-mediated off-target gene silencing.
+        stable 5' terminus. ΔG is the correct thermodynamic metric (free energy at 
+        37°C determines spontaneous duplex stability), replacing the earlier ΔH-only 
+        approach which ignored the entropy contribution.
         
         Args:
             sense (str): The sense strand sequence.
             antisense (str): The antisense strand sequence.
             
         Returns:
-            float: Free Energy difference. Negative values mean Antisense is weaker (optimal).
+            float: ΔG difference (Sense ΔG - Antisense ΔG). Negative values mean 
+                   Antisense terminus is less stable (optimal for RISC loading).
         """
-        # RNA Nearest-Neighbor ΔH values, kcal/mol (SantaLucia & Hicks 2004, Table 2)
-        rna_nn_dh = {
-            'AA': -6.82, 'AU': -9.38, 'AC': -10.44, 'AG': -7.69,
-            'UA': -9.38, 'UU': -6.82, 'UC': -8.33,  'UG': -13.39,
-            'CA': -9.38, 'CU': -10.44,'CC': -12.11, 'CG': -10.64,
-            'GA': -7.69, 'GU': -13.39,'GC': -8.26,  'GG': -12.11,
+        # RNA Nearest-Neighbor ΔG (kcal/mol) at 37°C — Xia et al. 1998, Turner 2004
+        # These are the standard Turner rules for RNA folding free energy
+        rna_nn_dg = {
+            'AA': -0.93, 'AU': -1.10, 'AC': -2.24, 'AG': -2.08,
+            'UA': -1.33, 'UU': -0.93, 'UC': -1.43, 'UG': -2.70,
+            'CA': -1.78, 'CU': -1.70, 'CC': -2.70, 'CG': -2.36,
+            'GA': -1.70, 'GU': -1.78, 'GC': -2.08, 'GG': -2.70,
         }
         
         def terminus_energy(seq: str, n: int = 4) -> float:
             s = seq[:n].upper().replace('T', 'U')
-            return sum(rna_nn_dh.get(s[i:i+2], -8.0) for i in range(len(s) - 1))
+            return sum(rna_nn_dg.get(s[i:i+2], -1.5) for i in range(len(s) - 1))
         
         sense_energy = terminus_energy(sense)
         antisense_energy = terminus_energy(antisense)
@@ -172,19 +176,46 @@ class OffTargetEngine:
                         has_crit_match = True
                         break
             
-            seed_seq = antisense[1:7]
-            seed_complement = _reverse_complement(seed_seq)
-            seed_count = self.sequence.count(seed_complement) if self.sequence else 0
+            # Bartel hierarchical seed classification (Bartel 2009, Cell; Agarwal 2015, eLife):
+            # 8mer (pos 2-8 + A at pos 1) > 7mer-m8 (pos 2-8) > 7mer-A1 (pos 2-7 + A at pos 1) > 6mer (pos 2-7)
+            # Higher-class matches have stronger off-target silencing potential
+            seed_seq_6mer = antisense[1:7]
+            seed_seq_7mer = antisense[1:8] if len(antisense) >= 8 else antisense[1:7]
+            has_anchor_a = len(antisense) > 0 and antisense[0] in ('A', 'U')
+            
+            seed_complement_6mer = _reverse_complement(seed_seq_6mer)
+            seed_complement_7mer = _reverse_complement(seed_seq_7mer) if len(antisense) >= 8 else ""
+            
+            seed_6mer_count = self.sequence.count(seed_complement_6mer) if self.sequence else 0
+            seed_7mer_count = self.sequence.count(seed_complement_7mer) if self.sequence and seed_complement_7mer else 0
+            
+            # Classify: 8mer = 7mer-m8 + A1 anchor, 7mer-m8 = 7mer match, 7mer-A1 = 6mer + A1, 6mer = 6mer only
+            seed_8mer_count = seed_7mer_count if has_anchor_a else 0
+            seed_7m8_count = seed_7mer_count
+            seed_7a1_count = seed_6mer_count if has_anchor_a else 0
+            # 6mer-only = 6mer matches that are NOT also 7mer matches
+            seed_6mer_only = seed_6mer_count - seed_7mer_count if seed_6mer_count > seed_7mer_count else 0
+            
+            # Weighted seed occurrence score: 8mer=1.0, 7mer-m8=0.8, 7mer-A1=0.6, 6mer=0.3
+            weighted_seed = (seed_8mer_count * 1.0 + seed_7m8_count * 0.8 + 
+                           seed_7a1_count * 0.6 + seed_6mer_only * 0.3)
             
             self._cache[cache_key] = {
                 "has_critical_match": has_crit_match,
-                "seed_occurrences": seed_count,
-                "seed_region": seed_seq
+                "seed_occurrences": seed_6mer_count,
+                "weighted_seed_score": weighted_seed,
+                "seed_region": seed_seq_6mer,
+                "seed_seven_mer": seed_seq_7mer,
+                "seed_6mer_only": seed_6mer_only,
+                "seed_8mer": seed_8mer_count,
+                "seed_7m8": seed_7m8_count,
+                "seed_7a1": seed_7a1_count,
             }
             
         cached_data = self._cache[cache_key]
         has_critical_match = cached_data["has_critical_match"]
         seed_occurrences = cached_data["seed_occurrences"]
+        weighted_seed_score = cached_data["weighted_seed_score"]
         seed_region = cached_data["seed_region"]
                 
         if has_critical_match:
@@ -201,32 +232,40 @@ class OffTargetEngine:
         # Scientific Mitigation (Parvathaneni 2026 & Neumeier 2021)
         is_seed_mitigated = False
         if len(antisense_mods) >= 8:
-            if antisense_mods[1] == "M":
+            # OMe at ANY seed position (2-7) disrupts miRNA-like off-target pairing
+            # Jackson et al. 2006, RNA; Parvathaneni 2026: seed 2'-OMe suppresses seed-based off-targets
+            for pos_idx in range(1, 7):
+                if antisense_mods[pos_idx] == "M":
+                    is_seed_mitigated = True
+                    report["safetyNotes"].append(
+                        f"Position {pos_idx+1} contains 2'-OMe, mitigating off-target seed binding."
+                    )
+                    break
+            # GNA at position 7 (index 6) independently rescues via steric disruption (Schlegel 2022)
+            if antisense_mods[6] == "8":
                 is_seed_mitigated = True
                 report["safetyNotes"].append(
-                    "Position 2 contains 2'-OMe, mitigating off-target seed binding."
-                )
-            elif antisense_mods[6] in ["d", "8"]:
-                is_seed_mitigated = True
-                report["safetyNotes"].append(
-                    "Position 7 contains a steric modification (e.g. 2'-diol), mitigating seed-based off-targets."
+                    "Position 7 contains GNA ('8'), mitigating seed-based off-targets via steric disruption."
                 )
         
         if seed_occurrences > 0:
+            # Use Bartel-weighted seed score (8mer=1.0, 7mer-m8=0.8, 7mer-A1=0.6, 6mer=0.3)
+            # This better reflects actual off-target silencing risk than raw 6mer counts
+            seed_display = int(weighted_seed_score)
             if is_seed_mitigated:
                 report["safetyNotes"].append(
-                    f"Seed region has {seed_occurrences:,} matches, but risk is MITIGATED by chemical modification."
+                    f"Seed region has {seed_display:,} weighted transcriptome matches, but risk is MITIGATED by chemical modification."
                 )
-                report["overallSafetyScore"] -= min(5.0, seed_occurrences * 0.1) 
+                report["overallSafetyScore"] -= min(5.0, weighted_seed_score * 0.05)
             else:
                 report["riskFactors"].append(
-                    f"Seed region ({seed_region}) matched {seed_occurrences:,} times in human transcriptome without mitigation."
+                    f"Seed region ({seed_region}) matched {seed_display:,} weighted times in human transcriptome without mitigation."
                 )
-                report["overallSafetyScore"] -= min(30.0, seed_occurrences * 5.0)
+                report["overallSafetyScore"] -= min(30.0, weighted_seed_score * 2.5)
                 
         # 4. Toll-Like Receptor (TLR7 / TLR8) Motif Masking
-        # Hierarchical TLR7/8 agonist motifs (Goodchild 2009; Judge 2005; Heil 2004)
-        tlr_motifs = ["GUUGU", "GUGU", "UGU", "UUG", "UGGC", "GUUC"]
+        # Hierarchical TLR7/8 agonist motifs — Goodchild 2009, Judge 2005, Heil 2004, Hornung 2005
+        tlr_motifs = ["GUUGU", "GUGU", "UGU", "UUG", "UGGC", "GUUC", "GUCCUUCAA", "UGUGU"]
         
         def _evaluate_tlr_masking(strand_seq: str, mod_strand_mask: str, strand_name: str) -> None:
             """Evaluates whether immunostimulatory GU motifs are shielded by 2'-OMe."""

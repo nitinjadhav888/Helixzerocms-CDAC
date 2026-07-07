@@ -15,7 +15,7 @@ Pipelines:
    - Replaces 31-way one-hot positional encoding with 7 chemical-category flags
    - Reduces positional dimensions from 1,302 -> 294 with minimal signal loss
    - Adds engineered biological features (wing asymmetry, pattern periodicity, etc.)
-   - Total: ~395 dimensions
+    - Total: 431 dimensions
 
 3. Naked V4 Model (Baseline Unmodified Model):
    - Extracts 214-dimensional sequence-composition features.
@@ -55,12 +55,15 @@ _POSITION_RANGE = range(1, 22)
 
 # ─── Phase 2: Chemical-category encoding ──────────────────────────────────────
 # Instead of 31-way one-hot per position, group by chemical function.
-# This preserves WHERE a modification occurs while reducing dimensions 4.4x.
+# Split is_other_ribose into is_bulky_ribose (LNA/MOE/ENA — sterically hindered)
+# and is_flexible_ribose (FANA, UNA, GNA, etc. — more flexible backbones).
+# This better separates clinically relevant chemical classes for ML learning.
 
 _CHEM_CATEGORIES: Dict[str, List[str]] = {
     'is_2F':            ['F'],
     'is_2OMe':          ['M'],
-    'is_other_ribose':  ['L', 'E', 'I', 'Y', 'Z', 'N', '6', '7', '8', '9'],
+    'is_bulky_ribose':  ['L', 'E', 'Y'],  # LNA, MOE, ENA — sterically hindered
+    'is_flexible_ribose': ['I', 'Z', 'N', '6', '7', '8', '9'],  # FANA, ZOMe, 4thio, UNA, ANA, GNA, TNA
     'is_backbone_mod':  ['S', 'P', 'R', 'H', '1', '2', '3', '5'],
     'is_base_mod':      ['V', 'W', 'J', 'K', 'O'],
     'is_other':         ['B', '4', 'Q', 'U', 'X'],
@@ -73,8 +76,8 @@ for cat_name, chars in _CHEM_CATEGORIES.items():
         _CHEM_CHAR_TO_CAT[ch] = cat_name
 
 _CHEM_CATEGORY_NAMES: List[str] = sorted(_CHEM_CATEGORIES.keys())
-_N_CHEM_CATS = len(_CHEM_CATEGORY_NAMES)  # 6
-_N_POSITIONAL_FLAGS_P2 = _N_CHEM_CATS + 1  # 6 categories + is_modified = 7
+_N_CHEM_CATS = len(_CHEM_CATEGORY_NAMES)  # 7
+_N_POSITIONAL_FLAGS_P2 = _N_CHEM_CATS + 1  # 7 categories + is_modified = 8
 
 
 def extract_positional_features_batch(
@@ -223,7 +226,7 @@ def _make_nucleotide_array(seq: str, base_seq: str, length: int = 21) -> np.ndar
     chemical categories + is_modified flag.
     Returns shape (length, n_flags).
     """
-    n_flags = _N_POSITIONAL_FLAGS_P2  # 6 cats + 1 is_modified = 7
+    n_flags = _N_POSITIONAL_FLAGS_P2  # 7 cats + 1 is_modified = 8
     arr = np.zeros((length, n_flags), dtype=np.float32)
     for pos in range(min(len(seq), length)):
         nuc = seq[pos]
@@ -329,9 +332,10 @@ def extract_phase2(
     conc_list: Optional[List[float]] = None,
 ) -> np.ndarray:
     """
-    Phase 2 feature extraction (~395 dimensions).
+    Phase 2 feature extraction (431 dimensions after category split).
     
-    Replaces 31-way one-hot positional encoding with 7 chemical-category flags,
+    Replaces 31-way one-hot positional encoding with 8 chemical-category flags
+    (split from 7 to better separate bulky vs flexible ribose modifications),
     keeps all proven aggregate features, and adds engineered biological features.
     """
     num_samples = len(sense_list)
@@ -340,15 +344,15 @@ def extract_phase2(
     concentrations = conc_list if conc_list is not None else [None] * num_samples
     
     # Pre-compute dimension sizes
-    n_pos_flags = _N_POSITIONAL_FLAGS_P2  # 7
-    n_pos_total = n_pos_flags * 21 * 2  # 294
+    n_pos_flags = _N_POSITIONAL_FLAGS_P2  # 8
+    n_pos_total = n_pos_flags * 21 * 2  # 336
     n_counts = len(_MOD_CATEGORIES)  # 31
     n_strand_agg = n_counts + 9  # 31 + fraction_modified, seed_2f, seed_2ome, cleave_2f, cleave_2ome, cleave_lna, gc_content, term_5_ps, term_3_ps = 40
     n_agg_total = n_strand_agg * 2  # 80
     n_exp = 1  # log_concentration
     n_eng = 14  # engineered features
     
-    n_total = n_pos_total + n_agg_total + n_exp + n_eng
+    n_total = n_pos_total + n_agg_total + n_exp + n_eng  # 336 + 80 + 1 + 14 = 431
     
     feature_matrix = np.zeros((num_samples, n_total), dtype=np.float32)
     

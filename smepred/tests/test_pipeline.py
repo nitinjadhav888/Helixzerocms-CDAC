@@ -70,7 +70,7 @@ def test_phase2_features_shape():
     s = "GCAGCACGACUUCUUCAAGUU"
     a = "CUUGAAGAAGUCGUGCUGCUU"
     X = extract_phase2([s], [a])
-    assert X.shape == (1, 389), f"Expected (1, 389), got {X.shape}"
+    assert X.shape == (1, 431), f"Expected (1, 431), got {X.shape}"
 
 def test_phase2_features_multi_batch():
     s1 = "GCAGCACGACUUCUUCAAGUU"
@@ -78,7 +78,7 @@ def test_phase2_features_multi_batch():
     s2 = "AUGCAUGCAUGCAUGCAUGCA"
     a2 = "UGCAUGCAUGCAUGCAUGCAU"
     X = extract_phase2([s1, s2], [a1, a2])
-    assert X.shape == (2, 389)
+    assert X.shape == (2, 431)
 
 def test_phase2_features_detects_mod():
     base_s = "GCAGCACGACUUCUUCAAGUU"
@@ -325,7 +325,7 @@ def test_biophysics_adjusted_score_range():
         assert 0 <= p_total <= 60, f"{fn.__name__} returned {p_total} outside expected range"
     adj, penalties, total = calculate_adjusted_efficacy(80, s, a, s, a)
     assert 0 <= adj <= 100
-    assert set(penalties.keys()) == {"nuclease", "immuno", "risc", "thermo", "serum"}
+    assert set(penalties.keys()) == {"nuclease", "immuno", "risc", "thermo", "serum", "synthesis"}
     assert total >= 0
 
 

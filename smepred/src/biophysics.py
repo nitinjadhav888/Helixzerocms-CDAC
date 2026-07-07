@@ -26,6 +26,7 @@ __all__ = [
     "calculate_risc_penalty",
     "calculate_thermo_penalty",
     "calculate_serum_penalty",
+    "calculate_synthesis_penalty",
 ]
 
 # Set of 2' ribose modifications providing nuclease resistance
@@ -161,11 +162,12 @@ def calculate_immuno_penalty(
             details[f"Unmodified U in Sense (pos {i+1})"] = 1.0
 
     # Hierarchical search for GU-rich motifs (TLR8 ligands)
+    # Expanded list validated against Goodchild 2009, Judge 2005, Heil 2004, Hornung 2005
     base_combined = list(base_sense + base_antisense)
     mod_combined = list(sense + antisense)
     covered_mask = [False] * len(mod_combined)
 
-    for motif in ["GUUGU", "GUGU", "UGU", "GUCCUUCAA"]:
+    for motif in ["GUUGU", "GUGU", "UGU", "UUG", "UGGC", "GUUC", "GUCCUUCAA", "UGUGU"]:
         motif_len = len(motif)
         
         # Build search string masking already-penalized motifs
@@ -405,12 +407,24 @@ def calculate_thermo_penalty(
 
     # Schwarz/Khvorova 2003: Thermodynamic asymmetry for RISC strand loading.
     # RISC loads the strand with the weaker (more AU-rich) 5' end.
-    # Checking a 4-base window at each 5' end is more accurate than single-nucleotide.
-    sense_5p_gc = sum(1 for i in range(min(4, len(base_sense))) if base_sense[i].upper() in "GC")
-    guide_5p_gc = sum(1 for i in range(min(4, len(base_antisense))) if base_antisense[i].upper() in "GC")
-    if sense_5p_gc <= guide_5p_gc:
+    # Using RNA nearest-neighbor ΔG at 37°C (Xia et al. 1998) instead of simple GC-count,
+    # because ΔG captures sequence-context effects (e.g., AG vs GA have different stabilities).
+    _RNA_NN_DG = {
+        'AA': -0.93, 'AU': -1.10, 'AC': -2.24, 'AG': -2.08,
+        'UA': -1.33, 'UU': -0.93, 'UC': -1.43, 'UG': -2.70,
+        'CA': -1.78, 'CU': -1.70, 'CC': -2.70, 'CG': -2.36,
+        'GA': -1.70, 'GU': -1.78, 'GC': -2.08, 'GG': -2.70,
+    }
+    def _terminus_dg(seq: str, n: int = 4) -> float:
+        s = seq[:n].upper().replace('T', 'U')
+        return sum(_RNA_NN_DG.get(s[i:i+2], -1.5) for i in range(len(s) - 1))
+    sense_5p_dg = _terminus_dg(base_sense)
+    guide_5p_dg = _terminus_dg(base_antisense)
+    # Sense 5' end should be more stable (more negative ΔG) than guide 5' end
+    # If guide end is more stable (more negative), RISC may load sense strand
+    if sense_5p_dg >= guide_5p_dg:
         total_penalty += 3.0
-        details[f"Thermodynamic asymmetry: sense 5' GC ({sense_5p_gc}/4) not > guide 5' GC ({guide_5p_gc}/4)"] = 3.0
+        details[f"Thermodynamic asymmetry: sense ΔG ({sense_5p_dg:.2f}) >= guide ΔG ({guide_5p_dg:.2f})"] = 3.0
 
     if re.search(r"[GC]{6}", base_seq):
         total_penalty += 3.0
@@ -482,6 +496,114 @@ def calculate_serum_penalty(
     return min(max(total_penalty, -5.0), 60.0), details
 
 
+def calculate_synthesis_penalty(
+    sense: str, antisense: str, base_sense: str, base_antisense: str
+) -> Tuple[float, Dict[str, float]]:
+    """
+    Calculates the penalty for Solid-Phase Oligonucleotide Synthesis (SPOS) manufacturability.
+    
+    Why: A sequence scoring 90 on biological fitness is commercially worthless if it cannot 
+    be reliably synthesized at scale. SPOS builds 3'->5'. Coupling efficiency drops compound 
+    exponentially across 20 steps. Problematic motifs cause premature termination, 
+    aggregation, or HPLC purification failures.
+    
+    Validated against modern ESC+ manufacturing constraints (Alnylam 2020+):
+    - Standard 6-PS ESC+ chemistry must NOT be penalized.
+    - 2'-modified RNA is immune to traditional DNA depurination rules.
+    """
+    total_penalty = 0.0
+    details = {}
+    
+    # Strip modification symbols to get pure base sequences for motif checks
+    clean_sense = ''.join(c for c in sense if c in 'AUCG')
+    clean_anti = ''.join(c for c in antisense if c in 'AUCG')
+    
+    strands_to_check = [
+        ("Sense", clean_sense, sense),
+        ("Antisense", clean_anti, antisense),
+    ]
+    
+    for strand_name, base_seq, mod_seq in strands_to_check:
+        upper_base = base_seq.upper()
+        
+        # Rule 1: G-Run Detection (G-Quadruplex Risk)
+        # >=4 consecutive Gs physically clog CPG column pores.
+        # Pon & Yu 2004, Nucleosides Nucleotides
+        if re.search(r'G{5,}', upper_base):
+            total_penalty += 8.0
+            details[f"Severe G-run (5+) in {strand_name}"] = 8.0
+        elif re.search(r'G{4}', upper_base):
+            total_penalty += 4.0
+            details[f"G-run (4) in {strand_name}"] = 4.0
+        
+        # Rule 2: Consecutive GC Block Detection
+        # >=6 contiguous G/C causes hyperstacking and HPLC aggregation.
+        if re.search(r'[GC]{6,}', upper_base):
+            total_penalty += 4.0
+            details[f"GC block (6+) in {strand_name}"] = 4.0
+        
+        # Rule 3: Homopolymer Run Detection (Non-G)
+        # Poly-A/U coupling slippage, Poly-C i-motifs. 5+ identical bases.
+        # G-runs excluded here (handled by Rule 1 with higher penalty).
+        if re.search(r'([AUC])\1{4,}', upper_base):
+            total_penalty += 3.0
+            details[f"Non-G homopolymer (5+) in {strand_name}"] = 3.0
+        
+        # Rule 4: Depurination Risk (DNA-SPECIFIC ONLY)
+        # MODERN SCIENCE: 2'-modified RNA (F, M, L, etc.) is sterically protected
+        # against acid-catalyzed depurination. This rule ONLY applies to 
+        # unmodified DNA ('D') insertions (LeProust 2010, Caruthers 2022).
+        dna_runs = re.findall(r'D{4,}', mod_seq)
+        if dna_runs:
+            max_dna_run = max(len(run) for run in dna_runs)
+            if max_dna_run >= 6:
+                total_penalty += 4.0
+                details[f"DNA depurination risk ({max_dna_run} 'D's) in {strand_name}"] = 4.0
+            else:
+                total_penalty += 2.0
+                details[f"Minor DNA stretch in {strand_name}"] = 2.0
+        
+        # Rule 5: Consecutive Bulky Modification Coupling Stress
+        # LNA/MOE/ENA have reduced coupling efficiency due to steric hindrance.
+        # Consecutive instances cause step-wise yield drops that compound.
+        bulky_consec = 0
+        max_bulky_consec = 0
+        for char in mod_seq:
+            if char in ('L', 'E', 'Y'):
+                bulky_consec += 1
+                max_bulky_consec = max(max_bulky_consec, bulky_consec)
+            else:
+                bulky_consec = 0
+        if max_bulky_consec >= 4:
+            total_penalty += 6.0
+            details[f"Severe bulky mod stacking ({max_bulky_consec} consec) in {strand_name}"] = 6.0
+        elif max_bulky_consec >= 3:
+            total_penalty += 4.0
+            details[f"Bulky mod stacking (3 consec) in {strand_name}"] = 4.0
+        
+        # Rule 7: Self-Complementary / Hairpin Risk (Hybridization)
+        # After synthesis, strands must anneal cleanly. 5-bp internal palindromes
+        # cause hairpins that block duplex formation (different threshold from 
+        # thermo domain which checks 4-bp).
+        if has_internal_palindrome(upper_base, half_length=5):
+            total_penalty += 3.0
+            details[f"Synthesis hairpin risk (5-bp palindrome) in {strand_name}"] = 3.0
+    
+    # Rule 6: Phosphorothioate (PS) Desulfurization Impurity Risk
+    # Checked GLOBALLY (across both strands) as they are pooled for annealing.
+    # MODERN THRESHOLD: Standard ESC+ uses exactly 6 PS. We only penalize
+    # non-standard high PS densities that burden HPLC purification (Alnylam AT3).
+    total_ps = (sense + antisense).count("S")
+    if total_ps > 15:
+        total_penalty += 4.0
+        details[f"Extreme PS overload ({total_ps} total)"] = 4.0
+    elif total_ps > 10:
+        total_penalty += 2.0
+        details[f"High PS density ({total_ps} total)"] = 2.0
+    
+    return min(total_penalty, 25.0), details
+
+
 # Scaling factor defines how aggressively biophysical penalties diminish the ML score.
 _PENALTY_ADJUSTMENT_FACTOR = 0.70
 
@@ -517,6 +639,7 @@ def calculate_adjusted_efficacy(
     pr, dr = calculate_risc_penalty(sense, antisense, base_sense, base_antisense)
     pt, dt = calculate_thermo_penalty(sense, antisense, base_sense, base_antisense)
     ps, ds = calculate_serum_penalty(sense, antisense, base_sense, base_antisense)
+    psy, dsy = calculate_synthesis_penalty(sense, antisense, base_sense, base_antisense)
 
     penalties = {
         "nuclease": {"total": pn, "details": dn},
@@ -524,6 +647,7 @@ def calculate_adjusted_efficacy(
         "risc": {"total": pr, "details": dr},
         "thermo": {"total": pt, "details": dt},
         "serum": {"total": ps, "details": ds},
+        "synthesis": {"total": psy, "details": dsy},
     }
     
     absolute_penalty_sum = sum(p["total"] for p in penalties.values())

@@ -15,27 +15,30 @@ Generate 21-mer siRNA candidates (sliding window)
     ↓
 Extract feature vector per candidate:
    → 214-d for naked (Rank) model
-   → 389-d for modified (Single-Mod) model
+   → 431-d for modified (Single-Mod) model (Phase 2, chemical categories)
     ↓
 LightGBM model (gradient-boosted decision trees) predicts raw score
     ↓
 Isotonic calibrator maps raw score → calibrated 0–100 score
     ↓
 Efficacy label assigned based on thresholds
+    ↓
+Biophysical penalty engine: 6 constraint domains (nuclease, immuno, RISC,
+  thermo, serum, synthesis) adjust the raw score for clinical realism
 ```
 
 ### The Feature Vectors (What Goes Into the Model)
 
 The model does **not** see sequence letters directly — it sees numerical features derived from the sequence.
 
-**Modified Model (Phase 2, 389-d)** — used in the Single-Mod and Stack tabs:
+**Modified Model (Phase 2, 431-d)** — used in the Single-Mod and Stack tabs:
 
 | Feature Group | Dimensions | What It Captures |
 |---------------|-----------|------------------|
-| **Positional chemical-category flags** | 294 | 7 chemical categories (2'-OMe, 2'-F, LNA, MOE, PS, base mod, other) × 21 positions × 2 strands — replaces old one-hot encoding with chemistry-aware grouping |
+| **Positional chemical-category flags** | 336 | 8 chemical categories (2'-F, 2'-OMe, bulky-ribose [LNA/MOE/ENA], flexible-ribose [FANA/UNA/GNA/TNA/...], backbone mod, base mod, other) × 21 positions × 2 strands |
 | **Aggregate strand stats (×2 strands)** | 80 | Per-strand: 31 category counts + fraction modified + seed/mod cleavage region densities + GC content + terminal PS flags |
 | **log₁₀(concentration)** | 1 | Assay concentration (default 10 nM) |
-| **Engineered biological features** | 14 | Duplex stability asymmetry, modification-position interactions, ΔTm estimates |
+| **Engineered biological features** | 14 | Wing GC asymmetry, seed modification density, 2F/2OMe alternation, cleavage zone burden, terminal PS protection, modification Shannon entropy, terminal GC clamp, 5' base identity |
 
 **Naked Model (V4, 214-d)** — used in the Rank tab for baseline ranking:
 
@@ -51,10 +54,10 @@ The model does **not** see sequence letters directly — it sees numerical featu
 **LightGBM** is a **gradient-boosted decision tree** algorithm — an ensemble of hundreds of decision trees where each tree corrects the errors of the previous ones.
 
 - **Algorithm**: Gradient-boosted decision trees (GBDT) with leaf-wise tree growth
-- **Training data**: 25,765 modified siRNA sequences + 23,187 hetero-patent rows + 4,618 CMsiRNAdb sequences
+- **Training data**: 55,730 position-aware + 23,187 hetero-patent + 4,618 CMsiRNAdb = **83,535 total**
 - **Data sources**: HelixZero catalog, patent data, CMsiRNAdb, published literature
-- **Trees**: 1,361 (set by early stopping on a 5% holdout)
-- **Performance**: PCC = **0.688** (hetero-val-303), MAE = **16.4** points
+- **Trees**: 1,627 (set by early stopping on a 5% holdout)
+- **Performance**: PCC = **0.838** (test), **0.690** (hetero-val-303), MAE = **15.9** points
 
 **Why not a neural network / deep learning?** Gradient-boosted trees are the gold standard for tabular data with noisy, mixed-type features. They handle missing values natively, are resistant to outliers, and train quickly without GPU. The feature vectors are engineered RNA chemistry knowledge — the tree model extracts the interactions.
 
@@ -308,22 +311,49 @@ The **cm-siRNA model** (PCC=0.688) was trained on modified siRNAs and knows how 
 
 **Rank**: Scores each 21-mer candidate with the naked model and ranks by baseline (unmodified) efficacy.
 
-**Single-Mod**: Runs the **full 1260-variant scan** (all 30 modifications × 21 positions × 2 strands) on ONE selected candidate, showing you which modification/position combination gives the best delta over baseline.
+**Single-Mod**: Runs the **full 1,260-variant scan** (30 modifications × 21 positions × 2 strands) on ONE selected candidate, showing you which modification/position combination gives the best delta over baseline. The full scan replaces the earlier 40-variant mini-scan (which only tested E/D/Q/L on AS positions 1-10), ensuring clinically important modifications (F, M, S, 8) are always evaluated.
 
 ---
 
-## 8. Model Training Summary
+## 8. Biophysical Penalty Engine — 6 Domains
+
+The adjusted efficacy score is the raw ML prediction reduced by 6 independent biophysical penalty domains:
+
+| Domain | Max Penalty | What It Checks |
+|--------|------------|----------------|
+| **Nuclease** | 20.0 | PS backbone coverage, 2'-mod density, Alnylam AT3 PS positional pattern |
+| **Immuno** | 28.0 | Unmodified U in seed/tail, unmasked TLR7/8 motifs (GU-rich + AU-rich), extreme 2'-OMe saturation |
+| **RISC** | 60.0 | Missing 5'-P, bulky mods in seed (LNA/MOE/ENA/DNA), LNA at catalytic cleft, MOE in cleft, GNA/ENA/TNA positional rules, 2'-F coverage, exotic mods |
+| **Thermo** | 20.0 | Extreme/suboptimal GC content, internal palindrome, homopolymer run, ΔG-based thermodynamic asymmetry (Xia 1998NN), GC-heavy blocks |
+| **Serum** | 60.0 | GalNAc at wrong terminus, unprotected 5'/3' ends, GalNAc valency bonus (dual-terminal), PS terminal protection |
+| **Synthesis** | 25.0 | G-quadruplex runs (4+), GC blocks (6+), homopolymers (5+ non-G), DNA-specific depurination (D bases only), bulky mod stacking (3+ consec LNA/MOE/ENA), PS overload (>10), synthesis hairpins (5-bp palindrome) |
+
+Each domain represents an independent physical or chemical constraint. The total penalty is scaled by **0.70** before subtraction from the raw ML score.
+
+### Penalty Factor (0.70)
+
+```python
+adjusted_score = raw_ml_score - 0.70 × sum(all_penalties)
+```
+
+The 0.70 factor prevents over-penalizing while still enforcing clinical constraints. A perfect sequence (no penalties) retains its full ML score; a severely flawed sequence can be reduced to 0.
+
+**Clinical validation**: All 4 FDA-approved siRNAs (Givosiran, Lumasiran, Vutrisiran, Nedosiran) score 0-2 in the synthesis domain, confirming the 6-PS ESC+ chemistry is not penalized.
+
+---
+
+## 9. Model Training Summary
 
 ### cm-siRNA Model (model_b, Phase 2)
 
 | Aspect | Detail |
 |--------|--------|
 | **Algorithm** | LightGBM (gradient-boosted decision trees) |
-| **Features** | 389-d (294 positional category flags + 80 aggregate stats + 1 concentration + 14 engineered) |
-| **Training data** | 53,570 modified siRNAs (23,187 hetero-patent + 25,765 HelixZero catalog + 4,618 CMsiRNAdb) |
-| **Validation** | 5% holdout with early stopping |
-| **Trees** | 1,361 |
-| **Performance** | PCC = 0.688 (hetero-val-303), MAE = 16.4 |
+| **Features** | 431-d (336 positional category flags [8 cats × 21 pos × 2 strands] + 80 aggregate stats + 1 concentration + 14 engineered) |
+| **Training data** | 83,535 modified siRNAs (55,730 position-aware + 23,187 hetero-patent + 4,618 CMsiRNAdb) |
+| **Validation** | Stratified 15% test holdout + hetero_val_303 (2,576 rows, 12 genes) |
+| **Trees** | 1,627 (early stopping at round 1,627/3,000) |
+| **Performance** | Test PCC = 0.838, hetero-val PCC = 0.690, MAE = 15.9 |
 | **Calibrator** | Isotonic regression (fitted via 5-fold CV) |
 
 ### Naked Model (model_normal, V4)

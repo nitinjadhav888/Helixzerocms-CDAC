@@ -250,7 +250,7 @@ def multi_mod_scan(
     max_mods: int = 2,
     beam_width: int = 20,
     model_key: str = "B",
-    full_scan: bool = False,
+    full_scan: bool = True,
     single_results: Optional[List[Any]] = None,
     parent_score: Optional[float] = None,
     seed_variant: Optional[Any] = None,
