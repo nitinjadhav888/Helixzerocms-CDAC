@@ -28,3 +28,10 @@ smepred_text.txt
 /smepred/papers/
 /smepred/papers_text.json
 /smepred/pitch/HelixZero_External_Whitepaper.html
+
+# Working scratch space (exploratory scripts/notebooks, not production code)
+/scratch/
+/catboost_info/
+
+# Regenerable derived cache (rebuild via scratch/v2_pipeline/build_dataset_v2.py)
+/smepred/data/processed/v2_multislot_dataset.csv
