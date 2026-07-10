@@ -41,7 +41,7 @@ from src.predictor import (
 from src.biophysics import calculate_adjusted_efficacy
 from src.filters import get_toxicity_score, get_toxicity_label, _extract_seed
 from src.offtarget import get_offtarget_engine
-from src.features import extract_batch_v4, extract_positional_features_batch, extract_phase2
+from src.features import extract_batch_v4, extract_phase2
 from src.modification_engine import multi_mod_scan
 
 # Configure module-level logger

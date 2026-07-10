@@ -1,29 +1,12 @@
 """
-features.py — Feature Extraction pipelines for Machine Learning Models
+features.py — Feature extraction for ML models.
 
-This module transforms variable-length string sequences (siRNAs with or without 
-chemical modifications) into structured, fixed-dimensional numeric tensors for 
-ingestion by the LightGBM models.
-
-Pipelines:
-1. Model B (Phase 2 — HelixZero Unified Model):
-   - Extracts 1,467-dimensional positional binary features.
-   - Captures exact modification types (30 unique symbols) per position.
-   - Extracts aggregate structural statistics (GC%, cleavage site LNA count, etc.).
-
-2. Model B Phase 2 (Redesigned Feature Space):
-   - Replaces 31-way one-hot positional encoding with 7 chemical-category flags
-   - Reduces positional dimensions from 1,302 -> 294 with minimal signal loss
-   - Adds engineered biological features (wing asymmetry, pattern periodicity, etc.)
-    - Total: 431 dimensions
-
-3. Naked V4 Model (Baseline Unmodified Model):
-   - Extracts 214-dimensional sequence-composition features.
-   - Includes positional one-hot encoding for A/U/G/C.
-   - Computes Tri-Nucleotide Composition (TNC) frequencies.
+Two pipelines:
+1. Phase 2 (Modified siRNAs): 431-dim chemical-category encoding + aggregate stats + engineered features
+2. V4 (Naked siRNAs): 214-dim sequence-composition (one-hot + TNC + GC)
 """
 
-from typing import List, Optional, Dict, Tuple
+from typing import List, Optional, Dict
 import numpy as np
 from collections import Counter
 
@@ -51,7 +34,6 @@ _MODIFICATION_MAP: Dict[str, str] = {
 _MOD_CATEGORIES: List[str] = sorted(
     {value.replace('is_', '') for value in _MODIFICATION_MAP.values()}
 )
-_POSITION_RANGE = range(1, 22)
 
 # ─── Phase 2: Chemical-category encoding ──────────────────────────────────────
 # Instead of 31-way one-hot per position, group by chemical function.
@@ -78,139 +60,6 @@ for cat_name, chars in _CHEM_CATEGORIES.items():
 _CHEM_CATEGORY_NAMES: List[str] = sorted(_CHEM_CATEGORIES.keys())
 _N_CHEM_CATS = len(_CHEM_CATEGORY_NAMES)  # 7
 _N_POSITIONAL_FLAGS_P2 = _N_CHEM_CATS + 1  # 7 categories + is_modified = 8
-
-
-def extract_positional_features_batch(
-    sense_list: List[str],
-    antisense_list: List[str],
-    base_sense_list: Optional[List[str]] = None,
-    base_antisense_list: Optional[List[str]] = None,
-    conc_list: Optional[List[float]] = None,
-) -> np.ndarray:
-    """
-    Batch extraction of 1,467-dimensional positional features for chemically modified siRNAs.
-    Note: includes is_canonical flag (33 flags per position) for backward compatibility.
-    """
-    num_samples = len(sense_list)
-    
-    # Handle optional lists by filling with None
-    base_senses = base_sense_list if base_sense_list is not None else [None] * num_samples
-    base_antisenses = base_antisense_list if base_antisense_list is not None else [None] * num_samples
-    concentrations = conc_list if conc_list is not None else [None] * num_samples
-    
-    feature_rows = []
-    
-    for sense_seq, anti_seq, base_sense, base_anti, conc in zip(
-        sense_list, antisense_list, base_senses, base_antisenses, concentrations
-    ):
-        # Fallback to modified sequence if base sequence is absent
-        effective_base_sense = base_sense if base_sense is not None else sense_seq
-        effective_base_anti = base_anti if base_anti is not None else anti_seq
-        
-        row_features = _extract_single_modified_features(
-            sense_seq, anti_seq, effective_base_sense, effective_base_anti, conc
-        )
-        feature_rows.append(row_features)
-        
-    return np.array(feature_rows, dtype=np.float32)
-
-
-def _extract_single_modified_features(
-    sense: str, 
-    antisense: str,
-    base_sense: str, 
-    base_antisense: str,
-    conc_nM: Optional[float] = None
-) -> List[float]:
-    """
-    Internal helper to extract the full feature vector for a single cm-siRNA duplex.
-    """
-    features: List[float] = []
-
-    # 1. Positional Binary Features (per strand, per position)
-    for strand_key, seq, base_seq in [
-        ("ss", sense, base_sense), ("as", antisense, base_antisense)
-    ]:
-        for pos in _POSITION_RANGE:
-            zero_index = pos - 1
-            nucleotide = seq[zero_index] if zero_index < len(seq) else ''
-            base_nucleotide = base_seq[zero_index] if zero_index < len(base_seq) else ''
-            
-            # If nucleotide differs from parent, it's a modification symbol
-            modification_char = nucleotide if nucleotide != base_nucleotide else ''
-            is_modified = int(modification_char != '')
-            is_canonical = 0 if is_modified else 1
-
-            mapped_type = _MODIFICATION_MAP.get(modification_char, '')
-            
-            for typename in _MODIFICATION_MAP.values():
-                features.append(float(mapped_type == typename))
-                
-            features.append(float(is_canonical))
-            features.append(float(is_modified))
-
-    # 2. Aggregate Sequence Statistics (per strand)
-    for strand_key, seq, base_seq in [
-        ("ss", sense, base_sense), ("as", antisense, base_antisense)
-    ]:
-        seq_length = len(seq)
-        mod_counts = {mod_type: 0 for mod_type in _MOD_CATEGORIES}
-        total_modifications = 0
-        
-        for i in range(min(seq_length, 21)):
-            nucleotide = seq[i] if i < len(seq) else ''
-            base_nucleotide = base_seq[i] if i < len(base_seq) else ''
-            
-            if nucleotide != base_nucleotide:
-                total_modifications += 1
-                type_name = _MODIFICATION_MAP.get(nucleotide, '').replace('is_', '')
-                if type_name in mod_counts:
-                    mod_counts[type_name] += 1
-
-        fraction_modified = total_modifications / 21.0
-
-        # Sub-region analysis: Seed (2-8) and Cleavage (9-11)
-        seed_indices = list(range(1, 8))
-        seed_2f = sum(1 for p in seed_indices if p < seq_length and seq[p] == 'F')
-        seed_2ome = sum(1 for p in seed_indices if p < seq_length and seq[p] == 'M')
-        
-        cleavage_indices = list(range(8, 11))
-        cleave_2f = sum(1 for p in cleavage_indices if p < seq_length and seq[p] == 'F')
-        cleave_2ome = sum(1 for p in cleavage_indices if p < seq_length and seq[p] == 'M')
-        cleave_lna = sum(1 for p in cleavage_indices if p < seq_length and seq[p] == 'L')
-
-        gc_count = sum(1 for char in base_seq[:21].upper() if char in ('G', 'C'))
-        gc_content = round(gc_count / min(len(base_seq), 21), 6) if base_seq else 0.5
-
-        # Terminus protections
-        term_5_ps = 1.0 if (seq_length > 0 and seq[0] == 'S') else 0.0
-        term_3_ps = 1.0 if (seq_length > 20 and seq[20] == 'S') else 0.0
-
-        # Append aggregated features
-        for mod_type in _MOD_CATEGORIES:
-            features.append(float(mod_counts[mod_type]))
-            
-        features.extend([
-            fraction_modified, 
-            seed_2f / 7.0, 
-            seed_2ome / 7.0,
-            float(cleave_2f), 
-            float(cleave_2ome), 
-            float(cleave_lna),
-            gc_content, 
-            term_5_ps, 
-            term_3_ps,
-        ])
-
-    # 3. Experimental Parameters
-    if conc_nM is not None and conc_nM > 0:
-        log_concentration = float(np.log1p(conc_nM))
-    else:
-        log_concentration = float(np.log1p(10.0))
-        
-    features.append(log_concentration)
-
-    return features
 
 
 # ─── Phase 2 Feature Extractor (Chemical category encoding) ────────────────────

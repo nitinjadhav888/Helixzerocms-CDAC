@@ -32,10 +32,11 @@ warnings.filterwarnings('ignore', message='X does not have valid feature names')
 
 from .parser import load_sequence
 from .sirna_generator import generate_candidates, generate_dsirna_candidate, SiRNACandidate
-from .features import extract_batch_v4, extract_positional_features_batch, extract_phase2
+from .features import extract_batch_v4, extract_phase2
 from .modification_engine import single_mod_scan, multimod_gen, CmSiRNA, _apply_mod
 from .filters import annotate_candidates, toxicity_for_modified
 from .biophysics import calculate_adjusted_efficacy
+from . import model_b_v2
 
 logger = logging.getLogger(__name__)
 
@@ -314,9 +315,13 @@ def predict_modified(
     parent_v4_matrix = extract_batch_v4([sense], [antisense])
     raw_parent_score = float(_normalize_scores(_predict_naked(parent_v4_matrix), calibrator_key="normal")[0])
     
-    parent_b_matrix = extract_phase2([sense], [antisense], [sense], [antisense])
-    model_b = _get_model("B")
-    raw_model_b_score = float(_normalize_scores(np.array([model_b.predict(parent_b_matrix)[0]]), mode="rescale")[0])
+    use_v2 = model_key == "B_v2"
+    if use_v2:
+        raw_model_b_score = float(model_b_v2.predict([sense], [antisense], [sense], [antisense])[0])
+    else:
+        parent_b_matrix = extract_phase2([sense], [antisense], [sense], [antisense])
+        model_b = _get_model("B")
+        raw_model_b_score = float(_normalize_scores(np.array([model_b.predict(parent_b_matrix)[0]]), mode="rescale")[0])
 
     # 2. Generate variants
     if mode == "scan":
@@ -341,11 +346,14 @@ def predict_modified(
     ps_list = [v.parent_sense for v in variants]
     pa_list = [v.parent_antisense for v in variants]
     
-    feature_matrix = extract_phase2(s_list, a_list, ps_list, pa_list)
-
     # 4. Predict
-    raw_variant_scores = model_b.predict(feature_matrix)
-    normalized_scores = _normalize_scores(raw_variant_scores, mode="rescale")
+    if use_v2:
+        raw_variant_scores = model_b_v2.predict(s_list, a_list, ps_list, pa_list)
+        normalized_scores = np.clip(raw_variant_scores, 0.0, 100.0)
+    else:
+        feature_matrix = extract_phase2(s_list, a_list, ps_list, pa_list)
+        raw_variant_scores = model_b.predict(feature_matrix)
+        normalized_scores = _normalize_scores(raw_variant_scores, mode="rescale")
 
     # 5. Apply biophysical constraints and rank
     parent_adjusted_score, _, _ = calculate_adjusted_efficacy(
@@ -388,9 +396,36 @@ def predict_modified(
 
     logger.info(f"Successfully evaluated {len(ranked_results)} modified siRNA variants.")
     return {
-        "results": ranked_results, 
+        "results": ranked_results,
         "parent_score": round(parent_adjusted_score, 2),
         "parent_score_raw": round(raw_parent_score, 2),
         "model_b_baseline": round(parent_adjusted_score, 2),
         "naked_baseline": round(raw_parent_adjusted_score, 2)
+    }
+
+
+def design_esc_plus(sense: str, antisense: str) -> Dict[str, Any]:
+    """
+    Generates and ranks clinically-realistic, fully multi-slot modification
+    patterns (independent sugar chemistry + PS backbone + 5' phosphate mimic +
+    3' conjugate, scored end-to-end with Model B v2 + biophysics penalties).
+    Unlike predict_modified()'s single_mod_scan, candidates here can express
+    e.g. "2'-F sugar AND phosphorothioate linkage at one position" -- the
+    multi-slot capability the legacy engine cannot represent.
+    """
+    from .multislot_designer import rank_esc_plus_designs
+    designs = rank_esc_plus_designs(sense, antisense)
+    return {
+        "results": [
+            {
+                "rank": i + 1,
+                "label": d.label,
+                "raw_score": round(d.raw_score, 2),
+                "efficacy_score": round(d.adjusted_score, 2),
+                "penalties": d.penalties,
+                "sense_annotated": d.sense_annotated,
+                "antisense_annotated": d.antisense_annotated,
+            }
+            for i, d in enumerate(designs)
+        ]
     }
