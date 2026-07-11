@@ -111,6 +111,41 @@ Two model families:
      so far, so they're recalled-from-training-knowledge, not freshly verified.
 
 ## Session log (append, don't rewrite — newest at top)
+- **2026-07-11 (session 4)**: User forwarded Dr. Adrian's reply (GalNAc
+  positioning is sequence/gene-dependent, not universally 3'-sense-optimal —
+  confirms it's worth actually testing per-gene, not assuming linear effect).
+  Wrote an initial strategic plan assuming compact-notation parsing "wasn't
+  done yet" — **this was wrong**, caught by the user asking for a cleanup
+  pass first. During that cleanup, deleted `smepred/data/patent_data/*`,
+  `CMsiRNA_data_update.tsv`, and the `hetero_*`/`homo_*` splits as "legacy" —
+  **also wrong**: these are load-bearing (read directly by
+  `patent_sources.py`) or documented-elsewhere (cited in `EXPLANATION.md`,
+  `genes_analysis.md`). Push of that commit was blocked by the platform's own
+  safety classifier (no explicit file list had been given for "delete
+  unrequired files") — caught before `origin` was ever touched. Reverted
+  locally, verified `load_all_real_sources()` still returns 43,136 rows, then
+  pushed the revert (this was `dev`'s first-ever push to `origin` — the
+  branch didn't exist there before). **Lesson, stated plainly: grep for
+  cross-references before deleting anything, no matter how obviously
+  "legacy" a path name looks — a plausible-sounding name is not verification.**
+  Separately, re-read the full ablation doc (had only read the first third
+  before) and found the original strategic plan's premise was stale in a
+  second way: compact-notation parsing, the 4-source 43,136-row rebuild, and
+  an initial `model_b_v2` blend training run were **already done** in session
+  2/3 (`models/model_b_v2_meta.json`: in-distribution Spearman 0.489 n=4269,
+  external IC50 Spearman 0.197 n=32 not significant). The ablation doc's own
+  "recommended next steps" section was itself stale on 2 of its 4 items
+  (LFS/metadata bug — already fixed session 3; compact-notation parsing —
+  already done) — did not correct that doc's next-steps section this
+  session, only this log; a future session should. Replaced the (wrong)
+  5-file strategic-docs package with one corrected, shorter plan
+  (`scratch/strategic_docs/PLAN_2026-07-11_v2_corrected.md`): real remaining
+  work is (a) hyperparameter tuning of `model_b_v2` (deliberately left
+  untuned for fair ablation), (b) the actual Adrian-motivated per-gene GalNAc
+  3'-vs-5' stratification (genuinely new, not done anywhere yet), (c) the
+  production-swap decision itself, (d) literature spot-check (still blocked,
+  no browsing tool). Nothing in (a)/(b) executed yet this session — planning
+  and the revert/cleanup correction were the actual work done.
 - **2026-07-10 (session 3)**: Corrected a mistake from session 2's own doc
   (had wrongly suggested restoring the synthetic CSV — fixed in
   `model_b_v2_multislot_ablation.md`). Traced and resolved the

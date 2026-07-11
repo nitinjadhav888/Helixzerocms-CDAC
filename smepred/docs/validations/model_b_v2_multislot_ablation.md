@@ -217,26 +217,43 @@ against the live API's `_normalize_scores(mode="rescale")` hasn't been
 validated, and the tiny external test is directional, not conclusive. Safe
 to A/B via `model_key="B_v2"` today.
 
-## Recommended next steps (not yet done — need explicit go-ahead before this scale of work)
-1. **(Revised — do NOT restore the synthetic CSV; see correction above.)**
-   Reconcile the `models/model_b_meta.json` vs `models/model_b.pkl` metric
-   discrepancy: the metadata claims an "ensemble" (`model_b_v8_patent.pkl` +
+## Recommended next steps
+**Update (2026-07-11, session 4): items 1 and 2 below are STALE — both were
+completed in session 3 / earlier in session 2, after this section was
+originally written, and this section was never updated to reflect that. Left
+the original text below for the audit trail, but do not act on 1 or 2 as if
+they were open. Verified live 2026-07-11: `git lfs ls-files` shows
+`model_b.pkl` as a real fetched 18.7MB object, and `model_b_meta.json` no
+longer contains the `0.3158`/"ensemble" claim at all — the discrepancy this
+section describes has already been resolved by whatever fixed it, not by
+this correction. See `models/model_b_v2_meta.json` for the compact-notation
+parsing + full-4-source retrain results (in-distribution Spearman 0.489
+n=4269; external IC50 Spearman 0.197 n=32, not significant) — that's items
+1-2 done. Items 3 and 4 are still genuinely open.*
+
+1. ~~Reconcile the `models/model_b_meta.json` vs `models/model_b.pkl` metric
+   discrepancy~~ — **DONE (session 3)**. Original text, for record: the
+   metadata claimed an "ensemble" (`model_b_v8_patent.pkl` +
    `finetuned_clean.pkl` blend, headline `0.3158` Spearman) but the file that
-   actually loads is a single plain LightGBM Booster reproducing `0.165`. This
-   also looks like a genuine local Git-LFS issue independent of the synthetic-data
-   question — `model_b.pkl` is LFS-tracked (18.7MB real object per `git log`)
-   but the local working copy is a smaller (1.49MB) non-LFS file that predates
-   it, and `git lfs pull` silently refuses to overwrite it because it's "locally
-   modified." Needs a deliberate decision (force `git lfs checkout`? re-point
-   metadata? re-export the real ensemble?) before trusting either artifact.
-2. Extend `chem_schema.py`-based parsing to the Alnylam/Dicerna patent tables
-   (they use the *compact* lowercase/uppercase/`dT` notation, not compositional
-   English names — a separate parser, already prototyped in
-   `parse_compact_notation.py`) and combine all sources into one leakage-free,
-   grouped-split multi-source training set. This is the real production
-   retrain and is a substantially larger effort than this session's ablation.
-3. Only then hyperparameter-tune and consider a production swap — this
-   session's CatBoost config was intentionally left untuned/fixed on both
-   sides of every comparison, for fairness, not for best absolute performance.
-4. Spot-check the literature citations against primary sources before any
-   external/investor-facing claim (no browsing tool was available this session).
+   actually loaded was a single plain LightGBM Booster reproducing `0.165`,
+   traced to `model_b.pkl` being LFS-tracked (18.7MB real object) while the
+   local working copy was a smaller (1.49MB) non-LFS file that predated it.
+2. ~~Extend `chem_schema.py`-based parsing to the Alnylam/Dicerna patent
+   tables~~ — **DONE**. `parse_alnylam_compact()` / `parse_dicerna()` in
+   `smepred/scripts/data/patent_sources.py` handle the compact
+   lowercase/uppercase/`dT` notation; all 4 real sources (43,136 rows) are
+   combined via `load_all_real_sources()`. Confirmed empirically this specific
+   patent extraction carries zero recoverable PS-linkage/GalNAc-conjugate
+   annotation (0/280 sequences have a lowercase `'s'` marker) — nothing is
+   being silently dropped, the source table just doesn't encode that
+   chemistry.
+3. **Still open**: hyperparameter-tune `model_b_v2` before any production
+   swap decision — this session's CatBoost config was intentionally left
+   untuned/fixed on both sides of every comparison, for fairness, not for
+   best absolute performance. Manage expectations: the external IC50 test
+   (n=32) is already not significant at the current config; tuning may
+   improve the in-distribution number but is unlikely to fix external
+   significance at that sample size regardless of tuning quality.
+4. **Still open**: spot-check the literature citations against primary
+   sources before any external/investor-facing claim (no browsing tool has
+   been available in any session so far).
