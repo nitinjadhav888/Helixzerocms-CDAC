@@ -1,0 +1,104 @@
+{
+  "purpose": "Check whether tune_model_b_v2.py's external-IC50 significance (offset=4 only) holds across other grouped-split offsets, or was this-split luck.",
+  "winning_params": {
+    "iterations": 1000,
+    "depth": 10,
+    "learning_rate": 0.05,
+    "l2_leaf_reg": 5,
+    "loss_function": "RMSE",
+    "random_seed": 42,
+    "verbose": false,
+    "early_stopping_rounds": 50
+  },
+  "blend_w_legacy": 0.4,
+  "per_offset_results": [
+    {
+      "offset": 0,
+      "n_val": 4170,
+      "spearman_val": 0.49378407175732164,
+      "mae_val": 22.22998083671296,
+      "spearman_external": 0.27647726058623795,
+      "p_external": 0.12557147443502964
+    },
+    {
+      "offset": 1,
+      "n_val": 5067,
+      "spearman_val": 0.5612320081860619,
+      "mae_val": 21.47846152957799,
+      "spearman_external": 0.3435298852466877,
+      "p_external": 0.0542259184692239
+    },
+    {
+      "offset": 2,
+      "n_val": 4285,
+      "spearman_val": 0.5515098198899644,
+      "mae_val": 22.0106951954321,
+      "spearman_external": 0.4254626814071276,
+      "p_external": 0.015197113243333595
+    },
+    {
+      "offset": 3,
+      "n_val": 4317,
+      "spearman_val": 0.5015061976995951,
+      "mae_val": 22.81440528215773,
+      "spearman_external": 0.36043082077754074,
+      "p_external": 0.04271646885481913
+    },
+    {
+      "offset": 4,
+      "n_val": 4269,
+      "spearman_val": 0.4988277362270814,
+      "mae_val": 22.616077998823485,
+      "spearman_external": 0.3545522345059397,
+      "p_external": 0.046473418249112136
+    },
+    {
+      "offset": 5,
+      "n_val": 3765,
+      "spearman_val": 0.4759181551018387,
+      "mae_val": 22.539354390724295,
+      "spearman_external": 0.23293898101219246,
+      "p_external": 0.19948819036505872
+    },
+    {
+      "offset": 6,
+      "n_val": 3986,
+      "spearman_val": 0.5135644627019218,
+      "mae_val": 21.99776773399877,
+      "spearman_external": 0.35216405883310176,
+      "p_external": 0.048073083768976725
+    },
+    {
+      "offset": 7,
+      "n_val": 4087,
+      "spearman_val": 0.5068860858396284,
+      "mae_val": 22.10578638844061,
+      "spearman_external": 0.3681464652590172,
+      "p_external": 0.038159403201699346
+    },
+    {
+      "offset": 8,
+      "n_val": 4652,
+      "spearman_val": 0.5133910447603378,
+      "mae_val": 21.72208171049587,
+      "spearman_external": 0.4091128633392372,
+      "p_external": 0.020071274724260988
+    },
+    {
+      "offset": 9,
+      "n_val": 4538,
+      "spearman_val": 0.5286964669256782,
+      "mae_val": 20.980597979082713,
+      "spearman_external": 0.3284660079257099,
+      "p_external": 0.06643747579511118
+    }
+  ],
+  "summary": {
+    "in_distribution_spearman_mean": 0.514531604908943,
+    "in_distribution_spearman_std": 0.024793912420494744,
+    "external_spearman_mean": 0.34512812588927927,
+    "external_spearman_std": 0.0538790758215788,
+    "external_significant_count": 6,
+    "external_significant_total": 10
+  }
+}
