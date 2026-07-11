@@ -98,19 +98,68 @@ Two model families:
   `main` is untouched/behind on purpose; don't merge `dev`→`main` without
   being asked.
 - Remaining open items (not yet done, no urgency assigned):
-  a. Extend `chem_schema.py` parsing to Alnylam/Dicerna's *compact* notation
-     (currently only the compositional-English-name CMsiRNAdb format is
-     fully parsed) and fold into one bigger real-data retrain.
-  b. Hyperparameter tuning + eventual production-swap decision for
-     `model_b_v2` (currently deliberately untuned, for fair ablation comparison).
-  c. `ICE_CLOUD_DEPLOYMENT.md` / `HelixZero_External_Whitepaper.md` were
+  a. ~~Extend `chem_schema.py` parsing to Alnylam/Dicerna's compact notation~~
+     — **DONE** (sessions 2/3, confirmed session 4). Do not redo.
+  b. ~~Hyperparameter tuning of `model_b_v2`~~ — **DONE** (session 5, commit
+     `82d14e0` + `docs/validations/model_b_v2_tuning_robustness.md`). Tuned
+     config (depth=10/lr=0.05/l2=5, blend_w_legacy=0.40) verified robust
+     across 10 grouped-split offsets: in-distribution Spearman mean 0.515
+     (σ=0.025), external IC50 Spearman mean 0.345 (σ=0.054), significant
+     (p<0.05) on 6/10 offsets. Real improvement over untuned baseline
+     (0.489 / 0.197), external validation still sample-size-limited (n=32),
+     not "solved." Saved under `*_tuned` artifact names only — has **not**
+     been promoted to the production `model_b_v2_meta.json` names.
+  c. **Production-swap decision for `model_b_v2`** (untuned → tuned, and
+     legacy Model B → Model B v2 generally): still open, still a decision
+     for whoever owns that call, not something to do unilaterally. Inputs
+     now available: tuning result (b above), original ablation doc, and (d)
+     below.
+  d. Adrian-motivated GalNAc 3'-vs-5' per-gene position stratification:
+     **attempted, INCONCLUSIVE by design of the data, not by
+     analysis failure** (session 5, `docs/validations/galnac_position_stratification.md`).
+     Only 2 genes (MARC1, LPA) have any real 3'/5' contrast in CMsiRNAdb, and
+     for both, GalNAc position is perfectly confounded with assay type
+     (in vitro nM dosing vs in vivo mg/kg dosing — zero cell-type overlap in
+     either direction for either gene). The naive numbers show opposite
+     directions per gene (real, reproducible) but are not attributable to
+     chemistry vs. assay-type. **Do not cite this as evidence of a
+     gene-dependent GalNAc position effect** without also citing the
+     confound — needs genuinely new matched-condition data to answer, not a
+     re-analysis of existing data.
+  e. `ICE_CLOUD_DEPLOYMENT.md` / `HelixZero_External_Whitepaper.md` were
      deleted (session 2) with no replacement written yet — may need
      regeneration once model_b_v2 is production-validated.
-  d. Spot-check the literature citations in the ablation doc against
+  f. Spot-check the literature citations in the ablation doc against
      primary sources — no browsing tool has been available in any session
      so far, so they're recalled-from-training-knowledge, not freshly verified.
 
 ## Session log (append, don't rewrite — newest at top)
+- **2026-07-11 (session 5)**: Picked up exactly where session 4 left off:
+  `model_b_v2` had been hyperparameter-tuned (commit `82d14e0`, depth=10/
+  lr=0.05/l2=5) with a robustness check already run but its output
+  (`docs/validations/tuned_robustness_check.json`) sitting uncommitted.
+  Wrote up and committed that result:
+  `docs/validations/model_b_v2_tuning_robustness.md` — tuned config is a
+  real, stable in-distribution improvement (mean Spearman 0.515 vs 0.489
+  untuned, σ=0.025 across 10 offsets) and a directionally consistent
+  external-IC50 improvement (mean 0.345 vs 0.197, positive on all 10
+  offsets), but only 6/10 offsets individually significant at n=32 — real
+  progress, not "external validation solved." Then did the actual
+  Adrian-motivated work (plan item B, genuinely new): stratified CMsiRNAdb's
+  21,971 GalNAc-annotated rows by gene and 3'/5' position
+  (`scripts/analysis/galnac_position_by_gene.py`). Only 2 genes (MARC1,
+  LPA) have both positions present; naive numbers show *opposite*
+  directions per gene (p=0.006 and p=3.6e-11) — but checking
+  cell_type/concentration/time revealed GalNAc position is **perfectly
+  confounded with in-vitro-vs-in-vivo assay type** for both genes (zero
+  cell-type overlap either direction) — so this cannot be reported as
+  evidence of a real gene-dependent chemistry effect, only as "not testable
+  from current data," which is what got written up
+  (`docs/validations/galnac_position_stratification.md`). Updated this
+  file's open-items list to reflect both results and re-numbered/relettered
+  the remaining genuinely-open items (production-swap decision, doc
+  regeneration, literature spot-check). Nothing new left uncommitted at
+  end of session — commit + push done as the last step.
 - **2026-07-11 (session 4)**: User forwarded Dr. Adrian's reply (GalNAc
   positioning is sequence/gene-dependent, not universally 3'-sense-optimal —
   confirms it's worth actually testing per-gene, not assuming linear effect).
