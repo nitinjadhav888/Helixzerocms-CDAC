@@ -249,7 +249,7 @@ def multi_mod_scan(
     antisense: str,
     max_mods: int = 2,
     beam_width: int = 20,
-    model_key: str = "B",
+    model_key: str = "B_v2",
     full_scan: bool = True,
     single_results: Optional[List[Any]] = None,
     parent_score: Optional[float] = None,
@@ -263,7 +263,7 @@ def multi_mod_scan(
     pruning sub-optimal branches to avoid computational explosion.
     """
     # Lazy imports required to prevent circular dependency with predictor.py
-    from .predictor import predict_modified, _get_model, _normalize_scores
+    from .predictor import predict_modified, _get_model, _normalize_scores, _predict_model_b
     from .features import extract_phase2
     from .biophysics import calculate_adjusted_efficacy
     from collections import defaultdict
@@ -285,11 +285,18 @@ def multi_mod_scan(
     )
 
     def _score_variants_batch(variants: List[CmSiRNA], chunk_size: int = 200) -> List[CmSiRNA]:
-        """Internal helper to batch-score variants using Model B, in chunks to limit memory."""
+        """Internal helper to batch-score variants using Model B, in chunks to limit memory.
+
+        Uses the caller's `model_key` (closed over from `multi_mod_scan`'s
+        argument) via the unified `_predict_model_b` dispatcher, so beam-search
+        expansion rounds use the SAME model as the initial single-mod scan.
+        Before 2026-07-11 this hardcoded `_get_model("B")` unconditionally,
+        silently ignoring `model_key="B_v2"` during expansion -- fixed as part
+        of promoting B_v2 to the default model (see
+        docs/validations/model_b_v2_tuning_robustness.md)."""
         if not variants:
             return []
 
-        model = _get_model("B")
         scored_variants = []
 
         for i in range(0, len(variants), chunk_size):
@@ -299,9 +306,7 @@ def multi_mod_scan(
             ps_list = [v.parent_sense for v in chunk]
             pa_list = [v.parent_antisense for v in chunk]
 
-            feature_matrix = extract_phase2(s_list, a_list, ps_list, pa_list)
-            raw_predictions = model.predict(feature_matrix)
-            normalized_scores = _normalize_scores(raw_predictions, mode="rescale")
+            normalized_scores = _predict_model_b(s_list, a_list, ps_list, pa_list, model_key=model_key)
 
             for variant, raw_score in zip(chunk, normalized_scores):
                 adj_score, penalties, _ = calculate_adjusted_efficacy(

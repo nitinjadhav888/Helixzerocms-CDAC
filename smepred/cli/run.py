@@ -110,7 +110,7 @@ def rank_cmd(fasta_path, sequence, top, pool, naked, output):
 @cli.command("single-mod")
 @click.option("--sense",     required=True, help="21-nt sense strand sequence")
 @click.option("--antisense", required=True, help="21-nt antisense strand sequence")
-@click.option("--model",     default="B", show_default=True, type=click.Choice(["B"]), help="Model: B (default, unified HelixZero model)")
+@click.option("--model",     default="B_v2", show_default=True, type=click.Choice(["B", "B_v2"]), help="Model: B_v2 (default, multi-slot CatBoost, tuned) or B (legacy single-char LightGBM)")
 @click.option("--top",  "-n", default=20, show_default=True, help="Top N results to display")
 @click.option("--output",    default=None, help="Save results to CSV file")
 def single_mod_cmd(sense, antisense, model, top, output):
@@ -154,7 +154,7 @@ def single_mod_cmd(sense, antisense, model, top, output):
 @click.option("--sense-positions",     default="",    help="Positions for sense mods (e.g. 2,5,,10,12)")
 @click.option("--antisense-mods",      default="",    help="Mod symbols for antisense strand")
 @click.option("--antisense-positions", default="",    help="Positions for antisense mods")
-@click.option("--model",               default="B",   show_default=True, type=click.Choice(["B"]))
+@click.option("--model",               default="B_v2",   show_default=True, type=click.Choice(["B", "B_v2"]))
 def multi_mod_cmd(sense, antisense, sense_mods, sense_positions, antisense_mods, antisense_positions, model):
     """
     Predict efficacy of one custom multi-modification cm-siRNA design.

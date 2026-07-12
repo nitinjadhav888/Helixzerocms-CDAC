@@ -31,17 +31,19 @@ from pydantic import BaseModel, Field, ConfigDict
 
 # Local internal imports
 from src.predictor import (
-    rank_by_naked_score, 
-    predict_modified, 
+    rank_by_naked_score,
+    predict_modified,
     _get_efficacy_label,
-    _predict_naked, 
-    _normalize_scores, 
-    _get_model
+    _predict_naked,
+    _normalize_scores,
+    _get_model,
+    _predict_model_b,
+    DEFAULT_MODEL_B_KEY,
 )
 from src.biophysics import calculate_adjusted_efficacy
 from src.filters import get_toxicity_score, get_toxicity_label, _extract_seed
 from src.offtarget import get_offtarget_engine
-from src.features import extract_batch_v4, extract_phase2
+from src.features import extract_batch_v4
 from src.modification_engine import multi_mod_scan
 
 # Configure module-level logger
@@ -85,7 +87,7 @@ class RankRequest(BaseModel):
 class SingleModRequest(BaseModel):
     sense: str = Field(..., description="21-nt sense strand")
     antisense: str = Field(..., description="21-nt antisense strand")
-    model: str = Field("B", description="Model version key")
+    model: str = Field(DEFAULT_MODEL_B_KEY, description="Model version key ('B' legacy single-char LightGBM, 'B_v2' multi-slot CatBoost blend, tuned -- default)")
     top_n: int = Field(50, ge=0, description="Limit returned variants")
     full_scan: bool = Field(False, description="True=1260 variants, False=40-variant targeted scan")
 
@@ -96,12 +98,12 @@ class MultiModRequest(BaseModel):
     sense_positions: str = Field("", description="Positions for sense mods (e.g. '2,5,,10')")
     antisense_mods: str = Field("", description="Modification symbols for antisense strand")
     antisense_positions: str = Field("", description="Positions for antisense mods")
-    model: str = Field("B", description="Model version key")
+    model: str = Field(DEFAULT_MODEL_B_KEY, description="Model version key ('B' legacy single-char LightGBM, 'B_v2' multi-slot CatBoost blend, tuned -- default)")
 
 class MultiModScanRequest(BaseModel):
     sense: str
     antisense: str
-    model: str = "B"
+    model: str = DEFAULT_MODEL_B_KEY
     max_mods: int = Field(2, ge=2, le=21)
     beam_width: int = Field(15, ge=5, le=50)
     full_scan: bool = False
@@ -109,7 +111,7 @@ class MultiModScanRequest(BaseModel):
 class MultiModFromSingleRequest(BaseModel):
     sense: str
     antisense: str
-    model: str = "B"
+    model: str = DEFAULT_MODEL_B_KEY
     max_mods: int = Field(5, ge=2, le=21)
     beam_width: int = Field(20, ge=5, le=100)
     full_scan: bool = True
@@ -333,11 +335,12 @@ def multi_mod_scan_endpoint(req: MultiModScanRequest):
             raw_parent_score, req.sense, req.antisense, req.sense, req.antisense
         )
         
-        parent_features_b = extract_phase2(
-            [req.sense], [req.antisense], [req.sense], [req.antisense]
-        )
-        model_b = _get_model(req.model)
-        raw_b_score = float(model_b.predict(parent_features_b)[0])
+        # Unified dispatcher (honors req.model for both "B" and "B_v2" --
+        # previously called _get_model(req.model) directly, which only knew
+        # about the legacy LightGBM registry and would 404/crash on "B_v2").
+        raw_b_score = float(_predict_model_b(
+            [req.sense], [req.antisense], [req.sense], [req.antisense], model_key=req.model
+        )[0])
         model_b_adj, _, _ = calculate_adjusted_efficacy(
             raw_b_score, req.sense, req.antisense, req.sense, req.antisense
         )
@@ -421,9 +424,11 @@ def multi_mod_from_single_endpoint(req: MultiModFromSingleRequest):
         else:
             parent_baseline = req.parent_score
 
-        features_b = extract_phase2([req.sense], [req.antisense], [req.sense], [req.antisense])
-        mb = _get_model("B")
-        raw_b = float(mb.predict(features_b)[0])
+        # Was hardcoded to legacy _get_model("B") regardless of req.model --
+        # fixed to honor the caller's model selection like every other endpoint.
+        raw_b = float(_predict_model_b(
+            [req.sense], [req.antisense], [req.sense], [req.antisense], model_key=req.model
+        )[0])
         mb_adj, _, _ = calculate_adjusted_efficacy(raw_b, req.sense, req.antisense, req.sense, req.antisense)
         model_b_baseline = round(mb_adj, 2)
 

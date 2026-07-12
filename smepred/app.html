@@ -505,11 +505,11 @@
   <div class="row cols2">
     <div class="field">
       <label>Prediction Model</label>
-      <div style="padding:8px 12px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);font-size:0.85rem;color:var(--text)">
-        <strong>HelixZero (unified)</strong> — position-aware model, all 31 mod symbols
-      </div>
-      <input id="sm-model" type="hidden" value="B">
-      <div class="hint">Used by both <strong>Scan Variants</strong> and <strong>Multi-Mod</strong> buttons</div>
+      <select id="sm-model" onchange="document.getElementById('mm-model').value = this.value;">
+        <option value="B_v2" selected>Model B v2 — multi-slot chemistry, tuned (recommended, default)</option>
+        <option value="B">Model B — legacy single-char (previous default)</option>
+      </select>
+      <div class="hint" id="sm-model-hint">B v2: in-distribution Spearman 0.515, external IC50 Spearman 0.345 (n=32, directional). Used by both <strong>Scan Variants</strong> and <strong>Multi-Mod</strong> buttons.</div>
     </div>
     <div class="field">
       <label>Top N variants to display</label>
@@ -568,12 +568,13 @@
       <input id="mm-apos" type="text" placeholder="">
     </div>
   </div>
-  <div class="field" style="max-width:260px">
+  <div class="field" style="max-width:340px">
     <label>Prediction Model</label>
-    <div style="padding:8px 12px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);font-size:0.85rem;color:var(--text)">
-      <strong>HelixZero (unified)</strong>
-    </div>
-    <input id="mm-model" type="hidden" value="B">
+    <select id="mm-model" onchange="document.getElementById('sm-model').value = this.value;">
+      <option value="B_v2" selected>Model B v2 — multi-slot chemistry, tuned (recommended, default)</option>
+      <option value="B">Model B — legacy single-char (previous default)</option>
+    </select>
+    <div class="hint">Synced with the Single-Mod tab's model selector.</div>
   </div>
   <button class="run" id="btn-mm" onclick="runMultiMod()">
     <span class="spinner"></span> Predict Efficacy
@@ -595,6 +596,11 @@
 const API = window.location.origin && window.location.origin !== 'null'
   ? window.location.origin
   : 'http://localhost:8000';
+
+// Friendly label for the raw model_key echoed back by the API.
+function modelLabel(key) {
+  return { B_v2: 'B v2 (multi-slot, tuned)', B: 'B (legacy)' }[key] || key;
+}
 
 // ─── Certificate Generation ───────────────────────────────────────────────────
 async function generateCertificate(sense, antisense, mods) {
@@ -648,7 +654,8 @@ async function runMultiModFromRank(sense, antisense) {
   document.getElementById('mm-sense').value = sense;
   document.getElementById('mm-antisense').value = antisense;
   const mm = parseInt(document.getElementById('rm-maxmods')?.value) || 14;
-  document.getElementById('mm-results').innerHTML = `<div class="mm-loading"><div class="bar"></div><div class="label">Multi-mod beam search (max_mods=${mm})…</div><div class="hint">Recalibrating baseline for chemical space (Model B) — then scanning 1260 single variants</div></div>`;
+  const model = document.getElementById('mm-model')?.value || 'B_v2';
+  document.getElementById('mm-results').innerHTML = `<div class="mm-loading"><div class="bar"></div><div class="label">Multi-mod beam search (max_mods=${mm})…</div><div class="hint">Recalibrating baseline for chemical space (Model ${model}) — then scanning 1260 single variants</div></div>`;
   const mmTabBtn = document.querySelectorAll('nav button')[2];
   switchTab('multimod', mmTabBtn);
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -659,7 +666,7 @@ async function runMultiModFromRank(sense, antisense) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         sense, antisense,
-        model: 'B',
+        model,
         max_mods: mm,
         beam_width: 100,
         full_scan: true,
@@ -993,7 +1000,7 @@ function renderSingleModResults(data) {
       </div>
       <span style="font-size:0.65rem;color:var(--muted)">→</span>
       <div style="display:flex;align-items:center;gap:4px">
-        <span style="font-size:0.6rem;color:var(--muted)">Model B</span>
+        <span style="font-size:0.6rem;color:var(--muted)">${modelLabel(data.model)}</span>
         ${scoreBarSmall(modelBBase)}
       </div>
       <span style="width:1px;height:20px;background:var(--border)"></span>
@@ -1010,7 +1017,7 @@ function renderSingleModResults(data) {
   document.getElementById('sm-results').innerHTML = `
     <div class="results-box">
       <div class="results-header">
-        <div>Top <strong>${data.results.length}</strong> of <strong>${data.total_variants}</strong> variants — Model B (baseline recalibrated for chemical space) ${scanModeLabel}</div>
+        <div>Top <strong>${data.results.length}</strong> of <strong>${data.total_variants}</strong> variants — Model ${modelLabel(data.model)} (baseline recalibrated for chemical space) ${scanModeLabel}</div>
       </div>
       ${parentBanner}
       ${data.parent_safety ? `
@@ -1051,7 +1058,7 @@ async function runMultiMod() {
         sense_positions:     document.getElementById('mm-spos').value.trim(),
         antisense_mods:      document.getElementById('mm-amods').value.trim(),
         antisense_positions: document.getElementById('mm-apos').value.trim(),
-        model:               'B',
+        model:               document.getElementById('mm-model').value,
       })
     });
     const data = await res.json();
@@ -1117,7 +1124,7 @@ function renderMultiModResult(data) {
         <div style="font-size:0.7rem;color:var(--muted);margin-bottom:6px">→</div>
         <div>
           <div class="big-score" style="color:var(--muted);font-size:1.5rem">${modelBBase.toFixed(1)}</div>
-          <div class="score-label" style="font-size:0.6rem;color:var(--accent);font-weight:600">Model B Baseline</div>
+          <div class="score-label" style="font-size:0.6rem;color:var(--accent);font-weight:600">${modelLabel(data.model)} Baseline</div>
         </div>
       </div>`
     : '';
@@ -1334,13 +1341,13 @@ function renderAutoMultiModResults(data) {
     </div>
     <span style="font-size:0.7rem;color:var(--muted)">→</span>
     <div style="display:flex;align-items:center;gap:6px">
-      <span style="font-size:0.65rem;color:var(--muted)">Model B</span>
+      <span style="font-size:0.65rem;color:var(--muted)">${modelLabel(data.model)}</span>
       ${scoreBarSmall(modelBBase)}
     </div>
     <span style="font-size:0.7rem;color:${diffColor};font-weight:600">${modelBBase >= nakedBase ? '+' : ''}${baseDiff}</span>
     <span style="width:1px;height:20px;background:var(--border)"></span>
     <span style="font-size:0.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;font-weight:600">Multi-Mod Beam Search</span>
-    <span style="font-size:0.75rem;color:var(--muted);font-family:monospace">Top <strong>${displayResults.length}</strong> of <strong>${total}</strong> candidates — Model <strong>${data.model}</strong></span>
+    <span style="font-size:0.75rem;color:var(--muted);font-family:monospace">Top <strong>${displayResults.length}</strong> of <strong>${total}</strong> candidates — Model <strong>${modelLabel(data.model)}</strong></span>
   </div>`;
 
   const rows = displayResults.map((r, i) => {
@@ -1374,7 +1381,7 @@ function renderAutoMultiModResults(data) {
   document.getElementById('mm-results').innerHTML = `
     <div class="results-box">
       <div class="results-header">
-        <div>Top <strong>${displayResults.length}</strong> of <strong>${total}</strong> beam variants — Model <strong>${data.model}</strong></div>
+        <div>Top <strong>${displayResults.length}</strong> of <strong>${total}</strong> beam variants — Model <strong>${modelLabel(data.model)}</strong></div>
       </div>
       ${parentBadge}
       ${data.parent_safety ? `

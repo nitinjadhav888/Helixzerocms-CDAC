@@ -44,6 +44,13 @@ logger = logging.getLogger(__name__)
 
 MODELS_DIR = Path(__file__).parent.parent / "models"
 
+# Default Model B version served across API/CLI/UI when a caller doesn't
+# explicitly pick one. Promoted from "B" (legacy single-char LightGBM) to
+# "B_v2" (multi-slot CatBoost blend, hyperparameter-tuned) on 2026-07-11 --
+# see docs/validations/model_b_v2_tuning_robustness.md for the validation
+# behind that decision. "B" remains fully supported/selectable, not removed.
+DEFAULT_MODEL_B_KEY = "B_v2"
+
 _MODEL_FILES = {
     "normal": MODELS_DIR / "model_normal.pkl",
     "B":      MODELS_DIR / "model_b.pkl",
@@ -93,6 +100,37 @@ def _predict_naked(feature_matrix: np.ndarray) -> np.ndarray:
         return model.predict(input_matrix)
         
     return model_bundle.predict(feature_matrix)
+
+
+def _predict_model_b(
+    sense_list: List[str],
+    antisense_list: List[str],
+    parent_sense_list: List[str],
+    parent_antisense_list: List[str],
+    model_key: str = DEFAULT_MODEL_B_KEY,
+) -> np.ndarray:
+    """
+    Unified Model B batch scorer (raw 0-100 efficacy), dispatching between the
+    legacy single-char LightGBM model ("B") and the multi-slot CatBoost blend
+    ("B_v2"). This is the ONE place `model_key` should be interpreted for
+    Model-B-family scoring -- both `predict_modified()` below and the
+    beam-search engine (`modification_engine.multi_mod_scan`) call this, so a
+    model swap here is honored everywhere consistently.
+
+    Before 2026-07-11 this logic was duplicated inline in `predict_modified`,
+    and `modification_engine._score_variants_batch` independently hardcoded
+    `_get_model("B")` regardless of the caller's `model_key` -- meaning the
+    beam-search *expansion* rounds silently ignored model_key="B_v2" even
+    when the initial single-mod scan honored it. Fixed as part of promoting
+    B_v2 to the default (see docs/validations/model_b_v2_tuning_robustness.md).
+    """
+    if model_key == "B_v2":
+        raw = model_b_v2.predict(sense_list, antisense_list, parent_sense_list, parent_antisense_list)
+        return np.clip(raw, 0.0, 100.0)
+    feature_matrix = extract_phase2(sense_list, antisense_list, parent_sense_list, parent_antisense_list)
+    model_b = _get_model(model_key if model_key in _MODEL_FILES else "B")
+    raw = model_b.predict(feature_matrix)
+    return _normalize_scores(raw, mode="rescale")
 
 
 def _get_calibrator(key: str) -> Any:
@@ -298,7 +336,7 @@ def predict_modified(
     sense: str,
     antisense: str,
     mode: str = "scan",
-    model_key: str = "B",
+    model_key: str = DEFAULT_MODEL_B_KEY,
     full_scan: bool = True,
     sense_mods: str = "",
     sense_positions: str = "",
@@ -310,18 +348,12 @@ def predict_modified(
     Applies the biophysical engine to penalize clinically non-viable modifications.
     """
     logger.info(f"Starting predict_modified workflow (mode: {mode}).")
-    
+
     # 1. Establish parent baselines
     parent_v4_matrix = extract_batch_v4([sense], [antisense])
     raw_parent_score = float(_normalize_scores(_predict_naked(parent_v4_matrix), calibrator_key="normal")[0])
-    
-    use_v2 = model_key == "B_v2"
-    if use_v2:
-        raw_model_b_score = float(model_b_v2.predict([sense], [antisense], [sense], [antisense])[0])
-    else:
-        parent_b_matrix = extract_phase2([sense], [antisense], [sense], [antisense])
-        model_b = _get_model("B")
-        raw_model_b_score = float(_normalize_scores(np.array([model_b.predict(parent_b_matrix)[0]]), mode="rescale")[0])
+
+    raw_model_b_score = float(_predict_model_b([sense], [antisense], [sense], [antisense], model_key=model_key)[0])
 
     # 2. Generate variants
     if mode == "scan":
@@ -347,13 +379,7 @@ def predict_modified(
     pa_list = [v.parent_antisense for v in variants]
     
     # 4. Predict
-    if use_v2:
-        raw_variant_scores = model_b_v2.predict(s_list, a_list, ps_list, pa_list)
-        normalized_scores = np.clip(raw_variant_scores, 0.0, 100.0)
-    else:
-        feature_matrix = extract_phase2(s_list, a_list, ps_list, pa_list)
-        raw_variant_scores = model_b.predict(feature_matrix)
-        normalized_scores = _normalize_scores(raw_variant_scores, mode="rescale")
+    normalized_scores = _predict_model_b(s_list, a_list, ps_list, pa_list, model_key=model_key)
 
     # 5. Apply biophysical constraints and rank
     parent_adjusted_score, _, _ = calculate_adjusted_efficacy(
