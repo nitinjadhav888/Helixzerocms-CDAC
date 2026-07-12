@@ -505,11 +505,11 @@
   <div class="row cols2">
     <div class="field">
       <label>Prediction Model</label>
-      <select id="sm-model" onchange="document.getElementById('mm-model').value = this.value;">
+      <select id="sm-model" onchange="updateModelHint(); document.getElementById('mm-model').value = this.value;">
         <option value="B_v2" selected>Model B v2 — multi-slot chemistry, tuned (recommended, default)</option>
         <option value="B">Model B — legacy single-char (previous default)</option>
       </select>
-      <div class="hint" id="sm-model-hint">B v2: in-distribution Spearman 0.515, external IC50 Spearman 0.345 (n=32, directional). Used by both <strong>Scan Variants</strong> and <strong>Multi-Mod</strong> buttons.</div>
+      <div class="hint" id="sm-model-hint"></div>
     </div>
     <div class="field">
       <label>Top N variants to display</label>
@@ -597,9 +597,85 @@ const API = window.location.origin && window.location.origin !== 'null'
   ? window.location.origin
   : 'http://localhost:8000';
 
+// ─── Model Constants & Helpers ────────────────────────────────────────────
+const DEFAULT_MODEL = 'B_v2';
+
+const MODEL_STATS = {
+  B_v2: {
+    label: 'Model B v2 (tuned)',
+    inDist: { spearman: 0.515, mae: 22.62, n: 4269 },
+    external: { spearman: 0.345, n: 32, note: 'p=0.046 significant on 6/10 splits' },
+    description: 'Multi-slot chemistry schema (CatBoost blend), hyperparameter-tuned (depth=10, lr=0.05, l2=5). Real-data training (43,136 rows, zero synthetic). Recommended default.'
+  },
+  B: {
+    label: 'Model B (legacy)',
+    inDist: { spearman: 0.681, mae: 15.88, n: 303, note: 'Contaminated: 82.9% train/val sequence overlap' },
+    external: null,
+    description: 'Single-char LightGBM baseline. Trained on legacy dataset (includes synthetic data, removed in rebuild). Limited external validation. Full supported, but B v2 recommended for new work.'
+  }
+};
+
 // Friendly label for the raw model_key echoed back by the API.
 function modelLabel(key) {
-  return { B_v2: 'B v2 (multi-slot, tuned)', B: 'B (legacy)' }[key] || key;
+  return { B_v2: 'B v2 (multi-slot, tuned)', B: 'B (legacy)' }[key] || 'B v2 (multi-slot, tuned)';
+}
+
+// Update the model-performance hint when user changes the dropdown.
+function updateModelHint() {
+  const selected = document.getElementById('sm-model').value || DEFAULT_MODEL;
+  const stats = MODEL_STATS[selected];
+  if (!stats) return;
+
+  let hint = `<strong>${stats.label}</strong> — `;
+  if (stats.inDist) {
+    hint += `in-distribution Spearman ${stats.inDist.spearman.toFixed(3)} (n=${stats.inDist.n}`;
+    if (stats.inDist.note) hint += `, ${stats.inDist.note}`;
+    hint += `)`;
+  }
+  if (stats.external) {
+    hint += `; external IC50 Spearman ${stats.external.spearman.toFixed(3)} (n=${stats.external.n}, ${stats.external.note})`;
+  } else {
+    hint += `; limited external validation`;
+  }
+  hint += `. Used by both <strong>Scan Variants</strong> and <strong>Multi-Mod</strong> buttons.`;
+  document.getElementById('sm-model-hint').innerHTML = hint;
+}
+
+// Initialize hint on page load.
+document.addEventListener('DOMContentLoaded', () => updateModelHint());
+
+// ─── Shared Penalty Category Registry ──────────────────────────────────
+// Single source of truth for all 7 biophysics penalty categories, mirroring
+// biophysics.py's calculate_adjusted_efficacy() penalties dict + main.py's
+// bolted-on "offtarget" category. Keeps scoreBreakdownPopup(), renderMultiModResult(),
+// and buildExpandedDetail()'s badge legend from drifting out of sync with each
+// other or with the backend (previously two of these independently omitted
+// different subsets of categories).
+// thresholds: [greenBelow, yellowBelow] -- offtarget uses a wider scale since
+// it can range up to ~20+ (including the fatal 15-mer-match hard zero case).
+const PENALTY_CATEGORIES = [
+  { key: 'nuclease',   label: 'Nuclease Shielding',             short: 'Nuc',   icon: '🧬', thresholds: [4, 8] },
+  { key: 'immuno',     label: 'Innate Immunogenicity (TLR7/8)', short: 'Imm',   icon: '🛡️', thresholds: [4, 8] },
+  { key: 'risc',       label: 'RISC Loading Constraints',       short: 'RISC',  icon: '🎯', thresholds: [4, 8] },
+  { key: 'thermo',     label: 'Thermodynamic / Structural',     short: 'Therm', icon: '🌡️', thresholds: [4, 8] },
+  { key: 'serum',      label: 'Serum Exonuclease',              short: 'Serum', icon: '💉', thresholds: [4, 8] },
+  { key: 'synthesis',  label: 'Synthesis / Manufacturability',  short: 'Synth', icon: '⚗️', thresholds: [4, 8] },
+  { key: 'offtarget',  label: 'Off-Target Safety (Human)',      short: 'OffTgt',icon: '⚠️', thresholds: [1, 15] },
+];
+
+// Penalty values arrive as either {total, details} objects or bare numbers
+// depending on call site -- always unwrap the same way so color-coding never
+// silently miscompares an object against a number (that produced a bug where
+// immuno/serum rows always rendered red regardless of actual severity).
+function penaltyTotal(p, key) {
+  const v = p ? p[key] : undefined;
+  if (v && typeof v === 'object') return v.total ?? 0;
+  return typeof v === 'number' ? v : 0;
+}
+
+function penaltyColor(val, thresholds) {
+  const [green, yellow] = thresholds || [4, 8];
+  return val < green ? '#34d399' : val < yellow ? '#fbbf24' : '#f87171';
 }
 
 // ─── Certificate Generation ───────────────────────────────────────────────────
@@ -654,7 +730,7 @@ async function runMultiModFromRank(sense, antisense) {
   document.getElementById('mm-sense').value = sense;
   document.getElementById('mm-antisense').value = antisense;
   const mm = parseInt(document.getElementById('rm-maxmods')?.value) || 14;
-  const model = document.getElementById('mm-model')?.value || 'B_v2';
+  const model = document.getElementById('mm-model')?.value || DEFAULT_MODEL;
   document.getElementById('mm-results').innerHTML = `<div class="mm-loading"><div class="bar"></div><div class="label">Multi-mod beam search (max_mods=${mm})…</div><div class="hint">Recalibrating baseline for chemical space (Model ${model}) — then scanning 1260 single variants</div></div>`;
   const mmTabBtn = document.querySelectorAll('nav button')[2];
   switchTab('multimod', mmTabBtn);
@@ -1085,13 +1161,11 @@ function renderMultiModResult(data) {
   const p = r.biophysics || r.penalties;
   let penaltyHtml = '';
   if (p) {
-    const labels = {'nuclease':'Nuc','immuno':'Imm','risc':'RISC','thermo':'Therm','serum':'Serum'};
-    const items = Object.entries(labels).map(([k, lab]) => {
-      const valObj = p[k];
-      const val = (valObj && valObj.total !== undefined) ? valObj.total : (valObj ?? 0);
-      const color = val < 4 ? '#34d399' : val < 8 ? '#fbbf24' : '#f87171';
+    const items = PENALTY_CATEGORIES.map(c => {
+      const val = penaltyTotal(p, c.key);
+      const color = penaltyColor(val, c.thresholds);
       return `<span style="display:inline-flex;align-items:center;gap:3px;margin:2px 6px 2px 0;font-size:0.72rem;color:var(--muted);background:var(--surface);padding:2px 6px;border-radius:4px;border:1px solid var(--border)">
-        ${lab}<span style="color:${color};font-weight:600">-${val.toFixed(1)}</span>
+        ${c.short}<span style="color:${color};font-weight:600">-${val.toFixed(1)}</span>
       </span>`;
     }).join('');
     penaltyHtml = `<div style="margin-top:8px;font-size:0.72rem;color:var(--muted)">
@@ -1155,8 +1229,13 @@ function renderMultiModResult(data) {
 }
 
 // ─── Confidence Badge Helper ──────────────────────────────────────────────
+// Categorizes modifications by clinical maturity for the confidence badge.
+// STANDARD = established ESC/ESC+ chemistries in FDA-approved siRNA drugs (F, M, S, 1, L, E, D per documentation).
+// EXOTIC = remaining 8 symbols that were missing from the original 22-symbol set:
+// Y (ENA), 2 (3'-phosphate), 3 (5'-OMe cap), 4 (conjugate), 5 (PEG), 6 (UNA), 8 (GNA), 9 (TNA).
+// Covers all 30 modification symbols; unclassified symbols no longer silently fall into "High Precedent".
 const _STANDARD_MODS = new Set(['F','M','S','1','L','E','D']);
-const _EXOTIC_MODS   = new Set(['B','J','V','I','N','O','P','R','H','K','Z','Q','W','X','7']);
+const _EXOTIC_MODS   = new Set(['B','J','V','I','N','O','P','R','H','K','Z','Q','W','X','7','Y','2','3','4','5','6','8','9']);
 
 function confidenceBadge(symbol) {
   const mods = symbol.replace(/[+]/g, '').split('');
@@ -1171,32 +1250,27 @@ function confidenceBadge(symbol) {
 }
 
 // ─── Score Breakdown Popup ──────────────────────────────────────────────
-function scoreBreakdownPopup(r) {
+// modelKey: the model_key ("B" or "B_v2") that actually produced `r.raw_efficacy_score`,
+// passed by the caller (which has data.model in scope) so the label is never wrong.
+function scoreBreakdownPopup(r, modelKey) {
   const raw = r.raw_efficacy_score || r.efficacy_score;
   const adj = r.efficacy_score;
   const p = r.biophysics || r.penalties || {};
-  const totalPen = r.total_penalty || Object.values(p).reduce((a,b) => a+b, 0);
+  // Sum from the same 7-category registry used for the rows below, so the
+  // displayed total always matches the displayed rows (previously fell back
+  // to Object.values(p).reduce(...), which breaks if any value is an object).
+  const totalPen = r.total_penalty ?? PENALTY_CATEGORIES.reduce((sum, c) => sum + penaltyTotal(p, c.key), 0);
 
-    const penaltyRows = [
-      { key: 'nuclease', label: 'Nuclease Shielding', color: (p.nuclease && p.nuclease.total || 0) < 4 ? '#34d399' : (p.nuclease && p.nuclease.total || 0) < 8 ? '#fbbf24' : '#f87171' },
-      { key: 'immuno', label: 'Innate Immunogenicity (TLR7/8)', color: p.immuno < 4 ? '#34d399' : p.immuno < 8 ? '#fbbf24' : '#f87171' },
-      { key: 'risc', label: 'RISC Loading Constraints', color: (p.risc && p.risc.total || 0) < 4 ? '#34d399' : (p.risc && p.risc.total || 0) < 8 ? '#fbbf24' : '#f87171' },
-      { key: 'thermo', label: 'Thermodynamic / Structural', color: (p.thermo && p.thermo.total || 0) < 4 ? '#34d399' : (p.thermo && p.thermo.total || 0) < 8 ? '#fbbf24' : '#f87171' },
-      { key: 'serum', label: 'Serum Exonuclease', color: p.serum < 4 ? '#34d399' : p.serum < 8 ? '#fbbf24' : '#f87171' },
-      { key: 'offtarget', label: 'Off-Target Safety (Human)', color: (p.offtarget && p.offtarget.total || 0) < 1 ? '#34d399' : (p.offtarget && p.offtarget.total || 0) < 15 ? '#fbbf24' : '#f87171' },
-    ];
-
-  const pRows = penaltyRows.map(pr => {
-    const valObj = p[pr.key];
-    const val = (valObj && valObj.total !== undefined) ? valObj.total : (valObj || 0);
+  const pRows = PENALTY_CATEGORIES.map(c => {
+    const val = penaltyTotal(p, c.key);
     return `<div class="penalty-row">
-      <span class="penalty-name">${pr.label}</span>
-      <span class="penalty-val" style="color:${pr.color}">-${val.toFixed(1)}</span>
+      <span class="penalty-name">${c.label}</span>
+      <span class="penalty-val" style="color:${penaltyColor(val, c.thresholds)}">-${val.toFixed(1)}</span>
     </div>`;
   }).join('');
 
   return `<div class="score-popup">
-    <div class="raw-line">Raw Predicted Efficacy (LightGBM): <span style="color:var(--accent)">${raw.toFixed(1)}</span></div>
+    <div class="raw-line">Raw Predicted Efficacy (Model ${modelLabel(modelKey)}): <span style="color:var(--accent)">${raw.toFixed(1)}</span></div>
     ${pRows}
     <div class="penalty-row">
       <span class="penalty-name" style="font-weight:700">Total Penalty</span>
@@ -1279,23 +1353,20 @@ function buildExpandedDetail(sense, antisense, penalties, modSymbol, parentSense
   const p = penalties || {};
   const legendItems = [];
   const makeBadge = (key, icon, label) => {
-    if (p[key] && p[key].total > 0) {
+    const val = penaltyTotal(p, key);
+    if (val > 0) {
       const storeKey = 'pen_' + Math.random().toString(36).slice(2);
-      window._penaltyData[storeKey] = p[key];
+      // showPenaltyDetails expects {total, details} -- normalize bare-number values too.
+      window._penaltyData[storeKey] = (p[key] && typeof p[key] === 'object') ? p[key] : { total: val, details: {} };
       return `<span style="cursor:pointer; text-decoration:underline dashed; text-underline-offset:3px; padding:3px 8px; border-radius:6px; font-size:0.82rem; font-weight:600; border:1px solid rgba(239,68,68,0.3); background:rgba(239,68,68,0.07); color:#f87171; transition:all 0.15s; display:inline-block; margin:2px 4px;"
                onmouseover="this.style.background='rgba(239,68,68,0.18)'; this.style.borderColor='rgba(239,68,68,0.6)'; this.style.transform='translateY(-1px)'"
                onmouseout="this.style.background='rgba(239,68,68,0.07)'; this.style.borderColor='rgba(239,68,68,0.3)'; this.style.transform=''"
-               onclick="event.stopPropagation(); showPenaltyDetails('${storeKey}', '${icon} ${label}', '${icon}')">${icon} ${label}: −${p[key].total.toFixed(1)}</span>`;
+               onclick="event.stopPropagation(); showPenaltyDetails('${storeKey}', '${icon} ${label}', '${icon}')">${icon} ${label}: −${val.toFixed(1)}</span>`;
     }
     return '';
   };
-  
-  legendItems.push(makeBadge('nuclease', '🧬', 'Nuclease'));
-  legendItems.push(makeBadge('immuno', '🛡️', 'Immuno'));
-  legendItems.push(makeBadge('risc', '🎯', 'RISC'));
-  legendItems.push(makeBadge('thermo', '🌡️', 'Thermo'));
-  legendItems.push(makeBadge('serum', '💉', 'Serum'));
-  legendItems.push(makeBadge('offtarget', '⚠️', 'Off-Target'));
+
+  PENALTY_CATEGORIES.forEach(c => legendItems.push(makeBadge(c.key, c.icon, c.label.split(' (')[0])));
 
   return `<div class="seq-view">
     <div class="seq-row">
@@ -1356,7 +1427,7 @@ function renderAutoMultiModResults(data) {
     const totalPen = r.total_penalty || Object.values(p).reduce((a,b) => a+b, 0);
 
     // Score column with breakdown popup
-    const scoreHtml = `<div class="score-cell">${scoreBar(r.efficacy_score ?? 0)}${scoreBreakdownPopup(r)}</div>`;
+    const scoreHtml = `<div class="score-cell">${scoreBar(r.efficacy_score ?? 0)}${scoreBreakdownPopup(r, data.model)}</div>`;
 
     // Confidence badge
     const confHtml = confidenceBadge(r.mod_symbol);
@@ -1540,7 +1611,7 @@ async function loadMods() {
       html += `<div style="margin-bottom:20px; padding:14px 16px; background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.2); border-radius:10px;">
         <div style="font-size:0.72rem; color:#9ca3af; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:6px;">Total Penalty Score</div>
         <div style="font-size:2rem; font-weight:800; color:#ef4444; line-height:1;">−${typeof total === 'number' ? total.toFixed(1) : total}</div>
-        <div style="font-size:0.7rem; color:#6b7280; margin-top:4px;">Applied to raw LightGBM score before final adjustment</div>
+        <div style="font-size:0.7rem; color:#6b7280; margin-top:4px;">Applied to the raw ML efficacy score (either model) before final adjustment</div>
       </div>`;
 
       html += '<div style="display:flex; flex-direction:column; gap:10px;">';

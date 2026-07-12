@@ -22,7 +22,7 @@ Start Server:
 import logging
 import json
 from pathlib import Path
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Literal
 
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -87,7 +87,7 @@ class RankRequest(BaseModel):
 class SingleModRequest(BaseModel):
     sense: str = Field(..., description="21-nt sense strand")
     antisense: str = Field(..., description="21-nt antisense strand")
-    model: str = Field(DEFAULT_MODEL_B_KEY, description="Model version key ('B' legacy single-char LightGBM, 'B_v2' multi-slot CatBoost blend, tuned -- default)")
+    model: Literal["B", "B_v2"] = Field(DEFAULT_MODEL_B_KEY, description="Model version key ('B' legacy single-char LightGBM, 'B_v2' multi-slot CatBoost blend, tuned -- default)")
     top_n: int = Field(50, ge=0, description="Limit returned variants")
     full_scan: bool = Field(False, description="True=1260 variants, False=40-variant targeted scan")
 
@@ -98,12 +98,12 @@ class MultiModRequest(BaseModel):
     sense_positions: str = Field("", description="Positions for sense mods (e.g. '2,5,,10')")
     antisense_mods: str = Field("", description="Modification symbols for antisense strand")
     antisense_positions: str = Field("", description="Positions for antisense mods")
-    model: str = Field(DEFAULT_MODEL_B_KEY, description="Model version key ('B' legacy single-char LightGBM, 'B_v2' multi-slot CatBoost blend, tuned -- default)")
+    model: Literal["B", "B_v2"] = Field(DEFAULT_MODEL_B_KEY, description="Model version key ('B' legacy single-char LightGBM, 'B_v2' multi-slot CatBoost blend, tuned -- default)")
 
 class MultiModScanRequest(BaseModel):
     sense: str
     antisense: str
-    model: str = DEFAULT_MODEL_B_KEY
+    model: Literal["B", "B_v2"] = DEFAULT_MODEL_B_KEY
     max_mods: int = Field(2, ge=2, le=21)
     beam_width: int = Field(15, ge=5, le=50)
     full_scan: bool = False
@@ -111,7 +111,7 @@ class MultiModScanRequest(BaseModel):
 class MultiModFromSingleRequest(BaseModel):
     sense: str
     antisense: str
-    model: str = DEFAULT_MODEL_B_KEY
+    model: Literal["B", "B_v2"] = DEFAULT_MODEL_B_KEY
     max_mods: int = Field(5, ge=2, le=21)
     beam_width: int = Field(20, ge=5, le=100)
     full_scan: bool = True
