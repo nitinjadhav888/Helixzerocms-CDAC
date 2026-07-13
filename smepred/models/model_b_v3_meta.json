@@ -1,0 +1,26 @@
+{
+  "version": "model_b_v3",
+  "phase": "v2 features + RNA-FM PCA-32 (64-dim) + ViennaRNA (5-dim)",
+  "date": "2026-07-13T13:16:02.294036",
+  "architecture": "catboost_v3_enriched",
+  "n_features": 513,
+  "training_rows": 38867,
+  "in_distribution_val": {
+    "n": 4269,
+    "spearman": 0.5494163498761518,
+    "mae": 21.728782939022782
+  },
+  "external_ic50_holdout": {
+    "n": 32,
+    "spearman": 0.3878029881046832,
+    "p_value": 0.02830025462423241
+  },
+  "comparison_to_v2": {
+    "v2_val_spearman": 0.4947,
+    "v2_val_mae": 22.635,
+    "v2_external_spearman": 0.3239,
+    "v2_external_p": 0.0706,
+    "delta_val_spearman": 0.05471634987615187,
+    "delta_external_spearman": 0.0639029881046832
+  }
+}

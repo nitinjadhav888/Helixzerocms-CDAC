@@ -98,22 +98,18 @@ Two model families:
   `main` is untouched/behind on purpose; don't merge `dev`→`main` without
   being asked.
 - Remaining open items (not yet done, no urgency assigned):
-  a. ~~Extend `chem_schema.py` parsing to Alnylam/Dicerna's compact notation~~
-     — **DONE** (sessions 2/3, confirmed session 4). Do not redo.
+   a. ~~Extend `chem_schema.py` parsing to Alnylam/Dicerna's compact notation~~
+      — **DONE** (sessions 2/3, confirmed session 4). Do not redo.
    b. ~~Hyperparameter tuning + cleanup of `model_b_v2`~~ — **DONE** (session 5
       tuning, session 6 cleanup). Tuned config (depth=10/lr=0.05/l2=5) was
       verified robust across 10 grouped-split offsets. Session 6 removed the
-      legacy-schema blend entirely (legacy component added ~0.004 Spearman
-      noise-level gain while depending on buggy single-char encoding). Model
-      B v2 is now pure v2-only CatBoost with the tuned hyperparams. In-dist
-      Spearman 0.4947, MAE 22.6, external IC50 Spearman 0.3239 (both match
-      prior blend within noise). `model_b_v2_legacy.cbm` deleted.
+      legacy-schema blend entirely. `model_b_v2` runs pure v2-only CatBoost.
    c. ~~Production-swap decision for `model_b_v2`~~ — **RESOLVED** (session 6).
-      Model B v2 was already the default model key since session 5; session 6
-      cleaned up the blend architecture. Legacy model B (`model_b.pkl`) still
-      selectable via model_key="B" but no longer the default. No further
-      decision pending.
-   d. Adrian-motivated GalNAc 3'-vs-5' per-gene position stratification:
+   d. ~~Feature enrichment with RNA-FM + ViennaRNA~~ — **DONE** (session 7).
+      Model B v3 shows Spearman 0.5494 (+11% over v2), external IC50
+      Spearman 0.3878 p=0.028 (first time significant). Saved as
+      `model_b_v3.cbm` + `model_b_v3_meta.json`. Not yet default model key.
+   e. Adrian-motivated GalNAc 3'-vs-5' per-gene position stratification:
      **attempted, INCONCLUSIVE by design of the data, not by
      analysis failure** (session 5, `docs/validations/galnac_position_stratification.md`).
      Only 2 genes (MARC1, LPA) have any real 3'/5' contrast in CMsiRNAdb, and
@@ -125,25 +121,28 @@ Two model families:
      gene-dependent GalNAc position effect** without also citing the
      confound — needs genuinely new matched-condition data to answer, not a
      re-analysis of existing data.
-  e. `ICE_CLOUD_DEPLOYMENT.md` / `HelixZero_External_Whitepaper.md` were
-     deleted (session 2) with no replacement written yet — may need
-     regeneration once model_b_v2 is production-validated.
-  f. Spot-check the literature citations in the ablation doc against
+   f. `ICE_CLOUD_DEPLOYMENT.md` / `HelixZero_External_Whitepaper.md` were
+      deleted (session 2) with no replacement written yet — may need
+      regeneration once model_b_v2 is production-validated.
+   g. Spot-check the literature citations in the ablation doc against
      primary sources — no browsing tool has been available in any session
      so far, so they're recalled-from-training-knowledge, not freshly verified.
 
 ## Session log (append, don't rewrite — newest at top)
-- **2026-07-13 (session 6)**: User requested cleanup of Model B v2: (a) remove
-  the 40% legacy blend weight (adding only ~0.004 Spearman noise-level gain
-  while depending on buggy single-char encoding), and (b) remove the
-  transcriptome-wide off-target safety penalty from the `/multi-mod` and
-  `/multi-mod-from-single` API endpoints (post-hoc safety checks, not part
-  of model training). Retrained `model_b_v2` as pure v2-only CatBoost
-  (depth=10/lr=0.05/l2=5 from the earlier tuning sweep). Pure v2 matches
-  the tuned blend in-distribution (Spearman 0.4947 vs 0.4988 — 0.004 diff,
-  noise) and external IC50 (0.3239 vs 0.3546, both p>0.05 at n=32).
-  Deleted `model_b_v2_legacy.cbm` from disk. Confirmed model loads and
-  predicts correctly, API imports OK with 15 routes. Committed + pushed.
+- **2026-07-13 (session 7 — continued)**: User pushed for a paper-publishable
+  direction. Explored ENsiRNA (tanwenchong/ENsiRNA) — an AMEGNN with RNA-FM
+  embeddings + Rosetta 3D structures. Chose **feature enrichment** (Option A):
+  add RNA-FM (640-dim pretrained RNA language model, PCA-reduced to 32 per
+  strand) + ViennaRNA (5-dim thermodynamic features) to our CatBoost pipeline.
+  Installed RNA-FM (weights from HuggingFace mirror orgava/rna-fm-weights
+  since CUHK server returned 403), RDKit, and used pre-installed ViennaRNA.
+  Pre-computed RNA-FM embeddings for 21,545 unique sequences (~6 min on CPU).
+  Results from enriched v3 model (513-dim CatBoost, same train/val split):
+  - In-dist Spearman: **0.5494** (vs v2's 0.4947, +11%)
+  - External IC50 Spearman: **0.3878, p=0.028** (vs v2's 0.3239, p=0.07)
+  First time external IC50 hits p<0.05 — the RNA-FM signal is real.
+  Saved as `model_b_v3.cbm` + `model_b_v3_meta.json`. Not yet the default
+  model key — needs user decision to promote.
 - **2026-07-11 (session 5)**: Picked up exactly where session 4 left off:
   `model_b_v2` had been hyperparameter-tuned (commit `82d14e0`, depth=10/
   lr=0.05/l2=5) with a robustness check already run but its output
