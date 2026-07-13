@@ -134,6 +134,17 @@ Two model families:
      so far, so they're recalled-from-training-knowledge, not freshly verified.
 
 ## Session log (append, don't rewrite — newest at top)
+- **2026-07-13 (session 6)**: User requested cleanup of Model B v2: (a) remove
+  the 40% legacy blend weight (adding only ~0.004 Spearman noise-level gain
+  while depending on buggy single-char encoding), and (b) remove the
+  transcriptome-wide off-target safety penalty from the `/multi-mod` and
+  `/multi-mod-from-single` API endpoints (post-hoc safety checks, not part
+  of model training). Retrained `model_b_v2` as pure v2-only CatBoost
+  (depth=10/lr=0.05/l2=5 from the earlier tuning sweep). Pure v2 matches
+  the tuned blend in-distribution (Spearman 0.4947 vs 0.4988 — 0.004 diff,
+  noise) and external IC50 (0.3239 vs 0.3546, both p>0.05 at n=32).
+  Deleted `model_b_v2_legacy.cbm` from disk. Confirmed model loads and
+  predicts correctly, API imports OK with 15 routes. Committed + pushed.
 - **2026-07-11 (session 5)**: Picked up exactly where session 4 left off:
   `model_b_v2` had been hyperparameter-tuned (commit `82d14e0`, depth=10/
   lr=0.05/l2=5) with a robustness check already run but its output

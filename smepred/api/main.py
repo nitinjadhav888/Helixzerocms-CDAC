@@ -279,31 +279,6 @@ def multi_mod_endpoint(req: MultiModRequest):
             
         variant = results[0]
         variant_dict = variant.to_dict()
-        
-        # Apply safety scan and penalize efficacy if hazardous
-        engine = get_offtarget_engine()
-        safety_report = engine.validate_safety(
-            variant.sense, req.antisense, variant.antisense, variant.sense
-        )
-        
-        if safety_report["overallSafetyScore"] < 100:
-            off_target_penalty_weight = (100 - safety_report["overallSafetyScore"]) * 0.2
-            penalties = variant_dict.get("penalties", {})
-            penalties["offtarget"] = {"total": round(off_target_penalty_weight, 1), "details": {"Transcriptome Safety Score Deduction": round(off_target_penalty_weight, 1)}}
-            if safety_report["riskFactors"]:
-                penalties["offtarget"]["details"]["Critical Risks Detected"] = len(safety_report["riskFactors"])
-            
-            variant_dict["penalties"] = penalties
-            variant_dict["total_penalty"] = variant_dict.get("total_penalty", 0.0) + round(off_target_penalty_weight, 1)
-            
-            current_efficacy = variant_dict.get("efficacy_score", 0.0)
-            adjusted_score = max(0.0, current_efficacy - off_target_penalty_weight)
-            
-            if not safety_report["isSafe"]:
-                adjusted_score = 0.0
-                
-            variant_dict["efficacy_score"] = round(adjusted_score, 1)
-            variant_dict["efficacy_label"] = _get_efficacy_label(variant_dict["efficacy_score"])
 
         return {
             "parent_sense": req.sense,
@@ -312,7 +287,6 @@ def multi_mod_endpoint(req: MultiModRequest):
             "model_b_baseline": output.get("model_b_baseline", output["parent_score"]),
             "naked_baseline": output.get("naked_baseline", output["parent_score"]),
             "model": req.model,
-            "safety_report": safety_report,
             "result": variant_dict,
         }
     except Exception as e:
@@ -448,33 +422,14 @@ def multi_mod_from_single_endpoint(req: MultiModFromSingleRequest):
         # Truncate to top 100 to prevent evaluating safety heuristics on 15,000+ variants
         variants = variants[:100]
 
-        engine = get_offtarget_engine()
         formatted_results = []
         
         for idx, var in enumerate(variants):
             penalties = getattr(var, 'penalties', None) or {}
-            
-            # Integrate Transcriptome Safety Check
-            safety = engine.validate_safety(var.sense, req.antisense, var.antisense, var.sense)
-            if safety["overallSafetyScore"] < 100:
-                offtarget_pen = (100 - safety["overallSafetyScore"]) * 0.2
-                penalties["offtarget"] = {"total": round(offtarget_pen, 1), "details": {"Transcriptome Safety Score Deduction": round(offtarget_pen, 1)}}
-                if safety["riskFactors"]:
-                    penalties["offtarget"]["details"]["Critical Risks Detected"] = len(safety["riskFactors"])
-                
             total_penalty = sum(p["total"] for p in penalties.values())
             
-            # Recalculate raw score
-            old_penalty = sum(p["total"] for p in (getattr(var, 'penalties', None) or {}).values())
-            if "offtarget" in penalties:
-                old_penalty -= penalties["offtarget"]["total"]
-                
-            raw_score = round(var.efficacy_score + 0.70 * old_penalty, 2)
-            adjusted_score = round(raw_score - 0.70 * total_penalty, 2)
-            
-            if not safety["isSafe"]:
-                adjusted_score = 0.0
-            adjusted_score = max(0.0, adjusted_score)
+            raw_score = round(var.efficacy_score + 0.70 * total_penalty, 2)
+            adjusted_score = round(var.efficacy_score, 2)
 
             formatted_results.append({
                 "rank": 0,
@@ -490,11 +445,9 @@ def multi_mod_from_single_endpoint(req: MultiModFromSingleRequest):
                 "delta_score": round(adjusted_score - model_b_baseline, 2),
                 "efficacy_label": _get_efficacy_label(adjusted_score),
                 "penalties": {k: {"total": round(v.get("total", 0.0) if isinstance(v, dict) else v, 1), "details": v.get("details", {}) if isinstance(v, dict) else {}} for k, v in penalties.items()},
-                "offtarget_score": safety["overallSafetyScore"],
-                "offtarget_status": safety["status"],
             })
 
-        # Re-sort due to new safety penalties
+        # Sort by efficacy score descending
         formatted_results.sort(key=lambda x: x["efficacy_score"], reverse=True)
         for idx, res in enumerate(formatted_results):
             res["rank"] = idx + 1
@@ -504,10 +457,9 @@ def multi_mod_from_single_endpoint(req: MultiModFromSingleRequest):
             "parent_antisense": req.antisense,
             "parent_score": parent_baseline,
             "model_b_baseline": model_b_baseline,
-            "naked_baseline": parent_baseline, # Simplified
+            "naked_baseline": parent_baseline,
             "model": req.model,
             "total_variants": len(formatted_results),
-            "parent_safety": engine.validate_safety(req.sense, req.antisense, ""),
             "results": formatted_results,
         }
     except Exception as e:
