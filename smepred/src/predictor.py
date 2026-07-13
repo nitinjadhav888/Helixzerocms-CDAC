@@ -37,6 +37,7 @@ from .modification_engine import single_mod_scan, multimod_gen, CmSiRNA, _apply_
 from .filters import annotate_candidates, toxicity_for_modified
 from .biophysics import calculate_adjusted_efficacy
 from . import model_b_v2
+from . import model_b_v3
 
 logger = logging.getLogger(__name__)
 
@@ -44,12 +45,12 @@ logger = logging.getLogger(__name__)
 
 MODELS_DIR = Path(__file__).parent.parent / "models"
 
-# Default Model B version served across API/CLI/UI when a caller doesn't
-# explicitly pick one. Promoted from "B" (legacy single-char LightGBM) to
-# "B_v2" (multi-slot CatBoost blend, hyperparameter-tuned) on 2026-07-11 --
-# see docs/validations/model_b_v2_tuning_robustness.md for the validation
-# behind that decision. "B" remains fully supported/selectable, not removed.
-DEFAULT_MODEL_B_KEY = "B_v2"
+# Default model for modified siRNA prediction. Promoted to "B_v3" on 2026-07-13:
+# enriched v2 multi-slot + RNA-FM embeddings + ViennaRNA thermodynamics.
+# v3 shows +11% Spearman over v2 and first-time-significant external IC50
+# (p=0.028). See docs/validations/model_b_v3_enrichment.md.
+# "B" and "B_v2" remain fully selectable.
+DEFAULT_MODEL_B_KEY = "B_v3"
 
 _MODEL_FILES = {
     "normal": MODELS_DIR / "model_normal.pkl",
@@ -124,6 +125,9 @@ def _predict_model_b(
     when the initial single-mod scan honored it. Fixed as part of promoting
     B_v2 to the default (see docs/validations/model_b_v2_tuning_robustness.md).
     """
+    if model_key == "B_v3":
+        raw = model_b_v3.predict(sense_list, antisense_list, parent_sense_list, parent_antisense_list)
+        return np.clip(raw, 0.0, 100.0)
     if model_key == "B_v2":
         raw = model_b_v2.predict(sense_list, antisense_list, parent_sense_list, parent_antisense_list)
         return np.clip(raw, 0.0, 100.0)

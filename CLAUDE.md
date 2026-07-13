@@ -108,7 +108,8 @@ Two model families:
    d. ~~Feature enrichment with RNA-FM + ViennaRNA~~ — **DONE** (session 7).
       Model B v3 shows Spearman 0.5494 (+11% over v2), external IC50
       Spearman 0.3878 p=0.028 (first time significant). Saved as
-      `model_b_v3.cbm` + `model_b_v3_meta.json`. Not yet default model key.
+      `model_b_v3.cbm` + `model_b_v3_meta.json`. **Promoted to default
+      model key on 2026-07-13.**
    e. Adrian-motivated GalNAc 3'-vs-5' per-gene position stratification:
      **attempted, INCONCLUSIVE by design of the data, not by
      analysis failure** (session 5, `docs/validations/galnac_position_stratification.md`).
@@ -139,10 +140,10 @@ Two model families:
   Pre-computed RNA-FM embeddings for 21,545 unique sequences (~6 min on CPU).
   Results from enriched v3 model (513-dim CatBoost, same train/val split):
   - In-dist Spearman: **0.5494** (vs v2's 0.4947, +11%)
-  - External IC50 Spearman: **0.3878, p=0.028** (vs v2's 0.3239, p=0.07)
-  First time external IC50 hits p<0.05 — the RNA-FM signal is real.
-  Saved as `model_b_v3.cbm` + `model_b_v3_meta.json`. Not yet the default
-  model key — needs user decision to promote.
+   - External IC50 Spearman: **0.3878, p=0.028** (vs v2's 0.3239, p=0.07)
+   First time external IC50 hits p<0.05 — the RNA-FM signal is real.
+   Saved as `model_b_v3.cbm` + `model_b_v3_meta.json`. **Promoted to
+   default model key.**
 - **2026-07-11 (session 5)**: Picked up exactly where session 4 left off:
   `model_b_v2` had been hyperparameter-tuned (commit `82d14e0`, depth=10/
   lr=0.05/l2=5) with a robustness check already run but its output
