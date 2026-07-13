@@ -100,21 +100,20 @@ Two model families:
 - Remaining open items (not yet done, no urgency assigned):
   a. ~~Extend `chem_schema.py` parsing to Alnylam/Dicerna's compact notation~~
      — **DONE** (sessions 2/3, confirmed session 4). Do not redo.
-  b. ~~Hyperparameter tuning of `model_b_v2`~~ — **DONE** (session 5, commit
-     `82d14e0` + `docs/validations/model_b_v2_tuning_robustness.md`). Tuned
-     config (depth=10/lr=0.05/l2=5, blend_w_legacy=0.40) verified robust
-     across 10 grouped-split offsets: in-distribution Spearman mean 0.515
-     (σ=0.025), external IC50 Spearman mean 0.345 (σ=0.054), significant
-     (p<0.05) on 6/10 offsets. Real improvement over untuned baseline
-     (0.489 / 0.197), external validation still sample-size-limited (n=32),
-     not "solved." Saved under `*_tuned` artifact names only — has **not**
-     been promoted to the production `model_b_v2_meta.json` names.
-  c. **Production-swap decision for `model_b_v2`** (untuned → tuned, and
-     legacy Model B → Model B v2 generally): still open, still a decision
-     for whoever owns that call, not something to do unilaterally. Inputs
-     now available: tuning result (b above), original ablation doc, and (d)
-     below.
-  d. Adrian-motivated GalNAc 3'-vs-5' per-gene position stratification:
+   b. ~~Hyperparameter tuning + cleanup of `model_b_v2`~~ — **DONE** (session 5
+      tuning, session 6 cleanup). Tuned config (depth=10/lr=0.05/l2=5) was
+      verified robust across 10 grouped-split offsets. Session 6 removed the
+      legacy-schema blend entirely (legacy component added ~0.004 Spearman
+      noise-level gain while depending on buggy single-char encoding). Model
+      B v2 is now pure v2-only CatBoost with the tuned hyperparams. In-dist
+      Spearman 0.4947, MAE 22.6, external IC50 Spearman 0.3239 (both match
+      prior blend within noise). `model_b_v2_legacy.cbm` deleted.
+   c. ~~Production-swap decision for `model_b_v2`~~ — **RESOLVED** (session 6).
+      Model B v2 was already the default model key since session 5; session 6
+      cleaned up the blend architecture. Legacy model B (`model_b.pkl`) still
+      selectable via model_key="B" but no longer the default. No further
+      decision pending.
+   d. Adrian-motivated GalNAc 3'-vs-5' per-gene position stratification:
      **attempted, INCONCLUSIVE by design of the data, not by
      analysis failure** (session 5, `docs/validations/galnac_position_stratification.md`).
      Only 2 genes (MARC1, LPA) have any real 3'/5' contrast in CMsiRNAdb, and
