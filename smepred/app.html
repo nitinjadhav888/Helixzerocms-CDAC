@@ -506,7 +506,8 @@
     <div class="field">
       <label>Prediction Model</label>
       <select id="sm-model" onchange="updateModelHint(); document.getElementById('mm-model').value = this.value;">
-        <option value="B_v2" selected>Model B v2 — multi-slot chemistry, tuned (recommended, default)</option>
+        <option value="B_v3" selected>Model B v3 — enriched with RNA-FM + ViennaRNA (default)</option>
+        <option value="B_v2">Model B v2 — multi-slot chemistry, tuned</option>
         <option value="B">Model B — legacy single-char (previous default)</option>
       </select>
       <div class="hint" id="sm-model-hint"></div>
@@ -571,7 +572,8 @@
   <div class="field" style="max-width:340px">
     <label>Prediction Model</label>
     <select id="mm-model" onchange="document.getElementById('sm-model').value = this.value;">
-      <option value="B_v2" selected>Model B v2 — multi-slot chemistry, tuned (recommended, default)</option>
+      <option value="B_v3" selected>Model B v3 — enriched with RNA-FM + ViennaRNA (default)</option>
+      <option value="B_v2">Model B v2 — multi-slot chemistry, tuned</option>
       <option value="B">Model B — legacy single-char (previous default)</option>
     </select>
     <div class="hint">Synced with the Single-Mod tab's model selector.</div>
@@ -598,26 +600,32 @@ const API = window.location.origin && window.location.origin !== 'null'
   : 'http://localhost:8000';
 
 // ─── Model Constants & Helpers ────────────────────────────────────────────
-const DEFAULT_MODEL = 'B_v2';
+const DEFAULT_MODEL = 'B_v3';
 
 const MODEL_STATS = {
+  B_v3: {
+    label: 'Model B v3 (RNA-FM enriched)',
+    inDist: { spearman: 0.549, mae: 21.73, n: 4269 },
+    external: { spearman: 0.388, n: 32, note: 'p=0.028 significant — first time p<0.05' },
+    description: 'Multi-slot chemistry + RNA-FM embeddings (PCA-32/strand) + ViennaRNA thermodynamics. 513-dim CatBoost. +11% Spearman over v2. Default.'
+  },
   B_v2: {
     label: 'Model B v2 (tuned)',
     inDist: { spearman: 0.515, mae: 22.62, n: 4269 },
     external: { spearman: 0.345, n: 32, note: 'p=0.046 significant on 6/10 splits' },
-    description: 'Multi-slot chemistry schema (CatBoost blend), hyperparameter-tuned (depth=10, lr=0.05, l2=5). Real-data training (43,136 rows, zero synthetic). Recommended default.'
+    description: 'Multi-slot chemistry schema (CatBoost), hyperparameter-tuned (depth=10, lr=0.05, l2=5). Real-data training (43,136 rows, zero synthetic).'
   },
   B: {
     label: 'Model B (legacy)',
     inDist: { spearman: 0.681, mae: 15.88, n: 303, note: 'Contaminated: 82.9% train/val sequence overlap' },
     external: null,
-    description: 'Single-char LightGBM baseline. Trained on legacy dataset (includes synthetic data, removed in rebuild). Limited external validation. Full supported, but B v2 recommended for new work.'
+    description: 'Single-char LightGBM baseline. Trained on legacy dataset (includes synthetic data, removed in rebuild). Fully supported for backward compatibility.'
   }
 };
 
 // Friendly label for the raw model_key echoed back by the API.
 function modelLabel(key) {
-  return { B_v2: 'B v2 (multi-slot, tuned)', B: 'B (legacy)' }[key] || 'B v2 (multi-slot, tuned)';
+  return { B_v3: 'B v3 (RNA-FM enriched)', B_v2: 'B v2 (multi-slot, tuned)', B: 'B (legacy)' }[key] || 'B v3 (RNA-FM enriched)';
 }
 
 // Update the model-performance hint when user changes the dropdown.
