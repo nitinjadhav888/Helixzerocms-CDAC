@@ -1,26 +1,63 @@
 {
   "version": "model_b_v3",
   "phase": "v2 features + RNA-FM PCA-32 (64-dim) + ViennaRNA (5-dim)",
-  "date": "2026-07-13T13:16:02.294036",
+  "date": "2026-07-14T11:28:10.522923",
   "architecture": "catboost_v3_enriched",
   "n_features": 513,
-  "training_rows": 38867,
+  "feature_breakdown": {
+    "v2_multi_slot": 444,
+    "rnafm_sense": 32,
+    "rnafm_antisense": 32,
+    "vienna_thermo": 5
+  },
+  "cb_params": {
+    "iterations": 1000,
+    "depth": 10,
+    "learning_rate": 0.05,
+    "l2_leaf_reg": 5,
+    "loss_function": "RMSE",
+    "random_seed": 42,
+    "early_stopping_rounds": 50
+  },
+  "training_rows": 35201,
+  "source_breakdown": {
+    "cmsirnadb": 34808,
+    "dicerna_11697812": 299,
+    "alnylam_10240152_t2t4t8": 87,
+    "alnylam_10240152_t13_recovered": 7
+  },
+  "split": {
+    "scheme": "locked 3-way grouped (by antisense seq)",
+    "stride": 10,
+    "val_offset": 5,
+    "test_offset": 0,
+    "lock_file": "models/locked_test_groups.json",
+    "n_train": 35201,
+    "n_val": 3765,
+    "n_test": 4170
+  },
   "in_distribution_val": {
-    "n": 4269,
-    "spearman": 0.5494163498761518,
-    "mae": 21.728782939022782
+    "n": 3765,
+    "spearman": 0.5378521638102638,
+    "mae": 21.64733257323165
+  },
+  "in_distribution_test_LOCKED": {
+    "n": 4170,
+    "spearman": 0.5616312056941376,
+    "mae": 21.452098216542318
   },
   "external_ic50_holdout": {
     "n": 32,
-    "spearman": 0.3878029881046832,
-    "p_value": 0.02830025462423241
+    "spearman": 0.369799817647905,
+    "p_value": 0.037235872278560456,
+    "note": "n=32 real Alnylam patent IC50s"
   },
   "comparison_to_v2": {
+    "note": "v2 is the pure multi-slot CatBoost (depth=10/lr=0.05/l2=5, no legacy blend)",
     "v2_val_spearman": 0.4947,
     "v2_val_mae": 22.635,
     "v2_external_spearman": 0.3239,
-    "v2_external_p": 0.0706,
-    "delta_val_spearman": 0.05471634987615187,
-    "delta_external_spearman": 0.0639029881046832
-  }
+    "v2_external_p": 0.0706
+  },
+  "honesty_note": "in_distribution_val is used for early-stopping, so it is a tuning-adjacent estimate. in_distribution_test_LOCKED is a grouped, untouched holdout (keys frozen in models/locked_test_groups.json) and is the honest generalization estimate. external_ic50_holdout (N=32) is the out-of-distribution test."
 }

@@ -28,6 +28,7 @@ from .features_v2 import (
 MODELS_DIR = Path(__file__).parent.parent / "models"
 CACHE_FILE = MODELS_DIR / "rnafm_embeddings.pkl"
 PCA_FILE = MODELS_DIR / "rnafm_pca_32.pkl"
+VIENNA_CACHE_FILE = MODELS_DIR / "vienna_features_cache.pkl"
 
 # PCA-reduced RNA-FM: 32-dim per strand (sense + antisense = 64)
 N_FM_DIM = 32
@@ -40,6 +41,8 @@ N_FEATURES_V3 = _N_V2 + N_FM + N_VIENNA  # 444 + 64 + 5 = 513
 
 _cache_fm: Optional[dict] = None
 _cache_pca: Optional = None
+_vienna_cache: Optional[dict] = None
+_vienna_cache_dirty = 0
 
 
 def _load_caches():
@@ -50,6 +53,23 @@ def _load_caches():
     if _cache_pca is None:
         _cache_pca = joblib.load(PCA_FILE)
     return _cache_fm, _cache_pca
+
+
+def _load_vienna_cache():
+    global _vienna_cache
+    if _vienna_cache is None:
+        if VIENNA_CACHE_FILE.exists():
+            with open(VIENNA_CACHE_FILE, "rb") as f:
+                _vienna_cache = pickle.load(f)
+        else:
+            _vienna_cache = {}
+    return _vienna_cache
+
+
+def _save_vienna_cache():
+    if _vienna_cache is not None:
+        with open(VIENNA_CACHE_FILE, "wb") as f:
+            pickle.dump(_vienna_cache, f)
 
 
 def _clean_seq(bases: str) -> str:
@@ -72,10 +92,15 @@ def _rnafm_features(sense_slots: List[NucSlot], anti_slots: List[NucSlot]) -> np
 
 
 def _vienna_features(sense_slots: List[NucSlot], anti_slots: List[NucSlot]) -> np.ndarray:
-    """ViennaRNA thermodynamic features: 5-dim."""
+    """ViennaRNA thermodynamic features: 5-dim (disk-cached per seq pair)."""
     import RNA
     s_seq = _clean_seq("".join(s.base for s in sense_slots))
     a_seq = _clean_seq("".join(s.base for s in anti_slots))
+    cache = _load_vienna_cache()
+    key = (s_seq, a_seq)
+    if key in cache:
+        return cache[key]
+
     feats = []
     # 1. Sense strand MFE (normalized to [0,1])
     _, mfe_s = RNA.fold_compound(s_seq).mfe()
@@ -94,7 +119,15 @@ def _vienna_features(sense_slots: List[NucSlot], anti_slots: List[NucSlot]) -> n
     combined = s_seq + a_seq
     gc = sum(1 for b in combined if b in "GC") / max(1, len(combined))
     feats.append(gc)
-    return np.array(feats, dtype=np.float32)
+
+    out = np.array(feats, dtype=np.float32)
+    cache[key] = out
+    global _vienna_cache_dirty
+    _vienna_cache_dirty += 1
+    if _vienna_cache_dirty >= 2000:
+        _save_vienna_cache()
+        _vienna_cache_dirty = 0
+    return out
 
 
 def build_features_v3(sense_slots: List[NucSlot], anti_slots: List[NucSlot]) -> np.ndarray:
