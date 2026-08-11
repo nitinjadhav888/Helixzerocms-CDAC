@@ -17,38 +17,21 @@ logger = logging.getLogger(__name__)
 
 def _normalize_nucleotides(raw_sequence: str) -> str:
     """
-    Strips non-alphabetic characters, enforces uppercase, and converts DNA 'T' to RNA 'U'.
-    
-    Why: Biological datasets often contain line breaks, whitespace, or are provided as 
-    DNA sequences instead of RNA transcripts. Normalization is strictly required to 
-    prevent structural biophysics calculations from crashing when encountering 'T' 
-    or unexpected whitespace tokens.
-    
-    Args:
-        raw_sequence (str): The raw input sequence.
-        
-    Returns:
-        str: The normalized RNA sequence.
-        
-    Raises:
-        ValueError: If illegal characters remain after normalization.
+    Strips FASTA headers, non-alphabetic characters, numbers, and enforces uppercase RNA format.
     """
-    # Remove any non-alphabetic characters (including whitespace/newlines) and uppercase
-    clean_seq = re.sub(r"[^A-Za-z]", "", raw_sequence).upper()
+    lines = raw_sequence.strip().splitlines()
+    seq_lines = [line.strip() for line in lines if not line.strip().startswith(">")]
+    clean_text = "".join(seq_lines)
+
+    # Remove any non-alphabetic characters (numbers, whitespace, punctuation)
+    clean_seq = re.sub(r"[^A-Za-z]", "", clean_text).upper()
     
     # Strictly enforce RNA format
     clean_seq = clean_seq.replace("T", "U")
     
-    valid_nucleotides = set("AUGC")
-    invalid_chars = set(clean_seq) - valid_nucleotides
+    # Filter out non-canonical nucleotides (gaps, IUPAC ambiguity codes)
+    clean_seq = re.sub(r"[^AUGC]", "", clean_seq)
     
-    if invalid_chars:
-        logger.error(f"Invalid nucleotides detected: {invalid_chars}")
-        raise ValueError(
-            f"Input sequence contains unexpected characters: {invalid_chars}. "
-            "Only standard A, U, G, C (or T for DNA input) nucleotides are allowed."
-        )
-        
     return clean_seq
 
 

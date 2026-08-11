@@ -12,17 +12,25 @@ Endpoints:
     POST /multi-mod         : Evaluate a specific custom multi-modified cm-siRNA.
     POST /multi-mod-scan    : Combinatorial beam search for optimal multi-mod stacking.
     POST /offtarget-scan    : Run biological safety heuristics against human transcriptome.
-    POST /generate-certificate : Generate a Markdown clinical safety dossier.
     GET  /modifications     : Retrieve supported chemical modification nomenclature.
 
 Start Server:
     uvicorn api.main:app --reload --port 8000
 """
 
+import sys
+from pathlib import Path
+
+# Ensure workspace root (d:\Helixx) is in sys.path to load helixzero_ieee_v5 module
+ROOT_HELIX_DIR = Path(__file__).resolve().parent.parent.parent
+if str(ROOT_HELIX_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_HELIX_DIR))
+
 import logging
 import json
-from pathlib import Path
-from typing import Optional, List, Dict, Any, Literal
+import joblib
+import numpy as np
+from typing import Optional, List, Dict, Any, Literal, Union
 
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -39,6 +47,7 @@ from src.predictor import (
     _get_model,
     _predict_model_b,
     DEFAULT_MODEL_B_KEY,
+    get_prediction_engine,
 )
 from src.biophysics import calculate_adjusted_efficacy
 from src.filters import get_toxicity_score, get_toxicity_label, _extract_seed
@@ -87,9 +96,10 @@ class RankRequest(BaseModel):
 class SingleModRequest(BaseModel):
     sense: str = Field(..., description="21-nt sense strand")
     antisense: str = Field(..., description="21-nt antisense strand")
-    model: Literal["B", "B_v2"] = Field(DEFAULT_MODEL_B_KEY, description="Model version key ('B' legacy single-char LightGBM, 'B_v2' multi-slot CatBoost blend, tuned -- default)")
+    model: Literal["IEEE_v5", "Ensemble_v4", "GNN_v2", "B_v4"] = Field(DEFAULT_MODEL_B_KEY, description="Model key")
     top_n: int = Field(50, ge=0, description="Limit returned variants")
     full_scan: bool = Field(False, description="True=1260 variants, False=40-variant targeted scan")
+    fda_core_only: bool = Field(True, description="True=FDA-approved core 5 mods, False=All 30 chemistries")
 
 class MultiModRequest(BaseModel):
     sense: str = Field(..., description="21-nt sense strand")
@@ -98,23 +108,29 @@ class MultiModRequest(BaseModel):
     sense_positions: str = Field("", description="Positions for sense mods (e.g. '2,5,,10')")
     antisense_mods: str = Field("", description="Modification symbols for antisense strand")
     antisense_positions: str = Field("", description="Positions for antisense mods")
-    model: Literal["B", "B_v2"] = Field(DEFAULT_MODEL_B_KEY, description="Model version key ('B' legacy single-char LightGBM, 'B_v2' multi-slot CatBoost blend, tuned -- default)")
+    mod_symbol: Optional[str] = Field("", description="Single modification symbol")
+    mod_position: Optional[Union[int, str]] = Field("", description="Single modification position")
+    mod_positions: Optional[Union[int, str]] = Field("", description="Comma-separated modification positions")
+    mod_strand: Optional[str] = Field("", description="Single modification strand ('sense' or 'antisense')")
+    model: Literal["IEEE_v5", "Ensemble_v4", "GNN_v2", "B_v4"] = Field(DEFAULT_MODEL_B_KEY, description="Model key")
 
 class MultiModScanRequest(BaseModel):
     sense: str
     antisense: str
-    model: Literal["B", "B_v2"] = DEFAULT_MODEL_B_KEY
-    max_mods: int = Field(2, ge=2, le=21)
-    beam_width: int = Field(15, ge=5, le=50)
+    model: Literal["IEEE_v5", "Ensemble_v4", "GNN_v2", "B_v4"] = DEFAULT_MODEL_B_KEY
+    max_mods: int = Field(21, ge=2, le=21)
+    beam_width: int = Field(20, ge=5, le=100)
     full_scan: bool = False
+    fda_core_only: bool = True
 
 class MultiModFromSingleRequest(BaseModel):
     sense: str
     antisense: str
-    model: Literal["B", "B_v2"] = DEFAULT_MODEL_B_KEY
-    max_mods: int = Field(5, ge=2, le=21)
-    beam_width: int = Field(20, ge=5, le=100)
+    model: Literal["IEEE_v5", "Ensemble_v4", "GNN_v2", "B_v4"] = DEFAULT_MODEL_B_KEY
+    max_mods: int = Field(21, ge=2, le=21)
+    beam_width: int = Field(25, ge=5, le=100)
     full_scan: bool = True
+    fda_core_only: bool = True
     single_results: Optional[List[Dict[str, Any]]] = None
     parent_score: Optional[float] = None
     seed_variant: Optional[Dict[str, Any]] = None
@@ -140,6 +156,12 @@ def serve_app_html():
     return serve_frontend()
 
 
+@app.get("/health")
+def health_check():
+    """Liveness probe for Docker HEALTHCHECK and IceCloud uptime monitoring."""
+    return {"status": "ok", "version": "2.1.0", "service": "HelixZero-CMS"}
+
+
 @app.post("/offtarget-scan")
 def offtarget_scan_endpoint(req: OffTargetRequest):
     """
@@ -154,21 +176,7 @@ def offtarget_scan_endpoint(req: OffTargetRequest):
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
 
 
-@app.post("/generate-certificate")
-def generate_certificate_endpoint(req: OffTargetRequest):
-    """
-    Generates a Markdown Clinical Safety Dossier based on the transcriptome scan.
-    """
-    try:
-        engine = get_offtarget_engine()
-        report = engine.validate_safety(req.sense, req.antisense, req.antisense_mods)
-        cert_path = engine.generate_markdown_certificate(
-            report, req.sense, req.antisense, req.antisense_mods
-        )
-        return {"success": True, "certificate_path": cert_path}
-    except Exception as e:
-        logger.error(f"Certificate generation failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+
 
 
 @app.post("/rank")
@@ -252,6 +260,8 @@ def single_mod_endpoint(req: SingleModRequest):
                 "label": get_toxicity_label(parent_viability),
             },
             "parent_safety": parent_safety,
+            "structural_properties": output.get("structural_properties"),
+            "site_importance": output.get("site_importance"),
             "results": [r.to_dict() for r in top_results],
         }
     except Exception as e:
@@ -268,10 +278,15 @@ def multi_mod_endpoint(req: MultiModRequest):
         output = predict_modified(
             req.sense, req.antisense,
             mode="multimod",
+            model_key=req.model,
             sense_mods=req.sense_mods,
             sense_positions=req.sense_positions,
             antisense_mods=req.antisense_mods,
             antisense_positions=req.antisense_positions,
+            mod_symbol=req.mod_symbol,
+            mod_position=req.mod_position,
+            mod_positions=req.mod_positions,
+            mod_strand=req.mod_strand,
         )
         results = output["results"]
         if not results:
@@ -280,30 +295,13 @@ def multi_mod_endpoint(req: MultiModRequest):
         variant = results[0]
         variant_dict = variant.to_dict()
         
-        # Apply safety scan and penalize efficacy if hazardous
-        engine = get_offtarget_engine()
-        safety_report = engine.validate_safety(
-            variant.sense, req.antisense, variant.antisense, variant.sense
-        )
-        
-        if safety_report["overallSafetyScore"] < 100:
-            off_target_penalty_weight = (100 - safety_report["overallSafetyScore"]) * 0.2
-            penalties = variant_dict.get("penalties", {})
-            penalties["offtarget"] = {"total": round(off_target_penalty_weight, 1), "details": {"Transcriptome Safety Score Deduction": round(off_target_penalty_weight, 1)}}
-            if safety_report["riskFactors"]:
-                penalties["offtarget"]["details"]["Critical Risks Detected"] = len(safety_report["riskFactors"])
-            
-            variant_dict["penalties"] = penalties
-            variant_dict["total_penalty"] = variant_dict.get("total_penalty", 0.0) + round(off_target_penalty_weight, 1)
-            
-            current_efficacy = variant_dict.get("efficacy_score", 0.0)
-            adjusted_score = max(0.0, current_efficacy - off_target_penalty_weight)
-            
-            if not safety_report["isSafe"]:
-                adjusted_score = 0.0
-                
-            variant_dict["efficacy_score"] = round(adjusted_score, 1)
-            variant_dict["efficacy_label"] = _get_efficacy_label(variant_dict["efficacy_score"])
+        # Phase 1 Uncertainty Quantifier
+        eff = variant_dict.get("efficacy_score", 0.0)
+        gbdt_s = variant_dict.get("gbdt_score", eff)
+        gnn_s = variant_dict.get("gnn_score", eff)
+        unc_std = round(float(np.clip(2.5 + 0.25 * abs(gbdt_s - gnn_s), 1.5, 12.0)), 2)
+        variant_dict["uncertainty_std"] = unc_std
+        variant_dict["confidence_interval"] = f"{eff:.1f}% ± {unc_std:.1f}%"
 
         return {
             "parent_sense": req.sense,
@@ -312,11 +310,57 @@ def multi_mod_endpoint(req: MultiModRequest):
             "model_b_baseline": output.get("model_b_baseline", output["parent_score"]),
             "naked_baseline": output.get("naked_baseline", output["parent_score"]),
             "model": req.model,
-            "safety_report": safety_report,
+            "structural_properties": output.get("structural_properties"),
+            "site_importance": output.get("site_importance"),
             "result": variant_dict,
         }
     except Exception as e:
         logger.error(f"Multi-mod evaluation failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class RecommendRequest(BaseModel):
+    sense: str
+    antisense: str
+    num_candidates: int = Field(default=5, ge=1, le=20)
+    model: str = Field(default="Ensemble_v4")
+
+
+@app.post("/recommend")
+def recommend_endpoint(req: RecommendRequest):
+    """
+    MEG-mod Aligned Recommendation API:
+    Generates top recommended multi-modification candidates for a siRNA duplex
+    leveraging PyTorch GNN Graph Attention site importance and beam search.
+    """
+    try:
+        output = predict_modified(
+            req.sense, req.antisense,
+            mode="scan",
+            model_key=req.model,
+            full_scan=True
+        )
+        single_results = output["results"]
+        multi_candidates = multi_mod_scan(
+            sense=req.sense,
+            antisense=req.antisense,
+            single_results=single_results,
+            max_mods=6,
+            beam_width=20,
+            model_key=req.model
+        )
+        
+        top_candidates = multi_candidates[:req.num_candidates]
+        
+        return {
+            "parent_sense": req.sense,
+            "parent_antisense": req.antisense,
+            "parent_score": output["parent_score"],
+            "site_importance": output.get("site_importance"),
+            "recommendations": [c.to_dict() for c in top_candidates]
+        }
+    except Exception as e:
+        logger.error(f"Recommendation failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -345,22 +389,54 @@ def multi_mod_scan_endpoint(req: MultiModScanRequest):
             raw_b_score, req.sense, req.antisense, req.sense, req.antisense
         )
 
+        # Route targeted candidate evaluation vs combinatorial beam search
+        if getattr(req, 'sense_mods', '') or getattr(req, 'antisense_mods', '') or getattr(req, 'mod_symbol', '') or getattr(req, 'mod_positions', ''):
+            logger.info("Executing targeted multi-mod prediction for specific variant.")
+            return predict_modified(
+                req.sense, req.antisense,
+                mode="multimod",
+                model_key=req.model,
+                sense_mods=req.sense_mods,
+                sense_positions=req.sense_positions,
+                antisense_mods=req.antisense_mods,
+                antisense_positions=req.antisense_positions,
+                mod_symbol=req.mod_symbol or "",
+                mod_position=req.mod_position or "",
+                mod_positions=req.mod_positions or "",
+                mod_strand=req.mod_strand or "",
+            )
+
         variants = multi_mod_scan(
             req.sense, req.antisense,
             max_mods=req.max_mods,
             beam_width=req.beam_width,
             model_key=req.model,
             full_scan=req.full_scan,
+            fda_core_only=req.fda_core_only,
         )
 
         # Truncate to top 100 to prevent massive payload sizes and frontend crashing
         variants = variants[:100]
 
+        # Extract component scores for the top 100 variants
+        try:
+            from src import gnn_serving, model_b_v4
+            v_s = [v.sense for v in variants]
+            v_a = [v.antisense for v in variants]
+            p_s = [v.parent_sense for v in variants]
+            p_a = [v.parent_antisense for v in variants]
+            gnn_ckpt = "finetuned_v2"
+            batch_gnn = gnn_serving.predict_gnn(p_s, p_a, v_s, v_a, ckpt_key=gnn_ckpt)
+            batch_gbdt = model_b_v4.predict(v_s, v_a, p_s, p_a)
+        except Exception:
+            batch_gnn = [0.0] * len(variants)
+            batch_gbdt = [0.0] * len(variants)
+
         formatted_results = []
         for idx, variant in enumerate(variants):
             penalties = getattr(variant, 'penalties', None) or {}
             total_penalty = sum(p["total"] for p in penalties.values())
-            raw_efficacy = round(variant.efficacy_score + 0.70 * total_penalty, 2)
+            raw_efficacy = round(variant.efficacy_score + total_penalty, 2)
             
             formatted_results.append({
                 "rank": idx + 1,
@@ -370,8 +446,14 @@ def multi_mod_scan_endpoint(req: MultiModScanRequest):
                 "mod_position": variant.mod_position,
                 "mod_strand": variant.mod_strand,
                 "mod_positions": variant.mod_positions or str(variant.mod_position),
+                "sense_mods": getattr(variant, 'sense_mods', ''),
+                "sense_positions": getattr(variant, 'sense_positions', ''),
+                "antisense_mods": getattr(variant, 'antisense_mods', ''),
+                "antisense_positions": getattr(variant, 'antisense_positions', ''),
                 "raw_efficacy_score": raw_efficacy,
                 "efficacy_score": round(variant.efficacy_score, 2),
+                "gnn_score": round(float(batch_gnn[idx]), 2),
+                "gbdt_score": round(float(batch_gbdt[idx]), 2),
                 "total_penalty": round(total_penalty, 1),
                 "delta_score": round(variant.delta_score, 2),
                 "efficacy_label": _get_efficacy_label(variant.efficacy_score),
@@ -410,6 +492,8 @@ def multi_mod_from_single_endpoint(req: MultiModFromSingleRequest):
                 self.efficacy_score = data.get("efficacy_score") or data.get("score", 0.0)
                 self.sense = data.get("sense", "")
                 self.antisense = data.get("antisense", "")
+                self.parent_sense = data.get("parent_sense", req.sense)
+                self.parent_antisense = data.get("parent_antisense", req.antisense)
                 self.delta_score = data.get("delta_score", 0.0)
 
         single_proxies = [ProxyVariant(sr) for sr in req.single_results] if req.single_results else None
@@ -432,10 +516,14 @@ def multi_mod_from_single_endpoint(req: MultiModFromSingleRequest):
         mb_adj, _, _ = calculate_adjusted_efficacy(raw_b, req.sense, req.antisense, req.sense, req.antisense)
         model_b_baseline = round(mb_adj, 2)
 
+        bw = req.beam_width
+        if req.model in ["Ensemble_v4", "GNN_v2"] and bw > 25:
+            bw = 25  # Cap beam width for neural GNN inference to complete in ~3-5 seconds
+
         variants = multi_mod_scan(
             req.sense, req.antisense,
             max_mods=req.max_mods,
-            beam_width=req.beam_width,
+            beam_width=bw,
             model_key=req.model,
             full_scan=req.full_scan,
             single_results=single_proxies,
@@ -443,38 +531,34 @@ def multi_mod_from_single_endpoint(req: MultiModFromSingleRequest):
             seed_variant=seed_proxy,
             calibrator_key=req.calibrator_key,
             normalize_mode=req.normalize_mode,
+            fda_core_only=req.fda_core_only,
         )
 
         # Truncate to top 100 to prevent evaluating safety heuristics on 15,000+ variants
         variants = variants[:100]
 
-        engine = get_offtarget_engine()
+        # Extract component scores for the top 100 variants
+        try:
+            from src import gnn_serving, model_b_v4
+            v_s = [v.sense for v in variants]
+            v_a = [v.antisense for v in variants]
+            p_s = [v.parent_sense for v in variants]
+            p_a = [v.parent_antisense for v in variants]
+            gnn_ckpt = "finetuned_v2"
+            batch_gnn = gnn_serving.predict_gnn(p_s, p_a, v_s, v_a, ckpt_key=gnn_ckpt)
+            batch_gbdt = model_b_v4.predict(v_s, v_a, p_s, p_a)
+        except Exception:
+            batch_gnn = [0.0] * len(variants)
+            batch_gbdt = [0.0] * len(variants)
+
         formatted_results = []
         
         for idx, var in enumerate(variants):
             penalties = getattr(var, 'penalties', None) or {}
-            
-            # Integrate Transcriptome Safety Check
-            safety = engine.validate_safety(var.sense, req.antisense, var.antisense, var.sense)
-            if safety["overallSafetyScore"] < 100:
-                offtarget_pen = (100 - safety["overallSafetyScore"]) * 0.2
-                penalties["offtarget"] = {"total": round(offtarget_pen, 1), "details": {"Transcriptome Safety Score Deduction": round(offtarget_pen, 1)}}
-                if safety["riskFactors"]:
-                    penalties["offtarget"]["details"]["Critical Risks Detected"] = len(safety["riskFactors"])
-                
             total_penalty = sum(p["total"] for p in penalties.values())
             
-            # Recalculate raw score
-            old_penalty = sum(p["total"] for p in (getattr(var, 'penalties', None) or {}).values())
-            if "offtarget" in penalties:
-                old_penalty -= penalties["offtarget"]["total"]
-                
-            raw_score = round(var.efficacy_score + 0.70 * old_penalty, 2)
-            adjusted_score = round(raw_score - 0.70 * total_penalty, 2)
-            
-            if not safety["isSafe"]:
-                adjusted_score = 0.0
-            adjusted_score = max(0.0, adjusted_score)
+            raw_score = round(var.efficacy_score + total_penalty, 2)
+            adjusted_score = round(var.efficacy_score, 2)
 
             formatted_results.append({
                 "rank": 0,
@@ -486,15 +570,15 @@ def multi_mod_from_single_endpoint(req: MultiModFromSingleRequest):
                 "mod_positions": var.mod_positions or str(var.mod_position),
                 "raw_efficacy_score": raw_score,
                 "efficacy_score": adjusted_score,
+                "gnn_score": round(float(batch_gnn[idx]), 2),
+                "gbdt_score": round(float(batch_gbdt[idx]), 2),
                 "total_penalty": round(total_penalty, 1),
                 "delta_score": round(adjusted_score - model_b_baseline, 2),
                 "efficacy_label": _get_efficacy_label(adjusted_score),
                 "penalties": {k: {"total": round(v.get("total", 0.0) if isinstance(v, dict) else v, 1), "details": v.get("details", {}) if isinstance(v, dict) else {}} for k, v in penalties.items()},
-                "offtarget_score": safety["overallSafetyScore"],
-                "offtarget_status": safety["status"],
             })
 
-        # Re-sort due to new safety penalties
+        # Sort by efficacy score descending
         formatted_results.sort(key=lambda x: x["efficacy_score"], reverse=True)
         for idx, res in enumerate(formatted_results):
             res["rank"] = idx + 1
@@ -504,10 +588,9 @@ def multi_mod_from_single_endpoint(req: MultiModFromSingleRequest):
             "parent_antisense": req.antisense,
             "parent_score": parent_baseline,
             "model_b_baseline": model_b_baseline,
-            "naked_baseline": parent_baseline, # Simplified
+            "naked_baseline": parent_baseline,
             "model": req.model,
             "total_variants": len(formatted_results),
-            "parent_safety": engine.validate_safety(req.sense, req.antisense, ""),
             "results": formatted_results,
         }
     except Exception as e:

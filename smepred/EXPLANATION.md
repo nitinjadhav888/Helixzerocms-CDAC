@@ -54,7 +54,7 @@ The model does **not** see sequence letters directly — it sees numerical featu
 **LightGBM** is a **gradient-boosted decision tree** algorithm — an ensemble of hundreds of decision trees where each tree corrects the errors of the previous ones.
 
 - **Algorithm**: Gradient-boosted decision trees (GBDT) with leaf-wise tree growth
-- **Training data**: 55,730 position-aware + 23,187 hetero-patent + 4,618 CMsiRNAdb = **83,535 total**
+- **Training data**: 23,187 hetero-patent + 4,618 CMsiRNAdb = **27,805 total**
 - **Data sources**: HelixZero catalog, patent data, CMsiRNAdb, published literature
 - **Trees**: 1,627 (set by early stopping on a 5% holdout)
 - **Performance**: PCC = **0.838** (test), **0.690** (hetero-val-303), MAE = **15.9** points
@@ -303,7 +303,7 @@ A common question: *"Why does the Rank tab show score 55 for a candidate, but af
 | Tab | Model | Training Data | Predicts |
 |-----|-------|-------------|----------|
 | **Rank** | Naked model (model_normal) | 4,060 unmodified siRNAs (4 sources) | **Unmodified (naked) siRNA efficacy** |
-| **Single-Mod** | cm-siRNA model (model_b) | 53,570 modified siRNAs (patent + hetero + literature) | **Individual modified variant scores** |
+| **Single-Mod** | cm-siRNA model (model_b) | 27,805 modified siRNAs (patent + literature) | **Individual modified variant scores** |
 
 The **naked model** (PCC=0.55) was trained only on unmodified siRNAs. It ranks candidates by their predicted efficacy as bare, unmodified sequences — this is the starting point before chemical optimization.
 
@@ -350,7 +350,7 @@ The 0.70 factor prevents over-penalizing while still enforcing clinical constrai
 |--------|--------|
 | **Algorithm** | LightGBM (gradient-boosted decision trees) |
 | **Features** | 431-d (336 positional category flags [8 cats × 21 pos × 2 strands] + 80 aggregate stats + 1 concentration + 14 engineered) |
-| **Training data** | 83,535 modified siRNAs (55,730 position-aware + 23,187 hetero-patent + 4,618 CMsiRNAdb) |
+| **Training data** | 27,805 modified siRNAs (23,187 hetero-patent + 4,618 CMsiRNAdb) |
 | **Validation** | Stratified 15% test holdout + hetero_val_303 (2,576 rows, 12 genes) |
 | **Trees** | 1,627 (early stopping at round 1,627/3,000) |
 | **Performance** | Test PCC = 0.838, hetero-val PCC = 0.690, MAE = 15.9 |

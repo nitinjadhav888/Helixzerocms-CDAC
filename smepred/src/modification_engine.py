@@ -24,20 +24,28 @@ import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional, Tuple, Any, Set, Dict
+import numpy as np
+
+from .biophysics import calculate_adjusted_efficacy
 
 logger = logging.getLogger(__name__)
 
 # ─── Load Modification Definitions ──────────────────────────────────────────────
 
 _MOD_FILE = Path(__file__).parent.parent / "data" / "modification_codes.json"
-try:
-    with _MOD_FILE.open("r", encoding="utf-8") as _f:
-        _MOD_DATA = json.load(_f)
-    CANONICAL_SYMBOLS: Set[str] = set(_MOD_DATA["canonical_symbols"])
-    MODIFICATION_SYMBOLS: Set[str] = set(_MOD_DATA["modification_symbols"])
-except Exception as e:
-    logger.error(f"Failed to load modification codes: {e}")
-    raise RuntimeError(f"Could not initialize modification engine: {e}")
+if _MOD_FILE.exists():
+    try:
+        with _MOD_FILE.open("r", encoding="utf-8") as _f:
+            _MOD_DATA = json.load(_f)
+        CANONICAL_SYMBOLS: Set[str] = set(_MOD_DATA["canonical_symbols"])
+        MODIFICATION_SYMBOLS: Set[str] = set(_MOD_DATA["modification_symbols"])
+    except Exception as e:
+        logger.warning(f"Could not load modification codes from {_MOD_FILE}: {e}")
+        CANONICAL_SYMBOLS: Set[str] = {"A", "C", "G", "U", "T"}
+        MODIFICATION_SYMBOLS: Set[str] = {"M", "F", "D", "X", "8", "2", "4", "m", "f", "s", "p", "a", "c", "g", "u"}
+else:
+    CANONICAL_SYMBOLS: Set[str] = {"A", "C", "G", "U", "T"}
+    MODIFICATION_SYMBOLS: Set[str] = {"M", "F", "D", "X", "8", "2", "4", "m", "f", "s", "p", "a", "c", "g", "u"}
 
 
 # ─── Data Transfer Objects ────────────────────────────────────────────────────
@@ -71,6 +79,9 @@ class CmSiRNA:
     efficacy_score: float = 0.0
     delta_score: float = 0.0
     penalties: Optional[Dict[str, float]] = None
+    estimated_pIC50: Optional[float] = None
+    estimated_IC50_nM: Optional[float] = None
+    predicted_knockdown_pct: Optional[float] = None
 
     def to_dict(self) -> Dict[str, Any]:
         result = {
@@ -89,6 +100,12 @@ class CmSiRNA:
             result["delta_score"] = self.delta_score
         if self.penalties:
             result["penalties"] = self.penalties
+        if self.estimated_pIC50 is not None:
+            result["estimated_pIC50"] = round(self.estimated_pIC50, 4)
+        if self.estimated_IC50_nM is not None:
+            result["estimated_IC50_nM"] = round(self.estimated_IC50_nM, 4)
+        if self.predicted_knockdown_pct is not None:
+            result["predicted_knockdown_pct"] = round(self.predicted_knockdown_pct, 2)
         return result
 
 
@@ -107,19 +124,32 @@ def _apply_mod(sequence: str, position_1based: int, symbol: str) -> str:
     return sequence[:zero_indexed] + symbol + sequence[zero_indexed + 1:]
 
 
-def _parse_multimod_input(
-    mod_symbols_str: str, positions_str: str
-) -> List[Tuple[str, List[int]]]:
+def _parse_multimod_input(mod_symbols_str: str, positions_str: str) -> List[Tuple[str, List[int]]]:
     """
-    Parses comma-delimited strings defining targeted modifications.
-    Format: "F,,M" and "2,5,7,,10,12" -> Apply F at 2,5,7 and M at 10,12.
+    Parses modification inputs. Supports semicolons ';', double-commas ',,', or commas ','.
+    Example: mods_str = "M, F, D"
+             pos_str  = "1,2,3,4,6,10,11,12,13,14,15,16,17,18,19; 5,7,8,9; 20,21"
     """
-    mod_groups = [m.strip() for m in mod_symbols_str.split(",,")]
-    pos_groups = [p.strip() for p in positions_str.split(",,")]
+    if ";" in positions_str:
+        pos_groups = [p.strip() for p in positions_str.split(";") if p.strip()]
+        if ";" in mod_symbols_str:
+            mod_groups = [m.strip() for m in mod_symbols_str.split(";") if m.strip()]
+        else:
+            mod_groups = [m.strip() for m in mod_symbols_str.split(",") if m.strip()]
+    elif ",," in positions_str:
+        pos_groups = [p.strip() for p in positions_str.split(",,") if p.strip()]
+        if ",," in mod_symbols_str:
+            mod_groups = [m.strip() for m in mod_symbols_str.split(",,") if m.strip()]
+        else:
+            mod_groups = [m.strip() for m in mod_symbols_str.split(",") if m.strip()]
+    else:
+        mod_groups = [m.strip() for m in mod_symbols_str.split(",") if m.strip()]
+        pos_groups = [p.strip() for p in positions_str.split(",") if p.strip()]
 
     if len(mod_groups) != len(pos_groups):
         raise ValueError(
-            "Mismatched group count: Number of modification groups must equal number of position groups."
+            f"Mismatched modification groups ({len(mod_groups)}) vs position groups ({len(pos_groups)}). "
+            f"Please separate position groups with semicolons ';' (e.g. '1,2,3,4; 5,6; 20,21')."
         )
 
     parsed_instructions = []
@@ -129,7 +159,7 @@ def _parse_multimod_input(
             logger.error(f"Unknown modification symbol detected: {clean_symbol}")
             raise ValueError(f"Unknown modification symbol: '{clean_symbol}'")
             
-        parsed_positions = [int(p.strip()) for p in pos_string.split(",") if p.strip()]
+        parsed_positions = [int(p.strip()) for p in pos_string.replace(";", ",").split(",") if p.strip()]
         parsed_instructions.append((clean_symbol, parsed_positions))
         
     return parsed_instructions
@@ -146,13 +176,17 @@ def single_mod_scan(
     Generates an exhaustive single-modification combinatorial library.
     """
     if target_symbols is None:
-        target_symbols = list(MODIFICATION_SYMBOLS)
+        clinical_standard = ["F", "M", "D", "S", "1", "E", "L"]
+        exotic = [s for s in sorted(MODIFICATION_SYMBOLS) if s not in clinical_standard]
+        target_symbols = clinical_standard + exotic
 
     generated_variants: List[CmSiRNA] = []
 
     for symbol in target_symbols:
         # Scan sense strand
         for pos in range(1, len(sense) + 1):
+            if not _is_positionally_valid(symbol, pos, len(sense)):
+                continue
             modified_sense = _apply_mod(sense, pos, symbol)
             generated_variants.append(CmSiRNA(
                 sense=modified_sense,
@@ -166,6 +200,8 @@ def single_mod_scan(
             
         # Scan antisense strand
         for pos in range(1, len(antisense) + 1):
+            if not _is_positionally_valid(symbol, pos, len(antisense)):
+                continue
             modified_antisense = _apply_mod(antisense, pos, symbol)
             generated_variants.append(CmSiRNA(
                 sense=sense,
@@ -196,21 +232,33 @@ def multimod_gen(
     mutable_sense = list(sense)
     mutable_antisense = list(antisense)
 
-    if sense_mods and sense_positions:
-        sense_instructions = _parse_multimod_input(sense_mods, sense_positions)
-        for symbol, positions in sense_instructions:
-            for pos in positions:
-                if not (1 <= pos <= len(mutable_sense)):
-                    raise ValueError(f"Sense position {pos} out of range.")
-                mutable_sense[pos - 1] = symbol
+    if sense_mods:
+        if sense_positions:
+            sense_instructions = _parse_multimod_input(sense_mods, sense_positions)
+            for symbol, positions in sense_instructions:
+                for pos in positions:
+                    if not (1 <= pos <= len(mutable_sense)):
+                        raise ValueError(f"Sense position {pos} out of range.")
+                    mutable_sense[pos - 1] = symbol
+        elif len(sense_mods) == len(sense):
+            # Compact 1-char per position mask (e.g. MMMMMMFMFFFMMMMMMMMMM)
+            for i, symbol in enumerate(sense_mods):
+                if symbol != sense[i]:
+                    mutable_sense[i] = symbol
 
-    if antisense_mods and antisense_positions:
-        antisense_instructions = _parse_multimod_input(antisense_mods, antisense_positions)
-        for symbol, positions in antisense_instructions:
-            for pos in positions:
-                if not (1 <= pos <= len(mutable_antisense)):
-                    raise ValueError(f"Antisense position {pos} out of range.")
-                mutable_antisense[pos - 1] = symbol
+    if antisense_mods:
+        if antisense_positions:
+            antisense_instructions = _parse_multimod_input(antisense_mods, antisense_positions)
+            for symbol, positions in antisense_instructions:
+                for pos in positions:
+                    if not (1 <= pos <= len(mutable_antisense)):
+                        raise ValueError(f"Antisense position {pos} out of range.")
+                    mutable_antisense[pos - 1] = symbol
+        elif len(antisense_mods) == len(antisense):
+            # Compact 1-char per position mask (e.g. MFMMDM2MMMMMMFMFMMMMMMM)
+            for i, symbol in enumerate(antisense_mods):
+                if i < len(mutable_antisense) and symbol != antisense[i]:
+                    mutable_antisense[i] = symbol
 
     return CmSiRNA(
         sense="".join(mutable_sense),
@@ -225,22 +273,58 @@ def multimod_gen(
 
 # ─── Mode 3: Combinatorial Beam Search Scan ───────────────────────────────────
 
-def _is_sterically_viable(modified_strand: str, parent_strand: str) -> bool:
+_TERMINAL_5PRIME_ONLY = {'1', '3'}      # 5'-Phosphate/5'-VP, 5'-OMe cap (pos 1 only)
+_TERMINAL_3PRIME_ONLY = {'2'}           # 3'-Phosphate (pos 21 only)
+_CONJUGATES = {'4', '5'}                # GalNAc / Cholesterol conjugates (terminal ends only)
+
+def _is_positionally_valid(symbol: str, pos: int, seq_len: int) -> bool:
+    """Enforces strict chemical positional constraints for terminal/conjugate modifications."""
+    if symbol in _TERMINAL_5PRIME_ONLY and pos != 1:
+        return False
+    if symbol in _TERMINAL_3PRIME_ONLY and pos != seq_len:
+        return False
+    if symbol in _CONJUGATES and pos not in (1, seq_len):
+        return False
+    return True
+
+
+def _is_chemically_viable(mod_sense: str, parent_sense: str, mod_anti: str, parent_anti: str) -> bool:
     """
-    Rejects modification patterns with >= 3 consecutive bulky modifications
-    (LNA, ENA, MOE) that create extreme backbone rigidity incompatible with
-    Ago2 accommodation (Obad et al. 2011; ESC+ clinical guidelines).
+    Enforces strict chemical synthesis viability rules:
+    1. Terminus-only modifications ('1', '3') must exist strictly at pos 1. Max 1 instance per strand.
+    2. 3'-terminus modifications ('2') must exist strictly at pos 21. Max 1 instance per strand.
+    3. Conjugates ('4', '5') must exist strictly at terminal ends (pos 1 or 21). Max 1 instance per strand.
+    4. Max 2 consecutive bulky rigid modifications (LNA 'L', MOE 'E', ENA 'Y').
     """
-    consecutive_bulky = 0
-    for i in range(len(modified_strand)):
-        char = modified_strand[i]
-        parent_char = parent_strand[i] if i < len(parent_strand) else char
-        if char != parent_char and char in ('L', 'Y', 'E'):
-            consecutive_bulky += 1
-            if consecutive_bulky >= 3:
-                return False
-        else:
-            consecutive_bulky = 0
+    for strand, parent in [(mod_sense, parent_sense), (mod_anti, parent_anti)]:
+        n = len(strand)
+        c_5p = 0
+        c_3p = 0
+        c_conj = 0
+        c_bulky = 0
+        for i, char in enumerate(strand):
+            parent_char = parent[i] if i < len(parent) else char
+            if char != parent_char:
+                pos = i + 1
+                if char in _TERMINAL_5PRIME_ONLY:
+                    if pos != 1: return False
+                    c_5p += 1
+                    if c_5p > 1: return False
+                if char in _TERMINAL_3PRIME_ONLY:
+                    if pos != n: return False
+                    c_3p += 1
+                    if c_3p > 1: return False
+                if char in _CONJUGATES:
+                    if pos not in (1, n): return False
+                    c_conj += 1
+                    if c_conj > 1: return False
+                if char in ('L', 'Y', 'E'):
+                    c_bulky += 1
+                    if c_bulky >= 3: return False
+                else:
+                    c_bulky = 0
+            else:
+                c_bulky = 0
     return True
 
 
@@ -256,6 +340,7 @@ def multi_mod_scan(
     seed_variant: Optional[Any] = None,
     calibrator_key: Optional[str] = None,
     normalize_mode: str = "clip",
+    fda_core_only: bool = True,
 ) -> List[CmSiRNA]:
     """
     Heuristically explores the vast combinatoric space of multi-modified siRNAs.
@@ -268,7 +353,7 @@ def multi_mod_scan(
     from .biophysics import calculate_adjusted_efficacy
     from collections import defaultdict
 
-    logger.info("Starting combinatorial beam search.")
+    logger.info(f"Starting combinatorial beam search (FDA Core Only: {fda_core_only}).")
 
     if single_results is None:
         prediction_output = predict_modified(
@@ -278,6 +363,14 @@ def multi_mod_scan(
         single_results = prediction_output["results"]
     elif parent_score is None:
         raise ValueError("parent_score must be provided when single_results is pre-calculated.")
+
+    # Filter to FDA-Approved Core Palette (2'-OMe 'M', 2'-F 'F', 2'-deoxy 'D', PS 'S', 5'-Phos '1')
+    FDA_CORE_SYMBOLS = {'M', 'F', 'D', 'S', '1'}
+    if fda_core_only and single_results:
+        fda_filtered = [r for r in single_results if all(c in FDA_CORE_SYMBOLS for c in r.mod_symbol.replace('+', ''))]
+        if fda_filtered:
+            single_results = fda_filtered
+            logger.info(f"Restricted beam search to {len(single_results)} FDA-approved core single modifications.")
 
     # Calculate baseline for delta comparisons
     parent_adjusted_score, _, _ = calculate_adjusted_efficacy(
@@ -299,6 +392,10 @@ def multi_mod_scan(
 
         scored_variants = []
 
+        # For beam search expansion rounds, use fast CatBoost model to score thousands of permutations instantly.
+        # Deep PyTorch GNN / Ensemble scoring is re-applied to the final top 100 candidates at the end.
+        eval_model_key = "CatBoost_v4" if model_key in ["Ensemble_v4", "GNN_v2", "IEEE_v5"] else model_key
+
         for i in range(0, len(variants), chunk_size):
             chunk = variants[i:i + chunk_size]
             s_list = [v.sense for v in chunk]
@@ -306,7 +403,7 @@ def multi_mod_scan(
             ps_list = [v.parent_sense for v in chunk]
             pa_list = [v.parent_antisense for v in chunk]
 
-            normalized_scores = _predict_model_b(s_list, a_list, ps_list, pa_list, model_key=model_key)
+            normalized_scores = _predict_model_b(s_list, a_list, ps_list, pa_list, model_key=eval_model_key)
 
             for variant, raw_score in zip(chunk, normalized_scores):
                 adj_score, penalties, _ = calculate_adjusted_efficacy(
@@ -366,17 +463,13 @@ def multi_mod_scan(
     current_beam.sort(key=lambda x: x.efficacy_score, reverse=True)
     all_evaluated_variants = list(current_beam)
 
-    pairing_pool = sorted(single_results, key=lambda r: r.efficacy_score, reverse=True)[:beam_width * 2]
+    # Pairing pool drawn from single-mod scan results across all 21 positions
+    pairing_pool = sorted(single_results, key=lambda r: r.efficacy_score, reverse=True)[:beam_width * 3]
+
     history_best_scores = [current_beam[0].efficacy_score if current_beam else 0.0]
 
     for iteration in range(2, max_mods + 1):
         round_best_score = current_beam[0].efficacy_score if current_beam else 0.0
-        
-        # Plateau detection: Stop searching if the optimum hasn't improved meaningfully
-        if iteration >= 4 and (round_best_score - history_best_scores[-3]) < 0.5:
-            logger.info("Beam search plateau detected. Stopping early.")
-            break
-            
         history_best_scores.append(round_best_score)
         round_candidates = []
         explored_pairs = set()
@@ -436,10 +529,8 @@ def multi_mod_scan(
                 tracking_positions.append(addon_variant.mod_position)
                 tracking_strands.append(addon_variant.mod_strand)
 
-                # Check steric viability — reject consecutive bulky mods
-                if not _is_sterically_viable("".join(mutable_antisense), antisense):
-                    continue
-                if not _is_sterically_viable("".join(mutable_sense), sense):
+                # Check chemical viability (terminal position limits, single-instance 5'-VP/conjugates, steric bulky limits)
+                if not _is_chemically_viable("".join(mutable_sense), sense, "".join(mutable_antisense), antisense):
                     continue
 
                 round_candidates.append(CmSiRNA(
@@ -470,5 +561,47 @@ def multi_mod_scan(
     final_variants = list(unique_variants.values())
     final_variants.sort(key=lambda v: v.efficacy_score, reverse=True)
     
-    logger.info(f"Beam search complete. Evaluated {len(all_evaluated_variants)} total permutations. Returning {len(final_variants)} unique sequences.")
+    # If model_key is IEEE_v5, Ensemble_v4, or GNN_v2, score the final top 100 variants using that model
+    if model_key in ["IEEE_v5", "Ensemble_v4", "GNN_v2"] and final_variants:
+        top_candidates = final_variants[:100]
+        
+        if model_key == "IEEE_v5":
+            try:
+                from helixzero_ieee_v5.predict_ieee_v5 import predict_sirna_potency_batch
+                s_seqs = [v.parent_sense or v.sense for v in top_candidates]
+                a_seqs = [v.parent_antisense or v.antisense for v in top_candidates]
+                s_mods = [v.sense for v in top_candidates]
+                a_mods = [v.antisense for v in top_candidates]
+                v5_batch_res = predict_sirna_potency_batch(
+                    sense_seqs=s_seqs, anti_seqs=a_seqs,
+                    sense_mods_list=s_mods, anti_mods_list=a_mods,
+                    conc_nM=10.0
+                )
+                for variant, v5_res in zip(top_candidates, v5_batch_res):
+                    variant.estimated_pIC50 = v5_res["estimated_pIC50"]
+                    variant.estimated_IC50_nM = v5_res["estimated_IC50_nM"]
+                    variant.predicted_knockdown_pct = v5_res["predicted_knockdown_pct"]
+                    variant.efficacy_score = round(v5_res["predicted_knockdown_pct"], 2)
+                    variant.delta_score = round(v5_res["predicted_knockdown_pct"] - parent_adjusted_score, 2)
+            except Exception as e:
+                logger.error(f"IEEE v5 candidate batch scoring failed: {e}")
+        else:
+            s_list = [v.sense for v in top_candidates]
+            a_list = [v.antisense for v in top_candidates]
+            ps_list = [v.parent_sense for v in top_candidates]
+            pa_list = [v.parent_antisense for v in top_candidates]
+            
+            target_scores = _predict_model_b(s_list, a_list, ps_list, pa_list, model_key=model_key)
+            for variant, raw_score in zip(top_candidates, target_scores):
+                adj_score, penalties, _ = calculate_adjusted_efficacy(
+                    float(raw_score), variant.sense, variant.antisense,
+                    variant.parent_sense, variant.parent_antisense
+                )
+                variant.efficacy_score = round(adj_score, 2)
+                variant.delta_score = round(adj_score - parent_adjusted_score, 2)
+                variant.penalties = penalties
+            
+        final_variants.sort(key=lambda v: v.efficacy_score, reverse=True)
+    
+    logger.info(f"Beam search complete. Evaluated {len(all_evaluated_variants)} total permutations in fast mode. Returning {len(final_variants)} unique sequences.")
     return final_variants

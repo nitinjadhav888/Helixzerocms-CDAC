@@ -26,7 +26,7 @@ from typing import List
 
 from .chem_schema import NucSlot
 from .biophysics import calculate_adjusted_efficacy
-from . import model_b_v2
+from . import model_b_v4
 
 
 @dataclass
@@ -128,7 +128,7 @@ def rank_esc_plus_designs(base_sense: str, base_antisense: str) -> List[MultiSlo
     """Generates, scores (Model B v2, true multi-slot fidelity), applies
     biophysics penalties, and returns designs ranked best-first."""
     designs = generate_esc_plus_candidates(base_sense, base_antisense)
-    raw_scores = model_b_v2.predict_from_slots(
+    raw_scores = model_b_v4.predict_from_slots(
         [d.sense_slots for d in designs], [d.anti_slots for d in designs]
     )
     for d, raw in zip(designs, raw_scores):

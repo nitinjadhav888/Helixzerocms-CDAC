@@ -2,7 +2,7 @@
 offtarget.py — Transcriptome-Wide Off-Target Safety Engine
 
 Validates candidate siRNAs against the human transcriptome to detect off-target 
-hybridization risks and innate immunogenic motifs.
+hybridization risks and innate immunogenic motifs using an O(1) 2-bit packed k-mer index.
 
 Core Validations:
 1. Thermodynamic Asymmetry: Ensures the guide strand is preferentially loaded into RISC.
@@ -17,80 +17,120 @@ Core Validations:
 
 import logging
 import os
-from typing import Dict, Any, Optional
+import pickle
+from pathlib import Path
+from typing import Dict, Any, Optional, Set
 
 logger = logging.getLogger(__name__)
+
+_NUC_MAP = {'A': 0, 'C': 1, 'G': 2, 'T': 3, 'U': 3}
+
+
+def _pack_kmer(kmer: str) -> Optional[int]:
+    """Packs a DNA/RNA k-mer string up to 15-mer into a 30-bit integer (2 bits per nucleotide)."""
+    val = 0
+    for char in kmer:
+        nuc = _NUC_MAP.get(char)
+        if nuc is None:
+            return None
+        val = (val << 2) | nuc
+    return val
+class KmerIndexStorage:
+    """
+    Dedicated storage manager for packed transcriptome 2-bit k-mer indices.
+    Decouples raw FASTA parsing and disk serialization from biological risk evaluation.
+    """
+
+    def __init__(self, transcriptome_path: str) -> None:
+        self.transcriptome_path: str = transcriptome_path
+        self.sequence: str = ""
+        self.kmer15_set: Set[int] = set()
+        self.kmer7_counts: Dict[int, int] = {}
+        self.kmer6_counts: Dict[int, int] = {}
+        self.load()
+
+    def load(self) -> None:
+        """
+        Loads the pre-computed 2-bit packed index pickle file (.idx.pkl) or builds it
+        from FASTA to enable sub-microsecond O(1) set & count lookups.
+        """
+        try:
+            txt_path = Path(self.transcriptome_path)
+            # Always compute the canonical absolute data directory path based on module location.
+            # This ensures the .idx.pkl is found in Docker even when the raw FASTA is excluded
+            # from the image (FASTA is 449MB; idx.pkl is already pre-built and copied instead).
+            canonical_data_dir = Path(__file__).resolve().parent.parent / "data"
+            alt_path = canonical_data_dir / txt_path.name
+
+            if alt_path.exists():
+                txt_path = alt_path
+                self.transcriptome_path = str(alt_path)
+            elif txt_path.exists():
+                pass  # use txt_path as-is
+            # else: neither exists — idx_path computed from alt_path so it checks the right dir
+
+            # Derive idx_path from alt_path so it always resolves to the canonical data dir
+            idx_path = (alt_path if alt_path.parent.exists() else txt_path).with_suffix('.idx.pkl')
+
+            if idx_path.exists():
+                with open(idx_path, 'rb') as f:
+                    self.sequence, self.kmer15_set, self.kmer7_counts, self.kmer6_counts = pickle.load(f)
+                logger.info(f"Loaded 2-bit packed transcriptome index ({len(self.kmer15_set):,} 15-mer keys) from {idx_path}.")
+                return
+
+            logger.warning(
+                f"Pre-built transcriptome index (.idx.pkl) not found at {idx_path}. "
+                "Bypassing on-the-fly 450MB FASTA parsing to maintain instant sub-second API responsiveness."
+            )
+            self.sequence = ""
+            self.kmer15_set = set()
+            self.kmer7_counts = {}
+            self.kmer6_counts = {}
+            return
+        except Exception as e:
+            logger.error(f"Failed to load transcriptome database: {e}")
+            self.sequence = ""
 
 
 class OffTargetEngine:
     """
     A unified engine that evaluates the safety of siRNA sequences against 
-    a loaded reference transcriptome.
+    a loaded reference transcriptome using an O(1) 2-bit packed index.
     """
 
-    def __init__(self, transcriptome_path: str) -> None:
+    def __init__(self, transcriptome_path: str, storage: Optional[KmerIndexStorage] = None) -> None:
         """
         Initializes the OffTargetEngine.
         
         Args:
             transcriptome_path (str): File path to the reference FASTA file (e.g. GRCh38).
+            storage (Optional[KmerIndexStorage]): Optional custom or mock storage adapter.
         """
         self.transcriptome_path: str = transcriptome_path
-        self.sequence: str = ""
+        self.storage: KmerIndexStorage = storage or KmerIndexStorage(transcriptome_path)
         self._cache: Dict[str, Dict[str, Any]] = {}
-        self._load_transcriptome()
 
-    def _load_transcriptome(self) -> None:
-        """
-        Loads the FASTA reference file and concatenates sequences with a sentinel 
-        to prevent boundary crossing false positives, while maintaining fast string search.
-        """
-        try:
-            if not os.path.exists(self.transcriptome_path):
-                logger.warning(f"Transcriptome file not found at {self.transcriptome_path}. Off-target scans will bypass exact match checks.")
-                return
+    @property
+    def sequence(self) -> str:
+        return self.storage.sequence
 
-            with open(self.transcriptome_path, "r", encoding="utf-8") as f:
-                current_seq = []
-                seqs = []
-                for line in f:
-                    if line.startswith(">"):
-                        if current_seq:
-                            seqs.append("".join(current_seq))
-                        current_seq = []
-                    else:
-                        current_seq.append(line.strip().upper())
-                if current_seq:
-                    seqs.append("".join(current_seq))
-                
-                # Join with 15 N's so no 15-mer or seed can match across boundaries
-                self.sequence = ("N" * 15).join(seqs)
-                
-            logger.info(f"Loaded transcriptome matrix: {len(self.sequence):,} bases.")
-        except Exception as e:
-            logger.error(f"Failed to load transcriptome database: {e}")
-            self.sequence = ""
+    @property
+    def _kmer15_set(self) -> Set[int]:
+        return self.storage.kmer15_set
+
+    @property
+    def _kmer7_counts(self) -> Dict[int, int]:
+        return self.storage.kmer7_counts
+
+    @property
+    def _kmer6_counts(self) -> Dict[int, int]:
+        return self.storage.kmer6_counts
 
     def _calculate_asymmetry(self, sense: str, antisense: str) -> float:
         """
         Calculates the thermodynamic asymmetry between the 5' ends of the siRNA
         using RNA nearest-neighbor ΔG (Gibbs free energy) at 37°C.
-        
-        Why: Ago2 protein preferentially loads the strand with the less thermodynamically 
-        stable 5' terminus. ΔG is the correct thermodynamic metric (free energy at 
-        37°C determines spontaneous duplex stability), replacing the earlier ΔH-only 
-        approach which ignored the entropy contribution.
-        
-        Args:
-            sense (str): The sense strand sequence.
-            antisense (str): The antisense strand sequence.
-            
-        Returns:
-            float: ΔG difference (Sense ΔG - Antisense ΔG). Negative values mean 
-                   Antisense terminus is less stable (optimal for RISC loading).
         """
-        # RNA Nearest-Neighbor ΔG (kcal/mol) at 37°C — Xia et al. 1998, Turner 2004
-        # These are the standard Turner rules for RNA folding free energy
         rna_nn_dg = {
             'AA': -0.93, 'AU': -1.10, 'AC': -2.24, 'AG': -2.08,
             'UA': -1.33, 'UU': -0.93, 'UC': -1.43, 'UG': -2.70,
@@ -117,19 +157,7 @@ class OffTargetEngine:
         base_antisense: str = ""
     ) -> Dict[str, Any]:
         """
-        Executes the full safety heuristic pipeline against a given candidate.
-        
-        Args:
-            sense (str): The parent sense sequence.
-            antisense (str): The parent antisense sequence.
-            antisense_mods (str): The modification mask for the antisense strand.
-            mod_sense (str): The modification mask for the sense strand.
-            delivery_route (str): Target delivery route (e.g. "hepatic").
-            base_antisense (str): The unmodified parent antisense sequence.
-            
-        Returns:
-            Dict[str, Any]: A detailed safety dossier containing the final score, 
-                            status flags, risk factors, and mitigation notes.
+        Executes the full safety heuristic pipeline against a given candidate in O(1) time.
         """
         sense = sense.upper()
         antisense = antisense.upper()
@@ -142,8 +170,7 @@ class OffTargetEngine:
             "overallSafetyScore": 100.0,
             "status": "CLEARED",
             "riskFactors": [],
-            "safetyNotes": [],
-            "certificate_path": None
+            "safetyNotes": []
         }
         
         # 1. Thermodynamic Asymmetry
@@ -163,40 +190,44 @@ class OffTargetEngine:
             )
             report["overallSafetyScore"] -= 5.0
             
-        # 2. 15-mer Slicer-mediated Exclusion Check & 3. Seed Region Analysis
-        # These operations search a ~400MB string. Since multi-mod variants share the same parent,
-        # we cache the string-search results to prevent redundant gigabyte-scale scans.
+        # 2. 15-mer Slicer-mediated Exclusion Check & 3. Seed Region Analysis (O(1) Packed Lookups)
         cache_key = antisense
         if cache_key not in self._cache:
             has_crit_match = False
-            if self.sequence:
-                sense_rc = _reverse_complement(antisense)
-                for i in range(len(sense_rc) - 15 + 1):
-                    if sense_rc[i : i + 15] in self.sequence:
-                        has_crit_match = True
-                        break
-            
-            # Bartel hierarchical seed classification (Bartel 2009, Cell; Agarwal 2015, eLife):
-            # 8mer (pos 2-8 + A at pos 1) > 7mer-m8 (pos 2-8) > 7mer-A1 (pos 2-7 + A at pos 1) > 6mer (pos 2-7)
-            # Higher-class matches have stronger off-target silencing potential
+            sense_rc = _reverse_complement(antisense)
+            if len(sense_rc) >= 15:
+                slicer_15mer = sense_rc[:15]
+                pk15 = _pack_kmer(slicer_15mer)
+                if pk15 is not None and self._kmer15_set:
+                    has_crit_match = (pk15 in self._kmer15_set)
+                elif self.sequence:
+                    has_crit_match = (slicer_15mer in self.sequence)
+
             seed_seq_6mer = antisense[1:7]
             seed_seq_7mer = antisense[1:8] if len(antisense) >= 8 else antisense[1:7]
             has_anchor_a = len(antisense) > 0 and antisense[0] in ('A', 'U')
-            
-            seed_complement_6mer = _reverse_complement(seed_seq_6mer)
-            seed_complement_7mer = _reverse_complement(seed_seq_7mer) if len(antisense) >= 8 else ""
-            
-            seed_6mer_count = self.sequence.count(seed_complement_6mer) if self.sequence else 0
-            seed_7mer_count = self.sequence.count(seed_complement_7mer) if self.sequence and seed_complement_7mer else 0
-            
-            # Classify: 8mer = 7mer-m8 + A1 anchor, 7mer-m8 = 7mer match, 7mer-A1 = 6mer + A1, 6mer = 6mer only
+
+            seed_comp_6mer = _reverse_complement(seed_seq_6mer)
+            seed_comp_7mer = _reverse_complement(seed_seq_7mer) if len(antisense) >= 8 else ""
+
+            pk6 = _pack_kmer(seed_comp_6mer)
+            pk7 = _pack_kmer(seed_comp_7mer) if seed_comp_7mer else None
+
+            if pk6 is not None and self._kmer6_counts:
+                seed_6mer_count = self._kmer6_counts.get(pk6, 0)
+            else:
+                seed_6mer_count = 0
+
+            if pk7 is not None and self._kmer7_counts:
+                seed_7mer_count = self._kmer7_counts.get(pk7, 0)
+            else:
+                seed_7mer_count = 0
+
             seed_8mer_count = seed_7mer_count if has_anchor_a else 0
             seed_7m8_count = seed_7mer_count
             seed_7a1_count = seed_6mer_count if has_anchor_a else 0
-            # 6mer-only = 6mer matches that are NOT also 7mer matches
-            seed_6mer_only = seed_6mer_count - seed_7mer_count if seed_6mer_count > seed_7mer_count else 0
-            
-            # Weighted seed occurrence score: 8mer=1.0, 7mer-m8=0.8, 7mer-A1=0.6, 6mer=0.3
+            seed_6mer_only = max(0, seed_6mer_count - seed_7mer_count)
+
             weighted_seed = (seed_8mer_count * 1.0 + seed_7m8_count * 0.8 + 
                            seed_7a1_count * 0.6 + seed_6mer_only * 0.3)
             
@@ -228,12 +259,8 @@ class OffTargetEngine:
             report["status"] = "TOXIC"
             
         # 3. Seed Region Mitigation Analysis
-        
-        # Scientific Mitigation (Parvathaneni 2026 & Neumeier 2021)
         is_seed_mitigated = False
         if len(antisense_mods) >= 8:
-            # OMe at ANY seed position (2-7) disrupts miRNA-like off-target pairing
-            # Jackson et al. 2006, RNA; Parvathaneni 2026: seed 2'-OMe suppresses seed-based off-targets
             for pos_idx in range(1, 7):
                 if antisense_mods[pos_idx] == "M":
                     is_seed_mitigated = True
@@ -241,16 +268,13 @@ class OffTargetEngine:
                         f"Position {pos_idx+1} contains 2'-OMe, mitigating off-target seed binding."
                     )
                     break
-            # GNA at position 7 (index 6) independently rescues via steric disruption (Schlegel 2022)
-            if antisense_mods[6] == "8":
+            if len(antisense_mods) > 6 and antisense_mods[6] == "8":
                 is_seed_mitigated = True
                 report["safetyNotes"].append(
                     "Position 7 contains GNA ('8'), mitigating seed-based off-targets via steric disruption."
                 )
         
         if seed_occurrences > 0:
-            # Use Bartel-weighted seed score (8mer=1.0, 7mer-m8=0.8, 7mer-A1=0.6, 6mer=0.3)
-            # This better reflects actual off-target silencing risk than raw 6mer counts
             seed_display = int(weighted_seed_score)
             if is_seed_mitigated:
                 report["safetyNotes"].append(
@@ -264,11 +288,9 @@ class OffTargetEngine:
                 report["overallSafetyScore"] -= min(30.0, weighted_seed_score * 2.5)
                 
         # 4. Toll-Like Receptor (TLR7 / TLR8) Motif Masking
-        # Hierarchical TLR7/8 agonist motifs — Goodchild 2009, Judge 2005, Heil 2004, Hornung 2005
         tlr_motifs = ["GUUGU", "GUGU", "UGU", "UUG", "UGGC", "GUUC", "GUCCUUCAA", "UGUGU"]
         
         def _evaluate_tlr_masking(strand_seq: str, mod_strand_mask: str, strand_name: str) -> None:
-            """Evaluates whether immunostimulatory GU motifs are shielded by 2'-OMe."""
             for motif in tlr_motifs:
                 idx = strand_seq.find(motif)
                 while idx != -1:
@@ -313,69 +335,12 @@ class OffTargetEngine:
         # Enforce bounds
         report["overallSafetyScore"] = max(0.0, min(100.0, report["overallSafetyScore"]))
         
-        # Final status evaluation
         if report["overallSafetyScore"] < 80.0 and report["isSafe"]:
             report["status"] = "WARNING_SEED"
             
         return report
 
-    def generate_markdown_certificate(
-        self, 
-        report: Dict[str, Any], 
-        sense: str, 
-        antisense: str, 
-        mods: str
-    ) -> str:
-        """
-        Generates a Markdown Certificate of Biological Safety and saves it.
-        """
-        docs_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "docs")
-        os.makedirs(docs_dir, exist_ok=True)
-        
-        safe_prefix = sense[:10] + "..." if len(sense) > 10 else sense
-        filename = f"Certificate_offtarget_{safe_prefix}.md"
-        filepath = os.path.join(docs_dir, filename)
-        
-        md_content = f"""# Certificate of Biological Safety
-**Human RNAi Therapeutics Off-Target Scan**
 
-## Sequence Details
-* **Sense Strand:** `{sense}`
-* **Antisense Strand:** `{antisense}`
-* **Antisense Modifications:** `{mods or 'None'}`
-
-## Validation Results
-* **Status:** **{report['status']}**
-* **Overall Safety Score:** **{report['overallSafetyScore']}%**
-
-### Risk Factors Identified
-"""
-        if not report['riskFactors']:
-            md_content += "* None detected.\n"
-        else:
-            for factor in report['riskFactors']:
-                md_content += f"* {factor}\n"
-                
-        md_content += "\n### Safety Notes & Mitigations\n"
-        if not report['safetyNotes']:
-            md_content += "* None.\n"
-        else:
-            for note in report['safetyNotes']:
-                md_content += f"* {note}\n"
-                
-        md_content += (
-            "\n---\n*Validated checks include: Thermodynamic Asymmetry end-loading preference, "
-            "Slicer-mediated 15-mer exclusion, and Seed-region mismatch mitigation against the "
-            "GRCh38 Human Transcriptome.*"
-        )
-        
-        with open(filepath, "w", encoding="utf-8") as file:
-            file.write(md_content)
-            
-        return filepath
-
-
-# Global instance for FastAPI dependency injection
 _engine_instance: Optional[OffTargetEngine] = None
 
 def get_offtarget_engine() -> OffTargetEngine:

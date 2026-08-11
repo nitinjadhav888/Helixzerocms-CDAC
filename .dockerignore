@@ -1,0 +1,39 @@
+.git
+.agents
+.venv
+venv
+*.pyc
+__pycache__
+*.log
+*.png
+*.pdf
+
+# ----- Data: include only what's needed -----
+# Exclude raw FASTA (449MB) — the pre-built .idx.pkl (863MB) is included instead
+smepred/data/human_transcriptome.fasta
+# CRITICAL: Explicitly keep the pre-built transcriptome index (863MB) — never exclude!
+!smepred/data/human_transcriptome.idx.pkl
+# Exclude SQLite caches (rebuilt at runtime)
+smepred/data/offtarget_cache.db
+smepred/data/structure_cache.db
+# Exclude processed/raw GNN graph data (not needed at inference time)
+smepred/data/processed
+smepred/data/raw
+# Note: smepred/data/oligoformer/ is INCLUDED (cell_viability.tsv etc are needed at runtime)
+
+# Exclude deleted ERNIE embeddings
+data_pre/rnaernie_base_emb_fixed.pkl
+
+# Exclude test + dev files
+smepred/tests
+smepred/scripts
+smepred/predict_results
+smepred/Params
+
+# Exclude misc
+*.bat
+*.ipynb
+node_modules
+.opencode
+.claude
+.vscode

@@ -8,6 +8,14 @@ __pycache__/
 # Large binaries / PDFs
 *.pdf
 *.docx
+*.pkl
+*.pt
+*.cbm
+*.fasta
+*.db
+/smepred/data/processed/*.csv
+/smepred/data/processed/*.tsv
+/MEG-mod-main/Saved_Best_Models/
 
 # Raw patent data (large, IP-sensitive)
 /HelixZero_Biological_Catalog_43k.csv.xls

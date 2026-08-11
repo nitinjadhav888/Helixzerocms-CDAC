@@ -1,0 +1,15 @@
+{
+  "version": "model_b_v4",
+  "phase": "v2 features + RNA-FM PCA-32 + RNA-Ernie PCA-32 + ViennaRNA",
+  "date": "2026-07-19T09:27:45.452277",
+  "architecture": "catboost_v4_joint",
+  "n_features": 577,
+  "results": {
+    "val_spearman": 0.5378521638102638,
+    "val_mae": 21.64733257323165,
+    "test_spearman": 0.5616312056941376,
+    "test_mae": 21.452098216542318,
+    "external_spearman": 0.369799817647905,
+    "external_p_value": 0.037235872278560456
+  }
+}
