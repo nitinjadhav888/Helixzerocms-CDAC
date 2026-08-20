@@ -21,8 +21,11 @@ Start Server:
 import sys
 from pathlib import Path
 
-# Ensure workspace root (d:\Helixx) is in sys.path to load helixzero_ieee_v5 module
-ROOT_HELIX_DIR = Path(__file__).resolve().parent.parent.parent
+# Ensure workspace root (d:\Helixx) and smepred dir are in sys.path
+SMEPRED_DIR = Path(__file__).resolve().parent.parent
+ROOT_HELIX_DIR = SMEPRED_DIR.parent
+if str(SMEPRED_DIR) not in sys.path:
+    sys.path.insert(0, str(SMEPRED_DIR))
 if str(ROOT_HELIX_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_HELIX_DIR))
 
@@ -207,11 +210,14 @@ def rank_endpoint(req: RankRequest):
             "results": [r.to_dict() for r in results],
         }
     except FileNotFoundError as e:
-        raise HTTPException(status_code=503, detail="Model file not found. Ensure models are compiled.")
+        logger.error(f"Model file missing: {e}", exc_info=True)
+        raise HTTPException(status_code=503, detail=f"Model file not found: {str(e)}. Ensure model weights exist.")
     except ValueError as e:
+        logger.warning(f"Invalid sequence in /rank: {e}")
         raise HTTPException(status_code=422, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Ranking failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Inference error: {str(e)}")
 
 
 @app.post("/rank/upload")
