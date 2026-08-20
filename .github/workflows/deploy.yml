@@ -72,19 +72,22 @@ jobs:
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger IceCloud Webhook Deployment (if configured)
-        if: ${{ env.ICECLOUD_WEBHOOK != '' }}
-        env:
-          ICECLOUD_WEBHOOK: ${{ secrets.ICECLOUD_DEPLOY_WEBHOOK }}
+      - name: Check Deployment Configuration
+        run: |
+          echo "Checking IceCloud deployment configuration..."
+          if [ -z "${{ secrets.ICECLOUD_DEPLOY_WEBHOOK }}" ] && [ -z "${{ secrets.ICECLOUD_SSH_HOST }}" ]; then
+            echo "ℹ️ No IceCloud deployment webhook or SSH secrets configured yet. Docker image successfully pushed to Docker Hub."
+          fi
+
+      - name: Trigger IceCloud Webhook Deployment
+        if: ${{ secrets.ICECLOUD_DEPLOY_WEBHOOK != '' }}
         run: |
           echo "Triggering IceCloud deployment webhook..."
-          curl -s -X POST "$ICECLOUD_WEBHOOK" -H "Content-Type: application/json" -d '{"image": "nitinjadhav888/helixzerocms:latest"}' || echo "Webhook trigger sent."
+          curl -s -X POST "${{ secrets.ICECLOUD_DEPLOY_WEBHOOK }}" -H "Content-Type: application/json" -d '{"image": "nitinjadhav888/helixzerocms:latest"}' || echo "Webhook trigger completed."
 
-      - name: Deploy via SSH to IceCloud (if SSH configured)
-        if: ${{ env.ICECLOUD_HOST != '' }}
+      - name: Deploy via SSH to IceCloud
+        if: ${{ secrets.ICECLOUD_SSH_HOST != '' }}
         uses: appleboy/ssh-action@v1.0.3
-        env:
-          ICECLOUD_HOST: ${{ secrets.ICECLOUD_SSH_HOST }}
         with:
           host: ${{ secrets.ICECLOUD_SSH_HOST }}
           username: ${{ secrets.ICECLOUD_SSH_USER || 'root' }}
