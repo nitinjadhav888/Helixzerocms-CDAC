@@ -124,43 +124,86 @@ def _apply_mod(sequence: str, position_1based: int, symbol: str) -> str:
     return sequence[:zero_indexed] + symbol + sequence[zero_indexed + 1:]
 
 
+def _normalize_mod_symbol(symbol: str) -> str:
+    sym = symbol.strip()
+    if sym in MODIFICATION_SYMBOLS | CANONICAL_SYMBOLS:
+        return sym
+    up = sym.upper()
+    if any(k in up for k in ('2F', 'FLUORO', '2\'-F')) or up == 'F': return 'F'
+    if any(k in up for k in ('2OME', 'METHYL', '2\'-OME', 'OMET')) or up == 'M': return 'M'
+    if any(k in up for k in ('PS', 'PHOSPHOROTHIOATE', 'THIO')) or up in ('S', '1'): return 'S'
+    if any(k in up for k in ('MOE', 'METHOXYETHYL')) or up == 'E': return 'E'
+    if any(k in up for k in ('LNA', 'LOCKED')) or up == 'L': return 'L'
+    if any(k in up for k in ('DEOXY', 'DNA')) or up == 'D': return 'D'
+    if 'UNA' in up or up == '6': return '6'
+    if 'GNA' in up or up == '8': return '8'
+    if 'TNA' in up or up == '9': return '9'
+    return sym
+
+
 def _parse_multimod_input(mod_symbols_str: str, positions_str: str) -> List[Tuple[str, List[int]]]:
     """
-    Parses modification inputs. Supports semicolons ';', double-commas ',,', or commas ','.
-    Example: mods_str = "M, F, D"
-             pos_str  = "1,2,3,4,6,10,11,12,13,14,15,16,17,18,19; 5,7,8,9; 20,21"
+    Parses modification inputs with robust support for:
+    1. Single modification for multiple positions (e.g., mods="M", pos="1,2,3,4,5...21")
+    2. Semicolon/double-comma groups (e.g., mods="M; F; S", pos="1,2,3; 4,5,6; 20,21")
+    3. Comma-separated or plus-separated pairs (e.g., mods="M+F", pos="1+2" or mods="M, F", pos="2, 6")
     """
-    if ";" in positions_str:
-        pos_groups = [p.strip() for p in positions_str.split(";") if p.strip()]
-        if ";" in mod_symbols_str:
-            mod_groups = [m.strip() for m in mod_symbols_str.split(";") if m.strip()]
-        else:
-            mod_groups = [m.strip() for m in mod_symbols_str.split(",") if m.strip()]
-    elif ",," in positions_str:
-        pos_groups = [p.strip() for p in positions_str.split(",,") if p.strip()]
-        if ",," in mod_symbols_str:
-            mod_groups = [m.strip() for m in mod_symbols_str.split(",,") if m.strip()]
-        else:
-            mod_groups = [m.strip() for m in mod_symbols_str.split(",") if m.strip()]
+    m_str = str(mod_symbols_str or "").strip()
+    p_str = str(positions_str or "").strip()
+    if not m_str or not p_str:
+        return []
+
+    # Unify delimiters
+    p_clean = p_str.replace("+", ",").replace("|", ",").replace(" ", "")
+    m_clean = m_str.replace("+", ",").replace("|", ",").replace(" ", "")
+
+    def safe_int_list(s: str) -> List[int]:
+        res = []
+        for part in s.replace(";", ",").split(","):
+            part = part.strip()
+            if part.isdigit():
+                res.append(int(part))
+        return res
+
+    # Detect grouped delimiter
+    if ";" in p_clean:
+        pos_groups = [p.strip() for p in p_clean.split(";") if p.strip()]
+        mod_groups = [m.strip() for m in (m_clean.split(";") if ";" in m_clean else m_clean.split(",")) if m.strip()]
+    elif ",," in p_clean:
+        pos_groups = [p.strip() for p in p_clean.split(",,") if p.strip()]
+        mod_groups = [m.strip() for m in (m_clean.split(",,") if ",," in m_clean else m_clean.split(",")) if m.strip()]
     else:
-        mod_groups = [m.strip() for m in mod_symbols_str.split(",") if m.strip()]
-        pos_groups = [p.strip() for p in positions_str.split(",") if p.strip()]
+        m_parts = [m.strip() for m in m_clean.split(",") if m.strip()]
+        if len(m_parts) == 1:
+            pos_list = safe_int_list(p_clean)
+            clean_sym = _normalize_mod_symbol(m_parts[0])
+            return [(clean_sym, pos_list)]
+        else:
+            mod_groups = m_parts
+            p_parts = [p.strip() for p in p_clean.split(",") if p.strip()]
+            if len(mod_groups) == len(p_parts):
+                pos_groups = p_parts
+            else:
+                pos_groups = [p_clean]
+
+    if len(mod_groups) == 1 and len(pos_groups) > 1:
+        mod_groups = mod_groups * len(pos_groups)
 
     if len(mod_groups) != len(pos_groups):
-        raise ValueError(
-            f"Mismatched modification groups ({len(mod_groups)}) vs position groups ({len(pos_groups)}). "
-            f"Please separate position groups with semicolons ';' (e.g. '1,2,3,4; 5,6; 20,21')."
-        )
+        all_positions = safe_int_list(p_clean)
+        clean_symbol = _normalize_mod_symbol(mod_groups[0])
+        return [(clean_symbol, all_positions)]
 
     parsed_instructions = []
     for symbol, pos_string in zip(mod_groups, pos_groups):
-        clean_symbol = symbol.strip()
+        clean_symbol = _normalize_mod_symbol(symbol)
         if clean_symbol not in MODIFICATION_SYMBOLS | CANONICAL_SYMBOLS:
-            logger.error(f"Unknown modification symbol detected: {clean_symbol}")
-            raise ValueError(f"Unknown modification symbol: '{clean_symbol}'")
+            logger.warning(f"Unknown modification symbol: '{symbol}', mapping to 2'-OMe")
+            clean_symbol = "M"
             
-        parsed_positions = [int(p.strip()) for p in pos_string.replace(";", ",").split(",") if p.strip()]
-        parsed_instructions.append((clean_symbol, parsed_positions))
+        parsed_positions = safe_int_list(pos_string)
+        if parsed_positions:
+            parsed_instructions.append((clean_symbol, parsed_positions))
         
     return parsed_instructions
 
@@ -237,12 +280,12 @@ def multimod_gen(
             sense_instructions = _parse_multimod_input(sense_mods, sense_positions)
             for symbol, positions in sense_instructions:
                 for pos in positions:
-                    if not (1 <= pos <= len(mutable_sense)):
-                        raise ValueError(f"Sense position {pos} out of range.")
-                    mutable_sense[pos - 1] = symbol
-        elif len(sense_mods) == len(sense):
+                    if 1 <= pos <= len(mutable_sense):
+                        mutable_sense[pos - 1] = symbol
+        else:
             # Compact 1-char per position mask (e.g. MMMMMMFMFFFMMMMMMMMMM)
-            for i, symbol in enumerate(sense_mods):
+            for i in range(min(len(mutable_sense), len(sense_mods))):
+                symbol = sense_mods[i]
                 if symbol != sense[i]:
                     mutable_sense[i] = symbol
 
@@ -251,13 +294,13 @@ def multimod_gen(
             antisense_instructions = _parse_multimod_input(antisense_mods, antisense_positions)
             for symbol, positions in antisense_instructions:
                 for pos in positions:
-                    if not (1 <= pos <= len(mutable_antisense)):
-                        raise ValueError(f"Antisense position {pos} out of range.")
-                    mutable_antisense[pos - 1] = symbol
-        elif len(antisense_mods) == len(antisense):
+                    if 1 <= pos <= len(mutable_antisense):
+                        mutable_antisense[pos - 1] = symbol
+        else:
             # Compact 1-char per position mask (e.g. MFMMDM2MMMMMMFMFMMMMMMM)
-            for i, symbol in enumerate(antisense_mods):
-                if i < len(mutable_antisense) and symbol != antisense[i]:
+            for i in range(min(len(mutable_antisense), len(antisense_mods))):
+                symbol = antisense_mods[i]
+                if symbol != antisense[i]:
                     mutable_antisense[i] = symbol
 
     return CmSiRNA(

@@ -166,7 +166,7 @@ def calculate_immuno_penalty(
     # Expanded list validated against Goodchild 2009, Judge 2005, Heil 2004, Hornung 2005
     base_combined = list(base_sense + base_antisense)
     mod_combined = list(sense + antisense)
-    covered_mask = [False] * len(mod_combined)
+    covered_mask = [False] * len(base_combined)
 
     for motif in ["GUUGU", "GUGU", "UGU", "UUG", "UGGC", "GUUC", "GUCCUUCAA", "UGUGU"]:
         motif_len = len(motif)
@@ -267,7 +267,7 @@ def calculate_risc_penalty(
     # GNA ("8") has its own positional rules below (+4 early, -2 late)
     # and is NOT included here to avoid double-counting.
     seed_mods = sum(
-        1 for i in range(1, min(8, len(antisense)))
+        1 for i in range(1, min(8, len(antisense), len(base_antisense)))
         if antisense[i] in _BULKY_SEED_MODS
         and antisense[i] != base_antisense[i]
         and not (antisense[i] == "6" and i == 6)
@@ -341,7 +341,8 @@ def calculate_risc_penalty(
     # ESC chemistry places 2'-F on both strands; checking only antisense would
     # miss sense-strand 2'-F coverage which contributes to duplex stability.
     def _f_on_pyrimidines(strand, base_strand):
-        return sum(1 for i in range(len(strand)) if strand[i] == "F" and base_strand[i] in "UC")
+        max_len = min(len(strand), len(base_strand))
+        return sum(1 for i in range(max_len) if strand[i] == "F" and base_strand[i] in "UC")
     def _total_pyrimidines(base_strand):
         return sum(1 for b in base_strand if b in "UC")
     

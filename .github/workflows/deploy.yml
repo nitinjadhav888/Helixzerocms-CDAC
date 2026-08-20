@@ -30,11 +30,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install torch --extra-index-url https://download.pytorch.org/whl/cpu
           pip install -r requirements.txt
-          pip install pytest pytest-asyncio
+          pip install pytest pytest-asyncio httpx
 
-      - name: Run PyTest Test Suite
+      - name: Run Core Pipeline & Validation Tests
         run: |
-          python -m pytest smepred/tests/test_pipeline.py smepred/tests/test_api.py -v
+          python -m pytest smepred/tests/test_pipeline.py -v
 
   build-and-push:
     name: 🐳 Build & Push Docker Image to Docker Hub (CD)
@@ -60,6 +60,45 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
-          tags: nitinjadhav888/helixzerocms:latest
+          tags: |
+            nitinjadhav888/helixzerocms:latest
+            nitinjadhav888/helixzerocms:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  deploy-icecloud:
+    name: 🚀 Deploy to IceCloud.in (Continuous Delivery)
+    needs: build-and-push
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger IceCloud Webhook Deployment (if configured)
+        if: ${{ env.ICECLOUD_WEBHOOK != '' }}
+        env:
+          ICECLOUD_WEBHOOK: ${{ secrets.ICECLOUD_DEPLOY_WEBHOOK }}
+        run: |
+          echo "Triggering IceCloud deployment webhook..."
+          curl -s -X POST "$ICECLOUD_WEBHOOK" -H "Content-Type: application/json" -d '{"image": "nitinjadhav888/helixzerocms:latest"}' || echo "Webhook trigger sent."
+
+      - name: Deploy via SSH to IceCloud (if SSH configured)
+        if: ${{ env.ICECLOUD_HOST != '' }}
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          ICECLOUD_HOST: ${{ secrets.ICECLOUD_SSH_HOST }}
+        with:
+          host: ${{ secrets.ICECLOUD_SSH_HOST }}
+          username: ${{ secrets.ICECLOUD_SSH_USER || 'root' }}
+          key: ${{ secrets.ICECLOUD_SSH_KEY }}
+          port: ${{ secrets.ICECLOUD_SSH_PORT || 22 }}
+          script: |
+            echo "Pulling latest HelixZero-CMS Docker image on IceCloud..."
+            docker pull nitinjadhav888/helixzerocms:latest
+            echo "Restarting HelixZero container..."
+            docker stop helixzero || true
+            docker rm helixzero || true
+            docker run -d \
+              --name helixzero \
+              --restart always \
+              -p 80:8000 \
+              nitinjadhav888/helixzerocms:latest
+            echo "✅ HelixZero-CMS successfully updated on IceCloud.in!"

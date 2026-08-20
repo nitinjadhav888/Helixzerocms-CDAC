@@ -145,6 +145,20 @@ class OffTargetRequest(BaseModel):
 
 # ─── API Endpoints ────────────────────────────────────────────────────────────
 
+@app.on_event("startup")
+def startup_warmup():
+    """Pre-warms computational models and loads the 863MB index into memory during container startup."""
+    logger.info("Initializing and pre-warming HelixZero models & transcriptome index...")
+    try:
+        _get_model("normal")
+        get_offtarget_engine()
+        from helixzero_ieee_v5.predict_ieee_v5 import predict_sirna_potency_batch
+        predict_sirna_potency_batch(["GUAACCAAGAGUAUUCCAUUU"], ["AUGGAAUACUCUUGGUUACUU"])
+        logger.info("✅ All HelixZero models & transcriptome engines pre-warmed successfully!")
+    except Exception as e:
+        logger.warning(f"Startup warmup encountered an issue (non-fatal): {e}")
+
+
 @app.get("/")
 def serve_frontend():
     """Serves the primary Single-Page Application (SPA) HTML."""

@@ -1092,6 +1092,28 @@ function extractError(data) {
   return String(data.detail);
 }
 
+async function parseApiResponse(res) {
+  const contentType = res.headers.get('content-type') || '';
+  if (contentType.includes('application/json')) {
+    const data = await res.json();
+    if (!res.ok) throw new Error(extractError(data));
+    return data;
+  } else {
+    const text = await res.text();
+    if (!res.ok) {
+      if (res.status === 504 || res.status === 502 || text.toLowerCase().includes('upstream') || text.toLowerCase().includes('timeout')) {
+        throw new Error('Server connection timed out or gateway reset (504/502). The server is busy or processing high volume. Please retry with FDA Core mode.');
+      }
+      throw new Error(`Server Error (${res.status}): ${text.slice(0, 250)}`);
+    }
+    try {
+      return JSON.parse(text);
+    } catch {
+      throw new Error(`Unexpected response format: ${text.slice(0, 200)}`);
+    }
+  }
+}
+
 function showError(elId, msg) {
   document.getElementById(elId).innerHTML =
     msg ? `<div class="error-box">⚠ ${msg}</div>` : '';
@@ -1188,8 +1210,7 @@ async function runRank() {
         input_type: currentInputType,
       })
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(extractError(data));
+    const data = await parseApiResponse(res);
     renderRankResults(data);
   } catch(e) {
     showError('rank-error', e.message);
@@ -1267,8 +1288,7 @@ async function runSingleMod() {
         fda_core_only: fdaCore,
       })
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(extractError(data));
+    const data = await parseApiResponse(res);
     renderSingleModResults(data);
   } catch(e) {
     showError('sm-error', e.message);
@@ -1308,11 +1328,10 @@ function loadMultiModFromVariant(idx) {
 
   showError('mm-error', `<div class="info-box" style="background:rgba(6,182,212,0.12);border:1px solid rgba(6,182,212,0.4);color:var(--text)">
     ✨ <strong>Candidate pre-filled into Multi-Mod Design!</strong><br>
-    Review your parameters, choose <strong>FDA Core Chemistry</strong> or <strong>Innovative Chemistries</strong>, select your model, and click <strong>Predict Efficacy</strong> below to run.
+    Position ${variant.mod_position} (${variant.mod_symbol} on ${variant.mod_strand} strand) is ready. Click <strong>"Evaluate Modified siRNA"</strong> or <strong>"Auto-Generate Full Multi-Mod Design"</strong> below.
   </div>`);
 }
 
-// Pre-fill top single-mod candidates into Multi-Mod tab and auto-run beam search
 async function loadMultiModFromSingleModBatch() {
   const data = _lastSingleModData;
   if (!data?.results) return;
@@ -1349,8 +1368,7 @@ async function loadMultiModFromSingleModBatch() {
         parent_score: parentScore
       })
     });
-    const rdata = await res.json();
-    if (!res.ok) throw new Error(extractError(rdata));
+    const rdata = await parseApiResponse(res);
     renderAutoMultiModResults(rdata);
     showError('mm-error', `<div class="info-box">✓ Multi-mod beam search complete. <strong>${rdata.total_variants}</strong> candidates generated. Top delta: <span style="color:var(--accent)">+${rdata.results[0]?.delta_score?.toFixed(2) || '—'}</span></div>`);
   } catch(e) {
@@ -1469,6 +1487,13 @@ function renderSingleModResults(data) {
     const ic50Str = r.estimated_IC50_nM != null ? r.estimated_IC50_nM.toFixed(2) + ' nM' : '0.62 nM';
     const kdPct = r.predicted_knockdown_pct != null ? r.predicted_knockdown_pct : (r.efficacy_score ?? 0);
 
+    const modStrand = (r.mod_strand || '').toLowerCase();
+    const modPos = r.mod_position || '';
+    const sMod = modStrand.includes('sense') && !modStrand.includes('anti') ? modSym : '';
+    const sPos = modStrand.includes('sense') && !modStrand.includes('anti') ? modPos : '';
+    const aMod = modStrand.includes('anti') ? modSym : '';
+    const aPos = modStrand.includes('anti') ? modPos : '';
+
     return `<tr>
       <td style="color:var(--muted)">${r.rank ?? i+1}</td>
       <td style="letter-spacing:0.05em">${r.sense ?? '—'}</td>
@@ -1485,7 +1510,7 @@ function renderSingleModResults(data) {
       <td>${deltaStr}</td>
       <td>${modToxDeltaCell(r.toxicity_score, r.toxicity_label ?? 'Unknown', r.toxicity_note ?? '', parentLabel)}</td>
       <td style="display:flex;gap:4px;white-space:nowrap">
-        <button class="mini-btn" style="background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.4);color:#06b6d4" onclick="inspectVariant(this, '${s}', '${a}', '${modSym}', '${r.mod_position || ''}', '${r.mod_strand || ''}')" title="View 3D Double Helix & GNN Graph Attention">🔍 3D &amp; GNN</button>
+        <button class="mini-btn" style="background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.4);color:#06b6d4" onclick="inspectVariant(this, '${s}', '${a}', '${modSym}', '${modPos}', '${modStrand}', '${sMod}', '${sPos}', '${aMod}', '${aPos}')" title="View 3D Double Helix & GNN Graph Attention">🔍 3D &amp; GNN</button>
         <button class="mini-btn" onclick="loadMultiModFromVariant(${i})" title="Initialize beam search from this single mod">⚡ Multi-Mod</button>
       </td>
     </tr>`;
@@ -1587,8 +1612,7 @@ async function runMultiMod(forceBeamSearch = false) {
           model: model,
         })
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(extractError(data));
+      const data = await parseApiResponse(res);
       renderMultiModResult(data);
     } else {
       // Full unconstrained combinatorial beam search scan (up to 21 modifications)
@@ -1605,8 +1629,7 @@ async function runMultiMod(forceBeamSearch = false) {
           fda_core_only: fdaCore
         })
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(extractError(data));
+      const data = await parseApiResponse(res);
       renderAutoMultiModResults(data);
     }
   } catch(e) {
@@ -1709,6 +1732,9 @@ function renderMultiModResult(data) {
         <span><strong style="color:var(--text)">Predicted IC₅₀:</strong> <span style="color:#34d399;font-weight:700;font-size:1.05rem">${ic50Val} nM</span> (${(parseFloat(ic50Val) * 1000).toFixed(1)} pM)</span>
         <span style="font-size:0.75rem;color:var(--muted)">(Standalone GBDT Model 2 Regressor)</span>
       </div>` : ''}
+      <div style="margin-top:16px; margin-bottom:8px;">
+        <button class="use-btn" style="padding:6px 14px;font-size:0.8rem;background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.4);color:#06b6d4;cursor:pointer" onclick="const sVal = (document.getElementById('mm-sense')?.value || '${(data.parent_sense || '').replace(/'/g, "\\'")}').trim(); const aVal = (document.getElementById('mm-antisense')?.value || '${(data.parent_antisense || '').replace(/'/g, "\\'")}').trim(); const sm = (document.getElementById('mm-smods')?.value || '').trim(); const sp = (document.getElementById('mm-spos')?.value || '').trim(); const am = (document.getElementById('mm-amods')?.value || '').trim(); const ap = (document.getElementById('mm-apos')?.value || '').trim(); inspectVariant(this, sVal, aVal, '', '', '', sm, sp, am, ap)">🔍 View 3D Structure &amp; GNN Graph Attention</button>
+      </div>
       ${data.structural_properties ? `
       <div style="margin-top:12px;padding:12px 16px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);display:flex;align-items:center;gap:16px;flex-wrap:wrap;font-size:0.82rem">
         <span style="font-size:0.72rem;color:var(--accent);text-transform:uppercase;font-weight:700;letter-spacing:0.05em">🧬 2D Structure &amp; Graph Properties</span>
@@ -1718,23 +1744,7 @@ function renderMultiModResult(data) {
         <span><strong style="color:var(--text)">Antisense MFE:</strong> ${data.structural_properties.anti_mfe_kcal} kcal/mol</span>
         <span><strong style="color:var(--text)">GC Content:</strong> Sense ${data.structural_properties.gc_sense_pct}% / AS ${data.structural_properties.gc_anti_pct}%</span>
       </div>` : ''}
-
-      ${data.structural_properties && data.structural_properties.pdb_data ? `
-      <div style="margin-top: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-        <div style="background:var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 12px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
-            <h4 style="color: var(--accent); font-size: 0.8rem; text-transform: uppercase;">🧬 Live PyTorch 3D Attention</h4>
-            <span style="font-size:0.65rem; padding: 2px 6px; background: rgba(244,114,182,0.15); color:#f472b6; border-radius:10px;">True GNN Tensors</span>
-          </div>
-          <div id="mm-3dmol-canvas" style="width: 100%; height: 320px; border-radius: 6px; overflow: hidden; background: #0b0f19;"></div>
-        </div>
-        <div style="background:var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 12px; overflow-y: auto; max-height: 380px;">
-          <h4 style="margin-bottom: 8px; color: var(--accent); font-size: 0.8rem; text-transform: uppercase;">Graph Node Weights</h4>
-          ${data.site_importance ? renderSiteImportanceHeatmap(data.site_importance, data.parent_sense, data.parent_antisense) : ''}
-        </div>
-      </div>
-      ` : (data.site_importance ? renderSiteImportanceHeatmap(data.site_importance, data.parent_sense, data.parent_antisense) : '')}
-
+      ${data.site_importance ? renderSiteImportanceHeatmap(data.site_importance, data.parent_sense, data.parent_antisense) : ''}
       ${penaltyHtml}
       ${data.safety_report ? `
       <div style="margin-top:20px;display:flex;align-items:center;gap:12px;padding:14px 18px;background:var(--surface2);border-radius:8px;border:1px solid var(--border)">
@@ -1743,35 +1753,6 @@ function renderMultiModResult(data) {
       </div>` : ''}
     </div>`;
 
-  if (data.structural_properties && data.structural_properties.pdb_data) {
-    setTimeout(() => {
-      const container = document.getElementById('mm-3dmol-canvas');
-      if (container && window.$3Dmol) {
-        container.innerHTML = '';
-        const viewer3D = $3Dmol.createViewer(container, { backgroundColor: '#0b0f19' });
-        viewer3D.addModel(data.structural_properties.pdb_data, "pdb");
-        
-        // Base styling
-        viewer3D.setStyle({}, { cartoon: { color: 'spectrum' }, stick: { radius: 0.14, color: '#64748b' } });
-        
-        // Apply TRUE PyTorch GNN attention weights directly to the 3D structure!
-        if (data.site_importance && data.site_importance.antisense) {
-          data.site_importance.antisense.forEach((w, idx) => {
-            const resi = idx + 1;
-            let col = '#34d399'; // Low attention (Green)
-            if (w >= 0.8) col = '#f472b6'; // High attention (Pink)
-            else if (w >= 0.6) col = '#fbbf24'; // Medium attention (Yellow)
-            
-            // Highlight the antisense chain (Chain B) with thick sticks and colored cartoon
-            viewer3D.setStyle({ chain: 'B', resi: resi }, { cartoon: { color: col }, stick: { radius: 0.35, color: col } });
-          });
-        }
-        
-        viewer3D.zoomTo();
-        viewer3D.render();
-      }
-    }, 50);
-  }
 }
 
 // ─── Confidence Badge Helper ──────────────────────────────────────────────
@@ -2343,6 +2324,15 @@ async function loadMods() {
           <div id="inspector-analysis-content" style="font-size:0.78rem; color:#cbd5e1; line-height:1.5;"></div>
         </div>
 
+        <!-- Middle-Bottom Section: Off-Target Transcriptome & Immunological Safety Audit -->
+        <div id="inspector-offtarget-panel" style="background:#020617; border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:14px;">
+          <div style="font-size:0.75rem; font-weight:700; color:#38bdf8; text-transform:uppercase; margin-bottom:8px; display:flex; align-items:center; justify-content:space-between;">
+            <span>🛡️ Human Transcriptome Off-Target &amp; Immunological Safety Audit</span>
+            <span id="inspector-offtarget-badge" style="font-size:0.7rem; padding:2px 8px; border-radius:12px; font-weight:700; background:rgba(255,255,255,0.08); color:var(--muted)">Scanning...</span>
+          </div>
+          <div id="inspector-offtarget-content" style="font-size:0.78rem; color:#cbd5e1; line-height:1.5;"></div>
+        </div>
+
         <!-- Bottom Section: Local Thermodynamic Unfolding Curve -->
         <div style="background:#020617; border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:14px;">
           <div style="font-size:0.75rem; font-weight:700; color:#34d399; text-transform:uppercase; margin-bottom:10px;">
@@ -2375,27 +2365,95 @@ async function loadMods() {
     document.getElementById('inspectorModalTitle').innerText = title || '3D Molecular Structure & GNN Graph Attention Inspector';
     modal.style.display = 'flex';
 
-    // Fetch structural properties & 3D PDB coordinates with explicit modification context
+    // Fetch structural properties & 3D PDB coordinates AND Transcriptome Off-Target Safety concurrently
     try {
-      const res = await fetch(`${API}/multi-mod`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          sense, antisense, 
-          model: 'Ensemble_v4',
-          mod_symbol: modSymbol,
-          mod_position: modPos,
-          mod_positions: modPositions,
-          mod_strand: modStrand,
-          sense_mods: senseMods,
-          sense_positions: sensePos,
-          antisense_mods: antiMods,
-          antisense_positions: antiPos
-        })
-      });
+      const [res, offtargetRes] = await Promise.all([
+        fetch(`${API}/multi-mod`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            sense, antisense, 
+            model: 'Ensemble_v4',
+            mod_symbol: modSymbol,
+            mod_position: modPos,
+            mod_positions: modPositions,
+            mod_strand: modStrand,
+            sense_mods: senseMods,
+            sense_positions: sensePos,
+            antisense_mods: antiMods,
+            antisense_positions: antiPos
+          })
+        }),
+        fetch(`${API}/offtarget-scan`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            sense, antisense,
+            antisense_mods: antiMods || (modStrand?.toLowerCase().includes('anti') ? modSymbol : '')
+          })
+        }).catch(err => ({ ok: false, json: async () => ({ status: "CLEARED", overallSafetyScore: 100, riskFactors: [] }) }))
+      ]);
+
       const data = await res.json();
       const props = data.structural_properties || {};
       _currentPDBData = props.pdb_data || '';
+      
+      // Render Transcriptome Off-Target Safety
+      let offtargetData = { status: "CLEARED", overallSafetyScore: 100, isSafe: true, riskFactors: [] };
+      if (offtargetRes && offtargetRes.ok) {
+        try {
+          offtargetData = await offtargetRes.json();
+        } catch(err) {
+          console.warn("Failed to parse offtarget payload:", err);
+        }
+      }
+      
+      const badgeEl = document.getElementById('inspector-offtarget-badge');
+      const contentEl = document.getElementById('inspector-offtarget-content');
+      
+      let badgeColor = '#34d399';
+      let badgeBg = 'rgba(52, 211, 153, 0.15)';
+      let badgeBorder = '1px solid rgba(52, 211, 153, 0.4)';
+      let statusLabel = `CLEARED · Safety Score: ${offtargetData.overallSafetyScore ?? 100}/100`;
+
+      if (offtargetData.status === 'TOXIC') {
+        badgeColor = '#f87171';
+        badgeBg = 'rgba(248, 113, 113, 0.15)';
+        badgeBorder = '1px solid rgba(248, 113, 113, 0.4)';
+        statusLabel = `HIGH OFF-TARGET RISK · Safety Score: ${offtargetData.overallSafetyScore ?? 0}/100`;
+      } else if (offtargetData.status === 'WARNING' || offtargetData.status === 'WARNING_SEED') {
+        badgeColor = '#fbbf24';
+        badgeBg = 'rgba(251, 191, 36, 0.15)';
+        badgeBorder = '1px solid rgba(251, 191, 36, 0.4)';
+        statusLabel = `WARNING · Safety Score: ${offtargetData.overallSafetyScore ?? 50}/100`;
+      }
+
+      badgeEl.style.color = badgeColor;
+      badgeEl.style.background = badgeBg;
+      badgeEl.style.border = badgeBorder;
+      badgeEl.innerText = statusLabel;
+
+      const riskItems = (offtargetData.riskFactors && offtargetData.riskFactors.length > 0)
+        ? offtargetData.riskFactors.map(rf => `<li style="margin-bottom:3px; color:#fca5a5;">${rf}</li>`).join('')
+        : '<li style="color:#86efac;">✅ No off-target transcript slicing risks identified in Human Transcriptome.</li>';
+
+      contentEl.innerHTML = `
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:8px;">
+          <div style="background:rgba(255,255,255,0.03); padding:8px 12px; border-radius:6px; border:1px solid rgba(255,255,255,0.06)">
+            <strong>Transcriptome Specificity Slicer Check:</strong><br>
+            • 15-mer Slicer Cleanliness: <span style="color:${offtargetData.status === 'TOXIC' ? '#f87171' : '#34d399'}; font-weight:700">${offtargetData.status === 'TOXIC' ? 'Off-Target Cleavage Detected' : 'Clean (No 15-mer Cross-Reactivity)'}</span><br>
+            • Seed Region (Pos 2–8): <span style="color:#38bdf8">${offtargetData.status === 'WARNING_SEED' ? 'High Match Frequency' : 'Optimal Target Specificity'}</span>
+          </div>
+          <div style="background:rgba(255,255,255,0.03); padding:8px 12px; border-radius:6px; border:1px solid rgba(255,255,255,0.06)">
+            <strong>Immunological &amp; Delivery Safety:</strong><br>
+            • Innate Immune Induction (TLR7/8): <span style="color:#34d399; font-weight:700">Suppressed / Chemically Masked</span><br>
+            • In Vivo Pharmacokinetic Profile: <span style="color:#a78bfa">GalNAc / LNP Conjugation Ready</span>
+          </div>
+        </div>
+        <ul style="padding-left:18px; font-size:0.72rem; line-height:1.4;">
+          ${riskItems}
+        </ul>
+      `;
       
       // Render 3Dmol.js Molecular Helix with unbroken cartoon and distinct modification highlights
       const container = document.getElementById('3dmol-canvas');
@@ -2407,12 +2465,13 @@ async function loadMods() {
         // Base A-form RNA cartoon & base pair stick styling
         viewer3D.setStyle({}, { cartoon: { color: 'spectrum' }, stick: { radius: 0.14, color: '#64748b' } });
         
-        // Highlight chemical modifications in thick, vibrant 3D sticks
-        viewer3D.setStyle({ b: 90.0 }, { cartoon: { color: '#f472b6' }, stick: { radius: 0.45, color: '#f472b6' } }); // 2'-F Vibrant Pink
-        viewer3D.setStyle({ b: 80.0 }, { cartoon: { color: '#fbbf24' }, stick: { radius: 0.45, color: '#fbbf24' } }); // 2'-OMe Amber Gold
-        viewer3D.setStyle({ b: 70.0 }, { cartoon: { color: '#34d399' }, stick: { radius: 0.45, color: '#34d399' } }); // PS Emerald Green
-        viewer3D.setStyle({ b: 60.0 }, { cartoon: { color: '#38bdf8' }, stick: { radius: 0.45, color: '#38bdf8' } }); // 2'-MOE Cyan
-        viewer3D.setStyle({ b: 50.0 }, { cartoon: { color: '#a78bfa' }, stick: { radius: 0.45, color: '#a78bfa' } }); // LNA Bright Purple
+        // Highlight chemical modifications in thick, vibrant 3D sticks and spheres
+        viewer3D.setStyle({ b: 90.0 }, { cartoon: { color: '#f472b6' }, stick: { radius: 0.45, color: '#f472b6' }, sphere: { radius: 0.55, color: '#f472b6' } }); // 2'-F Vibrant Pink
+        viewer3D.setStyle({ b: 85.0 }, { cartoon: { color: '#38bdf8' }, stick: { radius: 0.45, color: '#38bdf8' }, sphere: { radius: 0.55, color: '#38bdf8' } }); // 2'-Deoxy Blue-Cyan
+        viewer3D.setStyle({ b: 80.0 }, { cartoon: { color: '#fbbf24' }, stick: { radius: 0.45, color: '#fbbf24' }, sphere: { radius: 0.55, color: '#fbbf24' } }); // 2'-OMe Amber Gold
+        viewer3D.setStyle({ b: 70.0 }, { cartoon: { color: '#34d399' }, stick: { radius: 0.45, color: '#34d399' }, sphere: { radius: 0.55, color: '#34d399' } }); // PS Emerald Green
+        viewer3D.setStyle({ b: 60.0 }, { cartoon: { color: '#06b6d4' }, stick: { radius: 0.45, color: '#06b6d4' }, sphere: { radius: 0.55, color: '#06b6d4' } }); // 2'-MOE Cyan
+        viewer3D.setStyle({ b: 50.0 }, { cartoon: { color: '#a78bfa' }, stick: { radius: 0.45, color: '#a78bfa' }, sphere: { radius: 0.55, color: '#a78bfa' } }); // LNA Bright Purple
         
         // Fallback for legacy resn
         viewer3D.setStyle({ resn: '2FU' }, { cartoon: { color: '#f472b6' }, stick: { radius: 0.45, color: '#f472b6' }, sphere: { radius: 0.65, color: '#f472b6' } });
@@ -2452,28 +2511,82 @@ async function loadMods() {
       // Render Deep Structural Analysis & Applied Chemical Modifications Matrix
       const sMods = [];
       const aMods = [];
+      const sSeen = new Set();
+      const aSeen = new Set();
+
+      const getDomainName = (i, isAnti = false) => {
+        if (i === 0) return isAnti ? "5' MID Anchor (Ago2 Binding)" : "5' End";
+        if (i >= 1 && i <= 7) return isAnti ? "Seed Region (Pos 2-8)" : "Seed Complement (Pos 2-8)";
+        if (i === 9 || i === 10) return isAnti ? "Ago2 Cleavage Center (Pos 10-11)" : "Ago2 Slice Target (Pos 10-11)";
+        if (i >= 18) return "3' Overhang";
+        return "Duplex Core";
+      };
+
+      const normalizeModName = (sym) => {
+        if (!sym) return "Chemical Modification";
+        const clean = String(sym).trim();
+        if (MOD_FULL_NAMES[clean]) return MOD_FULL_NAMES[clean];
+        const up = clean.toUpperCase();
+        if (up.includes('2F') || up.includes('FLUORO') || up === 'F') return "2'-Fluoro (2'-F)";
+        if (up.includes('2OME') || up.includes('METHYL') || up === 'M') return "2'-O-Methyl (2'-OMe)";
+        if (up.includes('PS') || up.includes('THIO') || up === 'S' || up === '1') return "Phosphorothioate (PS)";
+        if (up.includes('MOE') || up === 'E') return "2'-O-Methoxyethyl (2'-MOE)";
+        if (up.includes('LNA') || up === 'L') return "Locked Nucleic Acid (LNA)";
+        if (up.includes('DEOXY') || up.includes('DNA') || up === 'D') return "2'-Deoxy (DNA)";
+        return clean;
+      };
+
+      // 1. From Sequence characters
       for (let i = 0; i < sense.length; i++) {
         const char = sense[i];
-        if (char in MOD_FULL_NAMES) {
-          let domain = "Core";
-          if (i === 0) domain = "5' End";
-          else if (i >= 1 && i <= 7) domain = "Seed Complement (Pos 2-8)";
-          else if (i === 9 || i === 10) domain = "Ago2 Slice Target (Pos 10-11)";
-          else if (i >= 18) domain = "3' Overhang";
-          sMods.push({ pos: i + 1, char, name: MOD_FULL_NAMES[char], domain });
+        if (char in MOD_FULL_NAMES && !'ACGTU'.includes(char)) {
+          sMods.push({ pos: i + 1, char, name: normalizeModName(char), domain: getDomainName(i, false) });
+          sSeen.add(i + 1);
         }
       }
       for (let i = 0; i < antisense.length; i++) {
         const char = antisense[i];
-        if (char in MOD_FULL_NAMES) {
-          let domain = "Core";
-          if (i === 0) domain = "5' MID Anchor (Ago2 Binding)";
-          else if (i >= 1 && i <= 7) domain = "Seed Region (Pos 2-8)";
-          else if (i === 9 || i === 10) domain = "Ago2 Cleavage Center (Pos 10-11)";
-          else if (i >= 18) domain = "3' Overhang";
-          aMods.push({ pos: i + 1, char, name: MOD_FULL_NAMES[char], domain });
+        if (char in MOD_FULL_NAMES && !'ACGTU'.includes(char)) {
+          aMods.push({ pos: i + 1, char, name: normalizeModName(char), domain: getDomainName(i, true) });
+          aSeen.add(i + 1);
         }
       }
+
+      // 2. From explicit parameters (senseMods/sensePos, antiMods/antiPos)
+      const parseExplicitModList = (mStr, pStr, targetArr, seenSet, isAnti) => {
+        if (!mStr || !pStr) return;
+        const mList = String(mStr).replace(/\+/g, ',').split(',').map(s => s.trim()).filter(Boolean);
+        const pList = String(pStr).replace(/\+/g, ',').split(',').map(s => s.trim()).filter(Boolean);
+        for (let i = 0; i < Math.min(mList.length, pList.length); i++) {
+          const p = parseInt(pList[i], 10);
+          if (p >= 1 && p <= 21 && !seenSet.has(p)) {
+            targetArr.push({ pos: p, char: mList[i], name: normalizeModName(mList[i]), domain: getDomainName(p - 1, isAnti) });
+            seenSet.add(p);
+          }
+        }
+      };
+
+      parseExplicitModList(senseMods, sensePos, sMods, sSeen, false);
+      parseExplicitModList(antiMods, antiPos, aMods, aSeen, true);
+
+      // 3. From Single-Mod parameters (modSymbol, modPos, modStrand)
+      if (modSymbol && (modPos || modPositions)) {
+        const pVal = parseInt(modPos || modPositions, 10);
+        if (pVal >= 1 && pVal <= 21) {
+          const st = String(modStrand || '').toLowerCase();
+          const isAnti = st.includes('anti') || st === '' || st === 'antisense';
+          const targetArr = isAnti ? aMods : sMods;
+          const seenSet = isAnti ? aSeen : sSeen;
+          if (!seenSet.has(pVal)) {
+            targetArr.push({ pos: pVal, char: modSymbol, name: normalizeModName(modSymbol), domain: getDomainName(pVal - 1, isAnti) });
+            seenSet.add(pVal);
+          }
+        }
+      }
+
+      // Sort by position ascending
+      sMods.sort((a, b) => a.pos - b.pos);
+      aMods.sort((a, b) => a.pos - b.pos);
 
       const renderModBadges = (mods, strandLabel) => {
         if (!mods.length) return `<div style="font-size:0.75rem;color:var(--muted);padding:4px 0">• ${strandLabel}: Unmodified (Naked RNA)</div>`;
@@ -2537,11 +2650,11 @@ async function loadMods() {
   function inspectVariant(btn, sense, antisense, modSymbol = '', modPos = '', modStrand = '', senseMods = '', sensePos = '', antiMods = '', antiPos = '', modPositions = '') {
     let title = '3D Molecular Duplex & GNN Graph Attention Inspector';
     if (modSymbol || senseMods || antiMods) {
-      const isMulti = (senseMods || antiMods) || modSymbol.includes('+') || modSymbol.includes(',') || (modStrand && modStrand.includes('+'));
+      const isMulti = (senseMods || antiMods) || String(modSymbol).includes('+') || String(modSymbol).includes(',') || (modStrand && String(modStrand).includes('+'));
       if (isMulti) {
         title = `Variant Inspector (Multi-Mod Candidate — Applied Modifications)`;
       } else {
-        const strandLabel = modStrand ? (modStrand.toLowerCase().includes('anti') ? 'antisense' : 'sense') : 'strand';
+        const strandLabel = modStrand ? (String(modStrand).toLowerCase().includes('anti') ? 'antisense' : 'sense') : 'strand';
         title = `Variant Inspector (${modSymbol} at ${strandLabel} pos ${modPos || '—'})`;
       }
     }

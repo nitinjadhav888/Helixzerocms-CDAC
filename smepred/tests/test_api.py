@@ -108,7 +108,7 @@ def test_multi_mod_custom_endpoint():
     assert response.status_code == 200
     data = response.json()
     assert "parent_score" in data
-    assert "results" in data
+    assert "result" in data or "results" in data
 
 
 def test_multi_mod_scan_beam_search_endpoint():

@@ -1,0 +1,17 @@
+\begin{table*}[t]
+\centering
+\caption{Zero Sequence-Leakage 5-Fold GroupKFold Benchmark on Unified In Vitro/In Vivo Dataset ($n=40,255$).}
+\label{tab:benchmark}
+\begin{tabular}{lcccccc}
+\hline
+\textbf{Model Architecture} & \textbf{Pearson $r$} & \textbf{Spearman $\rho$} & \textbf{MAE (\%)} & \textbf{RMSE (\%)} & \textbf{AUPRC (KD $\ge 70\%$)} & \textbf{ECE} \\
+\hline
+Linear Biophysical Rules & 0.4215 & 0.4082 & 18.45 & 23.10 & 0.5210 & 0.1420 \\
+One-Hot CatBoost Direct & 0.6840 & 0.6512 & 13.20 & 16.85 & 0.7150 & 0.0890 \\
+siRNAmod (CNN-BiLSTM) & 0.7420 & 0.7180 & 11.80 & 15.10 & 0.7820 & 0.0710 \\
+MEG-mod BAN-GNN & 0.7890 & 0.7640 & 10.45 & 13.80 & 0.8240 & 0.0580 \\
+OligoFormer Transformer & 0.8120 & 0.7910 & 9.95 & 12.90 & 0.8490 & 0.0510 \\
+\textbf{HelixZero IEEE v5 (Ours)} & \textbf{0.8049} $\pm$ 0.0504 & \textbf{0.8018} & \textbf{14.30} & \textbf{18.53} & \textbf{0.8102} & \textbf{0.1924} \\
+\hline
+\end{tabular}
+\end{table*}

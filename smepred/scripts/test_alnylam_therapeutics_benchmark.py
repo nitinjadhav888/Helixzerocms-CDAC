@@ -112,7 +112,7 @@ def run_alnylam_benchmark():
             antisense=anti,
             base_sense=sense,
             base_antisense=anti,
-            is_naked=True
+            penalty_scale=0.0
         )
         
         # 2. Evaluate Model A (Ensemble_v4) via predictor.predict_modified
