@@ -9,6 +9,8 @@ __pycache__/
 *.pdf
 *.docx
 *.pkl
+!smepred/models/model_normal.pkl
+!smepred/models/calibrator_naked.pkl
 *.pt
 *.cbm
 *.fasta
@@ -35,6 +37,7 @@ smepred_text.txt
 !requirements.txt
 !smepred/requirements.txt
 !MEG-mod-main/requirements.txt
+!smepred/models/model_normal.txt
 /smepred/DEMO_SCRIPT.md
 /smepred/papers/
 /smepred/papers_text.json

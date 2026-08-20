@@ -54,7 +54,8 @@ MODELS_DIR = Path(__file__).parent.parent / "models"
 DEFAULT_MODEL_B_KEY = "Ensemble_v4"
 
 _MODEL_FILES = {
-    "normal": MODELS_DIR / "model_normal.pkl",
+    "normal": MODELS_DIR / "model_normal.txt",
+    "normal_pkl": MODELS_DIR / "model_normal.pkl",
 }
 
 _CALIBRATOR_FILES = {
@@ -66,16 +67,39 @@ _loaded_calibrators: Dict[str, Any] = {}
 
 
 def _get_model(key: str) -> Any:
-    """Lazy-loads and caches LightGBM models from disk."""
+    """Lazy-loads and caches models from disk."""
     if key not in _loaded_models:
+        if key in ("B", "model_b", "B_v4"):
+            from catboost import CatBoostRegressor
+            cb = CatBoostRegressor()
+            cb_path = MODELS_DIR / "model_b_v4.cbm"
+            if cb_path.exists():
+                cb.load_model(str(cb_path))
+                _loaded_models[key] = cb
+                logger.info(f"Successfully loaded CatBoost model: {cb_path}")
+                return cb
+
+        txt_path = MODELS_DIR / f"model_{key}.txt"
+        if txt_path.exists():
+            import lightgbm as lgb
+            _loaded_models[key] = lgb.Booster(model_file=str(txt_path))
+            logger.info(f"Successfully loaded native LightGBM booster: {txt_path}")
+            return _loaded_models[key]
+
         path = _MODEL_FILES.get(key)
         if not path or not path.exists():
-            logger.error(f"Model file not found: {path}")
+            path = _MODEL_FILES.get(f"{key}_pkl")
+        if not path or not path.exists():
+            logger.error(f"Model file not found for key: {key}")
             raise FileNotFoundError(
-                f"Model file not found: {path}\n"
-                "Run `python models/train_gbm_v3.py` to train and save models first."
+                f"Model file not found for key '{key}'. Ensure models are compiled in smepred/models/."
             )
-        _loaded_models[key] = joblib.load(path)
+        try:
+            _loaded_models[key] = joblib.load(path)
+        except Exception:
+            import pickle
+            with open(path, "rb") as f:
+                _loaded_models[key] = pickle.load(f)
         logger.info(f"Successfully loaded model: {key}")
     return _loaded_models[key]
 
@@ -186,12 +210,16 @@ def predict_with_uncertainty(
 
 
 def _get_calibrator(key: str) -> Any:
-    """Lazy-loads an isotonic calibrator. Returns None if file does not exist."""
+    """Lazy-loads an isotonic calibrator. Returns None if file does not exist or fails."""
     if key not in _loaded_calibrators:
         path = _CALIBRATOR_FILES.get(key)
         if path is not None and path.exists():
-            _loaded_calibrators[key] = joblib.load(path)
-            logger.info(f"Loaded isotonic calibrator for: {key}")
+            try:
+                _loaded_calibrators[key] = joblib.load(path)
+                logger.info(f"Loaded isotonic calibrator for: {key}")
+            except Exception as e:
+                logger.warning(f"Could not load calibrator {key}: {e}. Defaulting to uncalibrated clipping.")
+                _loaded_calibrators[key] = None
         else:
             _loaded_calibrators[key] = None
     return _loaded_calibrators[key]
