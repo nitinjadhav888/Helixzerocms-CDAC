@@ -13,6 +13,7 @@ __pycache__/
 *.pt
 *.cbm
 !smepred/models/*.cbm
+!helixzero_ieee_v5/models/*.cbm
 *.fasta
 *.db
 /smepred/data/processed/*.csv
