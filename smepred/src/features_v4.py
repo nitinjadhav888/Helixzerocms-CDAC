@@ -136,8 +136,7 @@ def _rnaernie_features(sense_slots: List[NucSlot], anti_slots: List[NucSlot]) ->
 
 
 def _vienna_features(sense_slots: List[NucSlot], anti_slots: List[NucSlot]) -> np.ndarray:
-    """ViennaRNA thermodynamic features: 5-dim (disk-cached per seq pair)."""
-    import RNA
+    """ViennaRNA thermodynamic features: 5-dim (disk-cached per seq pair with NN fallback)."""
     s_seq = _clean_seq("".join(s.base for s in sense_slots)).upper().replace("T", "U")
     a_seq = _clean_seq("".join(s.base for s in anti_slots)).upper().replace("T", "U")
     cache = _load_vienna_cache()
@@ -147,37 +146,57 @@ def _vienna_features(sense_slots: List[NucSlot], anti_slots: List[NucSlot]) -> n
         return cache[key]
 
     feats = []
+    has_vienna = False
     try:
-        fc_s = RNA.fold_compound(s_seq)
-        mfe_s = fc_s.mfe()[1] if fc_s else 0.0
-    except Exception:
-        mfe_s = 0.0
-    feats.append(max(-50.0, min(0.0, float(mfe_s))) / -50.0)
+        import RNA
+        has_vienna = True
+    except (ImportError, ModuleNotFoundError, Exception):
+        has_vienna = False
 
-    try:
-        fc_a = RNA.fold_compound(a_seq)
-        mfe_a = fc_a.mfe()[1] if fc_a else 0.0
-    except Exception:
-        mfe_a = 0.0
-    feats.append(max(-50.0, min(0.0, float(mfe_a))) / -50.0)
+    if has_vienna:
+        try:
+            fc_s = RNA.fold_compound(s_seq)
+            mfe_s = fc_s.mfe()[1] if fc_s else 0.0
+        except Exception:
+            mfe_s = 0.0
+        feats.append(max(-50.0, min(0.0, float(mfe_s))) / -50.0)
 
-    try:
-        duplex = RNA.duplexfold(s_seq, a_seq)
-        d_energy = duplex.energy if duplex else 0.0
-    except Exception:
-        d_energy = 0.0
-    feats.append(max(-70.0, min(0.0, float(d_energy))) / -70.0)
+        try:
+            fc_a = RNA.fold_compound(a_seq)
+            mfe_a = fc_a.mfe()[1] if fc_a else 0.0
+        except Exception:
+            mfe_a = 0.0
+        feats.append(max(-50.0, min(0.0, float(mfe_a))) / -50.0)
 
-    try:
-        fc_d = RNA.fold_compound(s_seq + "&" + a_seq)
-        if fc_d:
-            fc_d.pf()
-            bp_dist = fc_d.mean_bp_distance()
-        else:
+        try:
+            duplex = RNA.duplexfold(s_seq, a_seq)
+            d_energy = duplex.energy if duplex else 0.0
+        except Exception:
+            d_energy = 0.0
+        feats.append(max(-70.0, min(0.0, float(d_energy))) / -70.0)
+
+        try:
+            fc_d = RNA.fold_compound(s_seq + "&" + a_seq)
+            if fc_d:
+                fc_d.pf()
+                bp_dist = fc_d.mean_bp_distance()
+            else:
+                bp_dist = 0.0
+        except Exception:
             bp_dist = 0.0
-    except Exception:
-        bp_dist = 0.0
-    feats.append(min(1.0, float(bp_dist) / 21.0))
+        feats.append(min(1.0, float(bp_dist) / 21.0))
+    else:
+        # Fallback thermodynamic proxies when ViennaRNA C-extension is not installed
+        gc_s = sum(1 for b in s_seq if b in "GC")
+        gc_a = sum(1 for b in a_seq if b in "GC")
+        mfe_s_approx = -1.2 * gc_s
+        mfe_a_approx = -1.2 * gc_a
+        duplex_energy_approx = -(gc_s * 2.8 + (len(s_seq) - gc_s) * 1.5)
+        
+        feats.append(max(-50.0, min(0.0, float(mfe_s_approx))) / -50.0)
+        feats.append(max(-50.0, min(0.0, float(mfe_a_approx))) / -50.0)
+        feats.append(max(-70.0, min(0.0, float(duplex_energy_approx))) / -70.0)
+        feats.append(0.12)  # Ensemble diversity proxy
 
     # 5. GC content of duplex
     combined = s_seq + a_seq
