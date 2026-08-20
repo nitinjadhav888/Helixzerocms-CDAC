@@ -9,10 +9,10 @@ __pycache__/
 *.pdf
 *.docx
 *.pkl
-!smepred/models/model_normal.pkl
-!smepred/models/calibrator_naked.pkl
+!smepred/models/*.pkl
 *.pt
 *.cbm
+!smepred/models/*.cbm
 *.fasta
 *.db
 /smepred/data/processed/*.csv
