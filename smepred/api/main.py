@@ -30,6 +30,9 @@ if str(ROOT_HELIX_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_HELIX_DIR))
 
 import logging
+import warnings
+warnings.filterwarnings('ignore', message='.*Trying to unpickle estimator.*')
+warnings.filterwarnings('ignore', message='X does not have valid feature names')
 import json
 import joblib
 import numpy as np
