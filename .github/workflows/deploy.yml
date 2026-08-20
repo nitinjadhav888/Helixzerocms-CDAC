@@ -72,36 +72,44 @@ jobs:
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     steps:
-      - name: Check Deployment Configuration
+      - name: Trigger IceCloud Webhook Deployment (if configured)
+        env:
+          ICECLOUD_WEBHOOK: ${{ secrets.ICECLOUD_DEPLOY_WEBHOOK }}
         run: |
-          echo "Checking IceCloud deployment configuration..."
-          if [ -z "${{ secrets.ICECLOUD_DEPLOY_WEBHOOK }}" ] && [ -z "${{ secrets.ICECLOUD_SSH_HOST }}" ]; then
-            echo "ℹ️ No IceCloud deployment webhook or SSH secrets configured yet. Docker image successfully pushed to Docker Hub."
+          if [ -n "$ICECLOUD_WEBHOOK" ]; then
+            echo "Triggering IceCloud deployment webhook..."
+            curl -s -X POST "$ICECLOUD_WEBHOOK" -H "Content-Type: application/json" -d '{"image": "nitinjadhav888/helixzerocms:latest"}' || echo "Webhook trigger completed."
+          else
+            echo "ℹ️ ICECLOUD_DEPLOY_WEBHOOK not set; skipping webhook trigger."
           fi
 
-      - name: Trigger IceCloud Webhook Deployment
-        if: ${{ secrets.ICECLOUD_DEPLOY_WEBHOOK != '' }}
+      - name: Deploy via SSH to IceCloud (if configured)
+        env:
+          ICECLOUD_HOST: ${{ secrets.ICECLOUD_SSH_HOST }}
+          ICECLOUD_KEY: ${{ secrets.ICECLOUD_SSH_KEY }}
+          ICECLOUD_USER: ${{ secrets.ICECLOUD_SSH_USER }}
+          ICECLOUD_PORT: ${{ secrets.ICECLOUD_SSH_PORT }}
         run: |
-          echo "Triggering IceCloud deployment webhook..."
-          curl -s -X POST "${{ secrets.ICECLOUD_DEPLOY_WEBHOOK }}" -H "Content-Type: application/json" -d '{"image": "nitinjadhav888/helixzerocms:latest"}' || echo "Webhook trigger completed."
-
-      - name: Deploy via SSH to IceCloud
-        if: ${{ secrets.ICECLOUD_SSH_HOST != '' }}
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.ICECLOUD_SSH_HOST }}
-          username: ${{ secrets.ICECLOUD_SSH_USER || 'root' }}
-          key: ${{ secrets.ICECLOUD_SSH_KEY }}
-          port: ${{ secrets.ICECLOUD_SSH_PORT || 22 }}
-          script: |
-            echo "Pulling latest HelixZero-CMS Docker image on IceCloud..."
-            docker pull nitinjadhav888/helixzerocms:latest
-            echo "Restarting HelixZero container..."
-            docker stop helixzero || true
-            docker rm helixzero || true
-            docker run -d \
-              --name helixzero \
-              --restart always \
-              -p 80:8000 \
-              nitinjadhav888/helixzerocms:latest
-            echo "✅ HelixZero-CMS successfully updated on IceCloud.in!"
+          if [ -n "$ICECLOUD_HOST" ] && [ -n "$ICECLOUD_KEY" ]; then
+            echo "Setting up SSH key for IceCloud deployment..."
+            mkdir -p ~/.ssh
+            echo "$ICECLOUD_KEY" > ~/.ssh/id_rsa
+            chmod 600 ~/.ssh/id_rsa
+            USER_NAME=${ICECLOUD_USER:-root}
+            PORT_NUM=${ICECLOUD_PORT:-22}
+            ssh -o StrictHostKeyChecking=no -p "$PORT_NUM" "$USER_NAME@$ICECLOUD_HOST" << 'EOF'
+              echo "Pulling latest HelixZero-CMS Docker image on IceCloud..."
+              docker pull nitinjadhav888/helixzerocms:latest
+              echo "Restarting HelixZero container..."
+              docker stop helixzero || true
+              docker rm helixzero || true
+              docker run -d \
+                --name helixzero \
+                --restart always \
+                -p 80:8000 \
+                nitinjadhav888/helixzerocms:latest
+              echo "✅ HelixZero-CMS successfully updated on IceCloud.in!"
+            EOF
+          else
+            echo "ℹ️ ICECLOUD_SSH_HOST / ICECLOUD_SSH_KEY not set; skipping SSH deploy."
+          fi
