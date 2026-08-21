@@ -77,4 +77,18 @@ This framework enforces rigorous scientific heuristics based on modern siRNA lit
 
 ## License & Usage
 
-This project is intended for research and discovery optimization within computational biology and RNAi therapeutics. All models and generated candidates must be empirically validated in *in vitro* and *in vivo* clinical settings.
+This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
+
+HelixZero is free and open-source software for research, academic, and commercial therapeutic discovery in computational biology and RNAi drug design. All computational predictions and generated oligonucleotide candidates should be empirically validated in *in vitro* and *in vivo* preclinical settings.
+
+### Citation
+```bibtex
+@article{jadhav2026helixzero,
+  title={HelixZero: Hierarchical, Chemistry-Aware Machine Learning for siRNA Potency Prediction and Modification Design},
+  author={Jadhav, Nitin and C-DAC BioComputing Consortium},
+  journal={bioRxiv preprint},
+  year={2026},
+  doi={10.64898/2026.06.13.732049}
+}
+```
+
