@@ -50,14 +50,8 @@ jobs:
 
       - name: "🔬 Suite 3: Retrained Potency Engine (Gold pIC50)"
         run: |
-          set -o pipefail
-          python -m pytest smepred/tests/test_retrained_potency_engine.py -v -s --tb=short 2>&1 | tee suite3.log || {
-            echo "### ❌ Suite 3 Test Failure" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            cat suite3.log >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            exit 1
-          }
+          python smepred/tests/test_retrained_potency_engine.py
+          python -m pytest smepred/tests/test_retrained_potency_engine.py -v --tb=short
 
       - name: "🔬 Suite 4: Clinical FDA Benchmark (Patisiran, Givosiran, Lumasiran, Inclisiran)"
         run: python -m pytest smepred/tests/test_clinical_benchmark.py -v --tb=short

@@ -205,3 +205,29 @@ def test_batch_vs_single_consistency():
         assert np.isclose(batch_res[i]["predicted_knockdown_pct"], single_res["predicted_knockdown_pct"], atol=0.1), (
             f"Batch KD% {batch_res[i]['predicted_knockdown_pct']} differs from single {single_res['predicted_knockdown_pct']}"
         )
+
+
+if __name__ == "__main__":
+    print("=" * 60)
+    print("Running Suite 3 standalone verification...")
+    print("=" * 60)
+    print("[1/5] Testing gold checkpoint...")
+    test_gold_checkpoint_presence_and_loading()
+    print(" -> PASSED")
+    print("[2/5] Testing 577D feature extraction integrity...")
+    test_577d_feature_extraction_integrity()
+    print(" -> PASSED")
+    print("[3/5] Testing FDA drug potency ranges...")
+    for drug in FDA_DRUGS:
+        test_clinical_fda_drug_potency_ranges(drug)
+        print(f"   ✓ {drug['name']} passed")
+    print(" -> PASSED")
+    print("[4/5] Testing Hill dose response monotonicity...")
+    test_hill_dose_response_monotonicity()
+    print(" -> PASSED")
+    print("[5/5] Testing batch vs single consistency...")
+    test_batch_vs_single_consistency()
+    print(" -> PASSED")
+    print("=" * 60)
+    print("🎉 ALL SUITE 3 TESTS PASSED SUCCESSFULLY!")
+    print("=" * 60)
