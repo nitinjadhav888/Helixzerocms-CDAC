@@ -15,8 +15,14 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-        with:
-          lfs: true
+
+      - name: Hydrate Model Assets from Prebuilt Image
+        run: |
+          echo "Hydrating model binary assets from prebuilt container..."
+          docker create --name temp_assets nitinjadhav888/helixzerocms:latest
+          docker cp temp_assets:/app/smepred/models/. smepred/models/
+          docker rm temp_assets
+          echo "Model assets hydrated successfully!"
 
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
@@ -74,8 +80,6 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-        with:
-          lfs: true
 
       - name: Docker Hub credentials check
         if: ${{ env.DOCKERHUB_TOKEN == '' }}

@@ -37,10 +37,10 @@ if not mod2_path.exists() or not mod3_path.exists():
     raise FileNotFoundError(f"Model checkpoints missing in {MODELS_DIR}")
 
 mod2_engine = CatBoostRegressor()
-mod2_engine.load_model(mod2_path)
+mod2_engine.load_model(str(mod2_path))
 
 mod3_engine = CatBoostRegressor()
-mod3_engine.load_model(mod3_path)
+mod3_engine.load_model(str(mod3_path))
 
 print("✅ HelixZero IEEE v5 Inference Engine Ready!\n")
 

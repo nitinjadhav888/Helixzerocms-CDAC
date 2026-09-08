@@ -41,6 +41,7 @@ COPY --from=prebuilt_assets /app/MEG-mod-main/Saved_Best_Models/ /app/MEG-mod-ma
 # Copy Fresh Application Code & Data
 # ---------------------------------------------------------------------------
 COPY smepred/ /app/smepred/
+COPY --from=prebuilt_assets /app/smepred/models/ /app/smepred/models/
 COPY helixzero/ /app/helixzero/
 COPY helixzero_ieee_v5/ /app/helixzero_ieee_v5/
 COPY MEG-mod-main/ /app/MEG-mod-main/

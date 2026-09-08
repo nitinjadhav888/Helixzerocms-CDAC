@@ -50,17 +50,34 @@ _vienna_cache: Optional[dict] = None
 _vienna_cache_dirty = 0
 
 
+def _is_lfs_pointer(path: Path) -> bool:
+    try:
+        if not path.exists() or path.stat().st_size > 1024:
+            return False
+        with open(path, "rb") as f:
+            header = f.read(30)
+            return header.startswith(b"version https://git-lfs")
+    except Exception:
+        return False
+
+
 def _load_fm_caches():
     global _cache_fm, _cache_fm_pca
     if _cache_fm is None:
-        if FM_CACHE_FILE.exists():
-            with open(FM_CACHE_FILE, "rb") as f:
-                _cache_fm = pickle.load(f)
+        if FM_CACHE_FILE.exists() and not _is_lfs_pointer(FM_CACHE_FILE):
+            try:
+                with open(FM_CACHE_FILE, "rb") as f:
+                    _cache_fm = pickle.load(f)
+            except Exception:
+                _cache_fm = {}
         else:
             _cache_fm = {}
     if _cache_fm_pca is None:
-        if FM_PCA_FILE.exists():
-            _cache_fm_pca = joblib.load(FM_PCA_FILE)
+        if FM_PCA_FILE.exists() and not _is_lfs_pointer(FM_PCA_FILE):
+            try:
+                _cache_fm_pca = joblib.load(FM_PCA_FILE)
+            except Exception:
+                _cache_fm_pca = None
         else:
             _cache_fm_pca = None
     return _cache_fm, _cache_fm_pca
@@ -69,14 +86,20 @@ def _load_fm_caches():
 def _load_ernie_caches():
     global _cache_ernie, _cache_ernie_pca
     if _cache_ernie is None:
-        if ERNIE_CACHE_FILE.exists():
-            with open(ERNIE_CACHE_FILE, "rb") as f:
-                _cache_ernie = pickle.load(f)
+        if ERNIE_CACHE_FILE.exists() and not _is_lfs_pointer(ERNIE_CACHE_FILE):
+            try:
+                with open(ERNIE_CACHE_FILE, "rb") as f:
+                    _cache_ernie = pickle.load(f)
+            except Exception:
+                _cache_ernie = {}
         else:
             _cache_ernie = {}
     if _cache_ernie_pca is None:
-        if ERNIE_PCA_FILE.exists():
-            _cache_ernie_pca = joblib.load(ERNIE_PCA_FILE)
+        if ERNIE_PCA_FILE.exists() and not _is_lfs_pointer(ERNIE_PCA_FILE):
+            try:
+                _cache_ernie_pca = joblib.load(ERNIE_PCA_FILE)
+            except Exception:
+                _cache_ernie_pca = None
         else:
             _cache_ernie_pca = None
     return _cache_ernie, _cache_ernie_pca
@@ -85,9 +108,12 @@ def _load_ernie_caches():
 def _load_vienna_cache():
     global _vienna_cache
     if _vienna_cache is None:
-        if VIENNA_CACHE_FILE.exists():
-            with open(VIENNA_CACHE_FILE, "rb") as f:
-                _vienna_cache = pickle.load(f)
+        if VIENNA_CACHE_FILE.exists() and not _is_lfs_pointer(VIENNA_CACHE_FILE):
+            try:
+                with open(VIENNA_CACHE_FILE, "rb") as f:
+                    _vienna_cache = pickle.load(f)
+            except Exception:
+                _vienna_cache = {}
         else:
             _vienna_cache = {}
     return _vienna_cache
