@@ -26,8 +26,8 @@ IEEE_DIR = ROOT_DIR / "helixzero_ieee_v5"
 
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
-if str(IEEE_DIR) not in sys.path:
-    sys.path.insert(0, str(IEEE_DIR))
+if str(SMEPRED_DIR) not in sys.path:
+    sys.path.insert(0, str(SMEPRED_DIR))
 
 from smepred.src import features_v4
 from helixzero_ieee_v5.src.chem_ontology import parse_canonical_sequence
