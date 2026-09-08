@@ -10,6 +10,8 @@ jobs:
   test:
     name: 🧪 Run Automated PyTest Suite (CI)
     runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: ".:smepred"
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -35,8 +37,6 @@ jobs:
           pip install pytest pytest-asyncio httpx
 
       - name: Run Biocomputational, Biophysics & Docking Suites
-        env:
-          PYTHONPATH: .
         run: |
           python -m pytest \
             smepred/tests/test_pipeline.py \
@@ -50,8 +50,6 @@ jobs:
             -v
 
       - name: Run FastAPI REST API Endpoint Test Suite
-        env:
-          PYTHONPATH: .
         run: |
           python -m pytest smepred/tests/test_api.py -v
 
