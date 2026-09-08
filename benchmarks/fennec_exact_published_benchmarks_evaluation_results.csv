@@ -1,0 +1,7 @@
+Dataset,N,Model,Pearson_r,Spearman_rho,ROC_AUC_25pct,PR_25pct,RMSE_pct,MAE_pct,R2
+JAK1 Unique Chemical Pattern (WO2024256707A1),191,Model 1 (Naked Baseline GBDT),0.1373,0.1594,0.5785,0.3,31.04,28.03,-0.025
+JAK1 Unique Chemical Pattern (WO2024256707A1),191,Model 2 (CatBoost v4 Multi-Slot),0.2896,0.3131,0.6441,0.4366,33.22,29.22,-0.1737
+JAK1 Unique Chemical Pattern (WO2024256707A1),191,Model 4 (HelixZero IEEE v5 Hierarchical),0.2041,0.2068,0.6344,0.3194,30.42,28.01,0.016
+APP Chemically Diverse Subset (WO2020132227A2),343,Model 1 (Naked Baseline GBDT),-0.0098,-0.0118,0.5352,0.2904,29.64,25.1,-0.0925
+APP Chemically Diverse Subset (WO2020132227A2),343,Model 2 (CatBoost v4 Multi-Slot),0.6553,0.6469,0.7824,0.5781,23.84,20.29,0.2933
+APP Chemically Diverse Subset (WO2020132227A2),343,Model 4 (HelixZero IEEE v5 Hierarchical),0.4734,0.4065,0.5689,0.2875,26.74,21.87,0.1109

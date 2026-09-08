@@ -41,6 +41,7 @@ COPY --from=prebuilt_assets /app/MEG-mod-main/Saved_Best_Models/ /app/MEG-mod-ma
 # Copy Fresh Application Code & Data
 # ---------------------------------------------------------------------------
 COPY smepred/ /app/smepred/
+COPY helixzero/ /app/helixzero/
 COPY helixzero_ieee_v5/ /app/helixzero_ieee_v5/
 COPY MEG-mod-main/ /app/MEG-mod-main/
 
@@ -58,7 +59,7 @@ sys.exit(0)"
 # ---------------------------------------------------------------------------
 # Set Python Path so all module imports resolve correctly
 # ---------------------------------------------------------------------------
-ENV PYTHONPATH="/app:/app/smepred:/app/MEG-mod-main"
+ENV PYTHONPATH="/app:/app/smepred:/app/helixzero:/app/MEG-mod-main"
 ENV PYTHONUNBUFFERED=1
 
 # Expose port 8000 (Uvicorn)

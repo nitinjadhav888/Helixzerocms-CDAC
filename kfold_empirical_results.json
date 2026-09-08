@@ -1,0 +1,93 @@
+{
+  "dataset": "homo_val.csv",
+  "samples": 472,
+  "summary": [
+    {
+      "Model": "Model 1: IEEE v5 Hierarchical Engine",
+      "Mean Accuracy": "69.92%",
+      "Std Dev": "\u00b14.93%",
+      "F1-Score": 0.3843,
+      "AUC-ROC": 0.7572
+    },
+    {
+      "Model": "Model 2: CatBoost Model B v4 (577-d)",
+      "Mean Accuracy": "68.02%",
+      "Std Dev": "\u00b13.85%",
+      "F1-Score": 0.2303,
+      "AUC-ROC": 0.8706
+    },
+    {
+      "Model": "Model 3: Hybrid GBDT-GNN Ensemble v4",
+      "Mean Accuracy": "67.38%",
+      "Std Dev": "\u00b13.55%",
+      "F1-Score": 0.2042,
+      "AUC-ROC": 0.8744
+    },
+    {
+      "Model": "Model 4: LightGBM Naked Baseline",
+      "Mean Accuracy": "63.14%",
+      "Std Dev": "\u00b13.40%",
+      "F1-Score": 0.0,
+      "AUC-ROC": 0.4282
+    },
+    {
+      "Model": "Model 5: Intrinsic pIC50 Converter Engine",
+      "Mean Accuracy": "63.14%",
+      "Std Dev": "\u00b13.59%",
+      "F1-Score": 0.0321,
+      "AUC-ROC": 0.6521
+    }
+  ],
+  "confusion_matrices": {
+    "Model 1: IEEE v5 Hierarchical Engine": [
+      [
+        286,
+        12
+      ],
+      [
+        130,
+        44
+      ]
+    ],
+    "Model 2: CatBoost Model B v4 (577-d)": [
+      [
+        298,
+        0
+      ],
+      [
+        151,
+        23
+      ]
+    ],
+    "Model 3: Hybrid GBDT-GNN Ensemble v4": [
+      [
+        298,
+        0
+      ],
+      [
+        154,
+        20
+      ]
+    ],
+    "Model 4: LightGBM Naked Baseline": [
+      [
+        298,
+        0
+      ],
+      [
+        174,
+        0
+      ]
+    ],
+    "Model 5: Intrinsic pIC50 Converter Engine": [
+      [
+        295,
+        3
+      ],
+      [
+        171,
+        3
+      ]
+    ]
+  }
+}

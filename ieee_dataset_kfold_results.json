@@ -1,0 +1,46 @@
+{
+  "dataset": "ieee_gold_bronze_master.csv",
+  "samples": 500,
+  "summary": [
+    {
+      "Model": "Model 1: IEEE v5 Hierarchical Engine",
+      "Pearson (r)": "0.6120 \u00b10.0516",
+      "Spearman (\u03c1)": "0.6087 \u00b10.0568",
+      "RMSE (% Knockdown)": "25.32 \u00b10.55",
+      "MAE (% Knockdown)": "21.41 \u00b10.49",
+      "R\u00b2 Score": "0.3446 \u00b10.0540"
+    },
+    {
+      "Model": "Model 2: CatBoost Model B v4 (577-d)",
+      "Pearson (r)": "0.2357 \u00b10.0677",
+      "Spearman (\u03c1)": "0.1885 \u00b10.0556",
+      "RMSE (% Knockdown)": "32.80 \u00b11.08",
+      "MAE (% Knockdown)": "27.81 \u00b11.19",
+      "R\u00b2 Score": "-0.1001 \u00b10.0965"
+    },
+    {
+      "Model": "Model 3: Hybrid GBDT-GNN Ensemble v4",
+      "Pearson (r)": "0.3910 \u00b10.0695",
+      "Spearman (\u03c1)": "0.3502 \u00b10.0671",
+      "RMSE (% Knockdown)": "31.01 \u00b10.82",
+      "MAE (% Knockdown)": "26.54 \u00b10.94",
+      "R\u00b2 Score": "0.0169 \u00b10.0789"
+    },
+    {
+      "Model": "Model 4: LightGBM Naked Baseline",
+      "Pearson (r)": "0.0442 \u00b10.0944",
+      "Spearman (\u03c1)": "0.0655 \u00b10.0712",
+      "RMSE (% Knockdown)": "31.49 \u00b10.98",
+      "MAE (% Knockdown)": "27.55 \u00b10.73",
+      "R\u00b2 Score": "-0.0098 \u00b10.0174"
+    },
+    {
+      "Model": "Model 5: Intrinsic pIC50 Converter Engine",
+      "Pearson (r)": "0.2836 \u00b10.0431",
+      "Spearman (\u03c1)": "0.2613 \u00b10.0829",
+      "RMSE (% Knockdown)": "35.03 \u00b11.45",
+      "MAE (% Knockdown)": "29.75 \u00b11.45",
+      "R\u00b2 Score": "-0.2565 \u00b10.1373"
+    }
+  ]
+}

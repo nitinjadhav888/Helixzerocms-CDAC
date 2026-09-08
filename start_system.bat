@@ -5,7 +5,7 @@ echo ==========================================================
 echo  HelixZero-CMS -- siRNA Chemical Modification Scanner
 echo ==========================================================
 echo  ACTIVE MODEL : HelixZero IEEE v5 Hierarchical Multi-Module Pipeline
-echo  STATUS       : All 5 Phases Audited, Implemented & Verified
+echo  STATUS       : All 5 Phases Audited, Implemented ^& Verified
 echo ==========================================================
 echo.
 echo Installing / verifying dependencies...

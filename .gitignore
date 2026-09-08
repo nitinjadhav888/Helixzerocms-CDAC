@@ -50,3 +50,4 @@ smepred_text.txt
 
 # Regenerable derived cache (rebuild via scratch/v2_pipeline/build_dataset_v2.py)
 /smepred/data/processed/v2_multislot_dataset.csv
+/smepred/data/docked_cache/

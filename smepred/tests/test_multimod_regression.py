@@ -26,4 +26,18 @@ from smepred.src import predictor
 def test_all_multimod_edge_case_payloads(payload):
     res = predictor.predict_modified(**payload)
     assert res is not None
-    assert "structural_properties" in res or "results" in res
+    assert isinstance(res, dict)
+    assert "parent_score" in res
+    assert isinstance(res["parent_score"], (int, float))
+    assert 0.0 <= res["parent_score"] <= 100.0
+    
+    assert "results" in res
+    assert len(res["results"]) > 0
+    top = res["results"][0]
+    assert 0.0 <= top.efficacy_score <= 100.0
+    assert top.efficacy_label in ("High", "Moderate", "Low", "Inactive")
+    
+    assert "structural_properties" in res
+    if res["structural_properties"]:
+        assert "pdb_data" in res["structural_properties"]
+

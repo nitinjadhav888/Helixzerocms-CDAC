@@ -34,9 +34,26 @@ jobs:
           pip install -r requirements.txt
           pip install pytest pytest-asyncio httpx
 
-      - name: Run Core Pipeline & Validation Tests
+      - name: Run Biocomputational, Biophysics & Docking Suites
+        env:
+          PYTHONPATH: .
         run: |
-          python -m pytest smepred/tests/test_pipeline.py -v
+          python -m pytest \
+            smepred/tests/test_pipeline.py \
+            smepred/tests/test_biophysics_suite.py \
+            smepred/tests/test_retrained_potency_engine.py \
+            smepred/tests/test_clinical_benchmark.py \
+            smepred/tests/test_3d_inspector.py \
+            smepred/tests/test_megmod_paper.py \
+            smepred/tests/test_multimod_regression.py \
+            smepred/tests/test_docking_pipeline.py \
+            -v
+
+      - name: Run FastAPI REST API Endpoint Test Suite
+        env:
+          PYTHONPATH: .
+        run: |
+          python -m pytest smepred/tests/test_api.py -v
 
   build-and-push:
     name: 🐳 Build & Push Docker Image to Docker Hub (CD)
@@ -54,7 +71,7 @@ jobs:
 
       - name: Docker Hub credentials check
         if: ${{ env.DOCKERHUB_TOKEN == '' }}
-        run: echo "ℹ️ DOCKERHUB_TOKEN is not set; skipping Docker Hub login and image push."
+        run: echo "ℹ️ DOCKERHUB_TOKEN is not set; image will be built and validated locally without push."
 
       - name: Log in to Docker Hub
         if: ${{ env.DOCKERHUB_TOKEN != '' }}
@@ -67,12 +84,11 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Build and Push Docker Image
-        if: ${{ env.DOCKERHUB_TOKEN != '' }}
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./Dockerfile
-          push: true
+          push: ${{ env.DOCKERHUB_TOKEN != '' }}
           tags: |
             nitinjadhav888/helixzerocms:latest
             nitinjadhav888/helixzerocms:${{ github.sha }}
