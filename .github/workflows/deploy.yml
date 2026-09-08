@@ -12,9 +12,12 @@ jobs:
     runs-on: ubuntu-latest
     env:
       PYTHONPATH: ".:smepred"
+      GIT_LFS_SKIP_SMUDGE: "1"
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          lfs: false
 
       - name: Hydrate Model Assets from Prebuilt Image
         run: |
@@ -50,8 +53,22 @@ jobs:
 
       - name: "🔬 Suite 3: Retrained Potency Engine (Gold pIC50)"
         run: |
-          python smepred/tests/test_retrained_potency_engine.py
-          python -m pytest smepred/tests/test_retrained_potency_engine.py -v --tb=short
+          python smepred/tests/test_retrained_potency_engine.py > suite3_direct.log 2>&1 || true
+          cat suite3_direct.log
+          python -m pytest smepred/tests/test_retrained_potency_engine.py -v --tb=short > suite3_pytest.log 2>&1 || true
+          cat suite3_pytest.log
+          if grep -q "FAIL" suite3_pytest.log || grep -q "Traceback" suite3_direct.log; then
+            MSG=$(grep -E "(FAIL|FAILED|assert|Error|Exception)" suite3_pytest.log suite3_direct.log | head -n 5 | tr '\n' ' | ')
+            echo "::error title=Suite3Error::$MSG"
+            exit 1
+          fi
+
+      - name: Upload Suite 3 Debug Logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: suite3-debug-logs
+          path: suite3_*.log
 
       - name: "🔬 Suite 4: Clinical FDA Benchmark (Patisiran, Givosiran, Lumasiran, Inclisiran)"
         run: python -m pytest smepred/tests/test_clinical_benchmark.py -v --tb=short
@@ -79,9 +96,12 @@ jobs:
     env:
       DOCKERHUB_USERNAME: nitinjadhav888
       DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+      GIT_LFS_SKIP_SMUDGE: "1"
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          lfs: false
 
       - name: Docker Hub credentials check
         if: ${{ env.DOCKERHUB_TOKEN == '' }}
