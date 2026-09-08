@@ -36,31 +36,31 @@ jobs:
           pip install -r requirements.txt
           pip install pytest pytest-asyncio httpx
 
-      - name: 🔬 Suite 1: Core Pipeline & Parsing Tests
+      - name: "🔬 Suite 1: Core Pipeline & Parsing Tests"
         run: python -m pytest smepred/tests/test_pipeline.py -v --tb=short
 
-      - name: 🔬 Suite 2: Biophysics & Thermodynamics Suite
+      - name: "🔬 Suite 2: Biophysics & Thermodynamics Suite"
         run: python -m pytest smepred/tests/test_biophysics_suite.py -v --tb=short
 
-      - name: 🔬 Suite 3: Retrained Potency Engine (Gold pIC50)
+      - name: "🔬 Suite 3: Retrained Potency Engine (Gold pIC50)"
         run: python -m pytest smepred/tests/test_retrained_potency_engine.py -v --tb=short
 
-      - name: 🔬 Suite 4: Clinical FDA Benchmark (Patisiran, Givosiran, Lumasiran, Inclisiran)
+      - name: "🔬 Suite 4: Clinical FDA Benchmark (Patisiran, Givosiran, Lumasiran, Inclisiran)"
         run: python -m pytest smepred/tests/test_clinical_benchmark.py -v --tb=short
 
-      - name: 🔬 Suite 5: 3D Structural Inspector & GNN Attention
+      - name: "🔬 Suite 5: 3D Structural Inspector & GNN Attention"
         run: python -m pytest smepred/tests/test_3d_inspector.py -v --tb=short
 
-      - name: 🔬 Suite 6: MEG-mod Paper Compatibility
+      - name: "🔬 Suite 6: MEG-mod Paper Compatibility"
         run: python -m pytest smepred/tests/test_megmod_paper.py -v --tb=short
 
-      - name: 🔬 Suite 7: Multi-Mod Regression Edge Cases
+      - name: "🔬 Suite 7: Multi-Mod Regression Edge Cases"
         run: python -m pytest smepred/tests/test_multimod_regression.py -v --tb=short
 
-      - name: 🔬 Suite 8: 3D Ago2 Structural Docking & Collision Avoidance
+      - name: "🔬 Suite 8: 3D Ago2 Structural Docking & Collision Avoidance"
         run: python -m pytest smepred/tests/test_docking_pipeline.py -v --tb=short
 
-      - name: 🔬 Suite 9: FastAPI Production REST API Endpoints
+      - name: "🔬 Suite 9: FastAPI Production REST API Endpoints"
         run: python -m pytest smepred/tests/test_api.py -v --tb=short
 
   build-and-push:
