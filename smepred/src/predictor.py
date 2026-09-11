@@ -151,26 +151,35 @@ def _predict_model_b(
     B_v2 to the default (see docs/validations/model_b_v2_tuning_robustness.md).
     """
     if model_key in ["Ensemble_v4", "IEEE_v5", "B"]:
-        from . import gnn_serving
         y_gbdt = model_b_v4.predict(sense_list, antisense_list, parent_sense_list, parent_antisense_list)
-        if len(sense_list) > 50:
-            top_indices = np.argsort(y_gbdt)[::-1][:50]
-            sub_s = [sense_list[i] for i in top_indices]
-            sub_a = [antisense_list[i] for i in top_indices]
-            sub_ps = [parent_sense_list[i] for i in top_indices]
-            sub_pa = [parent_antisense_list[i] for i in top_indices]
-            y_gnn_sub = gnn_serving.predict_gnn(sub_ps, sub_pa, sub_s, sub_a)
-            y_ensemble = y_gbdt.copy()
-            for idx, gnn_val in zip(top_indices, y_gnn_sub):
-                y_ensemble[idx] = 0.85 * y_gbdt[idx] + 0.15 * gnn_val
-            return np.clip(y_ensemble, 0.0, 100.0)
-        else:
-            y_gnn = gnn_serving.predict_gnn(parent_sense_list, parent_antisense_list, sense_list, antisense_list)
-            return np.clip(0.85 * y_gbdt + 0.15 * y_gnn, 0.0, 100.0)
+        try:
+            from . import gnn_serving
+            if len(sense_list) > 50:
+                top_indices = np.argsort(y_gbdt)[::-1][:50]
+                sub_s = [sense_list[i] for i in top_indices]
+                sub_a = [antisense_list[i] for i in top_indices]
+                sub_ps = [parent_sense_list[i] for i in top_indices]
+                sub_pa = [parent_antisense_list[i] for i in top_indices]
+                y_gnn_sub = gnn_serving.predict_gnn(sub_ps, sub_pa, sub_s, sub_a)
+                y_ensemble = y_gbdt.copy()
+                for idx, gnn_val in zip(top_indices, y_gnn_sub):
+                    y_ensemble[idx] = 0.85 * y_gbdt[idx] + 0.15 * gnn_val
+                return np.clip(y_ensemble, 0.0, 100.0)
+            else:
+                y_gnn = gnn_serving.predict_gnn(parent_sense_list, parent_antisense_list, sense_list, antisense_list)
+                return np.clip(0.85 * y_gbdt + 0.15 * y_gnn, 0.0, 100.0)
+        except Exception as e:
+            logger.warning(f"GNN inference fallback to pure GBDT: {e}")
+            return np.clip(y_gbdt, 0.0, 100.0)
     if model_key == "GNN_v2":
-        from . import gnn_serving
-        y_gnn = gnn_serving.predict_gnn(parent_sense_list, parent_antisense_list, sense_list, antisense_list, ckpt_key="finetuned_v2")
-        return np.clip(y_gnn, 0.0, 100.0)
+        try:
+            from . import gnn_serving
+            y_gnn = gnn_serving.predict_gnn(parent_sense_list, parent_antisense_list, sense_list, antisense_list, ckpt_key="finetuned_v2")
+            return np.clip(y_gnn, 0.0, 100.0)
+        except Exception as e:
+            logger.warning(f"GNN_v2 inference fallback to pure GBDT: {e}")
+            raw = model_b_v4.predict(sense_list, antisense_list, parent_sense_list, parent_antisense_list)
+            return np.clip(raw, 0.0, 100.0)
     if model_key in ["B_v4", "B_v3", "B_v2", "CatBoost_v4"]:
         raw = model_b_v4.predict(sense_list, antisense_list, parent_sense_list, parent_antisense_list)
         return np.clip(raw, 0.0, 100.0)
