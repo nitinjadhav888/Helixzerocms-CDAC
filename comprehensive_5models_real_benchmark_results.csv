@@ -1,9 +1,4 @@
 Dataset,N,Model,PCC (r),SPCC (rho),ROC-AUC,RMSE (%),MAE (%),R²
-Huesken Dataset (Internal Gold-Standard),2361,Model 1 (Naked Baseline GBDT),0.8044,0.8065,0.9099,9.18,6.99,0.6252
-Huesken Dataset (Internal Gold-Standard),2361,Model 2 (Model B v4 CatBoost),-0.0421,-0.0478,0.4432,19.04,15.37,-0.612
-Huesken Dataset (Internal Gold-Standard),500,Model 3 (MEG-mod GNN TransformerConv),0.1938,0.2499,0.5457,16.73,13.03,-0.6208
-Huesken Dataset (Internal Gold-Standard),2361,Model 4 (HelixZero IEEE v5 Hierarchical),0.4587,0.4638,0.7607,20.03,16.72,-0.784
-Huesken Dataset (Internal Gold-Standard),2361,Model 5 (HelixZero Calibrated Ensemble),0.0438,0.019,0.4802,18.4,14.72,-0.5051
 Takayuki Dataset (Independent Transfer),702,Model 1 (Naked Baseline GBDT),0.8788,0.8734,0.9275,12.39,9.64,0.6525
 Takayuki Dataset (Independent Transfer),702,Model 2 (Model B v4 CatBoost),-0.186,-0.1791,0.3802,23.9,19.76,-0.2944
 Takayuki Dataset (Independent Transfer),500,Model 3 (MEG-mod GNN TransformerConv),0.492,0.5499,0.7705,20.57,16.53,-0.0208
@@ -29,8 +24,13 @@ CMsiRNAdb Full Curated Database,5000,Model 2 (Model B v4 CatBoost),0.6341,0.6225
 CMsiRNAdb Full Curated Database,500,Model 3 (MEG-mod GNN TransformerConv),0.1445,0.1604,0.5572,31.83,26.15,-0.1841
 CMsiRNAdb Full Curated Database,5000,Model 4 (HelixZero IEEE v5 Hierarchical),0.4797,0.4831,0.7135,25.65,21.25,0.1804
 CMsiRNAdb Full Curated Database,5000,Model 5 (HelixZero Calibrated Ensemble),0.6148,0.6038,0.7954,23.18,19.26,0.3308
-HelixZero Unified Master IEEE Test Split,500,Model 1 (Naked Baseline GBDT),0.1048033291510842,0.1292743427991955,0.560976,36.46905250292074,28.865363511198762,-0.1915990611421401
-HelixZero Unified Master IEEE Test Split,500,Model 2 (Model B v4 CatBoost),0.10094979230546222,0.13193327148906803,0.561728,37.10015351143464,29.39502924708094,-0.23319741407826933
-HelixZero Unified Master IEEE Test Split,500,Model 3 (MEG-mod GNN TransformerConv),0.09507926410303336,0.08979560773680294,0.5585760000000001,36.1466638762992,29.325760250043867,-0.17062456530727688
-HelixZero Unified Master IEEE Test Split,500,Model 4 (HelixZero IEEE v5 Hierarchical),0.27563800947310424,0.2752841077102467,0.6288480000000001,32.2792131544265,26.32610840622355,0.0664725955066785
-HelixZero Unified Master IEEE Test Split,500,Model 5 (HelixZero Calibrated Ensemble),0.1555603018546899,0.1571928250145939,0.6,33.375001693226444,26.91804011672974,0.0020155258378593555
+HelixZero Unified Master IEEE Test Split,500,Model 1 (Naked Baseline GBDT),0.1048033291510842,0.1292743427991955,0.560976,36.46905250292074,28.86536351119876,-0.1915990611421401
+HelixZero Unified Master IEEE Test Split,500,Model 2 (Model B v4 CatBoost),0.1009497923054622,0.131933271489068,0.561728,37.10015351143464,29.39502924708094,-0.2331974140782693
+HelixZero Unified Master IEEE Test Split,500,Model 3 (MEG-mod GNN TransformerConv),0.0950792641030333,0.0897956077368029,0.5585760000000001,36.1466638762992,29.325760250043867,-0.1706245653072768
+HelixZero Unified Master IEEE Test Split,500,Model 4 (HelixZero IEEE v5 Hierarchical),0.2756380094731042,0.2752841077102467,0.6288480000000001,32.2792131544265,26.32610840622355,0.0664725955066785
+HelixZero Unified Master IEEE Test Split,500,Model 5 (HelixZero Calibrated Ensemble),0.1555603018546899,0.1571928250145939,0.6,33.375001693226444,26.91804011672974,0.0020155258378593
+Huesken Dataset (Internal Gold-Standard),2361,Model 1 (Naked Baseline GBDT),0.8044,0.8065,0.9099,9.18,6.99,0.6252
+Huesken Dataset (Internal Gold-Standard),2361,Model 2 (Model B v4 CatBoost),-0.0421,-0.0478,0.4432,19.04,15.37,-0.612
+Huesken Dataset (Internal Gold-Standard),500,Model 3 (MEG-mod GNN TransformerConv),0.1938,0.2499,0.5457,16.73,13.03,-0.6208
+Huesken Dataset (Internal Gold-Standard),2361,Model 4 (HelixZero IEEE v5 Hierarchical),0.4587,0.4638,0.7607,20.03,16.72,-0.784
+Huesken Dataset (Internal Gold-Standard),2361,Model 5 (HelixZero Calibrated Ensemble),0.0438,0.019,0.4802,18.4,14.72,-0.5051

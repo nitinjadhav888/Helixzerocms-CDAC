@@ -2376,8 +2376,8 @@ function renderAutoMultiModResults(data) {
     const p = r.biophysics || r.penalties || {};
     const totalPen = r.total_penalty || Object.values(p).reduce((a,b) => a+b, 0);
 
-    const pic50Str = r.estimated_pIC50 != null ? r.estimated_pIC50.toFixed(2) : '9.24';
-    const ic50Str = r.estimated_IC50_nM != null ? r.estimated_IC50_nM.toFixed(2) + ' nM' : '0.57 nM';
+    const pic50Str = r.estimated_pIC50 != null ? Number(r.estimated_pIC50).toFixed(2) : '—';
+    const ic50Str = r.estimated_IC50_nM != null ? Number(r.estimated_IC50_nM).toFixed(2) + ' nM' : '—';
     const kdPct = r.predicted_knockdown_pct != null ? r.predicted_knockdown_pct : (r.efficacy_score ?? 0);
 
     // Score column with breakdown popup

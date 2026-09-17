@@ -34,7 +34,7 @@ import torch
 from scipy.stats import pearsonr, spearmanr
 from sklearn.metrics import roc_auc_score, mean_squared_error, mean_absolute_error, r2_score
 
-from smepred.src import model_b_v4, gnn_serving, features_v4, biophysics, predictor
+from smepred.src import features, model_b_v4, gnn_serving, features_v4, biophysics, predictor
 from smepred.src.chem_schema import promote_legacy_string
 from helixzero_ieee_v5.predict_ieee_v5 import mod2_engine, mod3_engine
 
