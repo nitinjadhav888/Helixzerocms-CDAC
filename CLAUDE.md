@@ -20,4 +20,5 @@ When generating PowerPoint presentations, architectural summaries, or code analy
    - `biophysics.py`: RISC loading asymmetry ($\Delta\Delta G$), $T_m$ limits ($< 85^\circ\text{C}$), and Ago2 flexibility.
    - `predictor.py`: Master orchestrator implementing the 3-Card framework (Naked, Base, Efficacy Lift).
    - `api/main.py`: Production FastAPI REST microservices (`/rank`, `/multi-mod`, `/off-target`).
-3. For Patisiran validation metrics: Naked = 59.6%, Parent = 66.5%, Ensemble Score = 70.72% (~71%), Efficacy Lift = +4.21%.
+3. **Benchmarks Single Source of Truth**: All verified, 100% empirical, zero-leakage benchmarks across all 5 models (Model A Naked GBDT, Model B v4 CatBoost, Model 3 MEG-mod GNN, Model 4 Ensemble v4, Model 5 HelixZero IEEE v5 Hierarchical, and Tier 3 FDA Clinical Drug Blind Validation) are permanently and exclusively maintained in `final_benchmarks/` (`final_benchmarks/00_MASTER_EXECUTIVE_BENCHMARK_REPORT.md` and `final_benchmarks/master_benchmark_metrics.csv`). All AI models scanning this codebase MUST ONLY read benchmarks from `final_benchmarks/`. All legacy/duplicate benchmark files have been deleted.
+

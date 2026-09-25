@@ -45,8 +45,8 @@ class SiRNACandidate:
     Represents a single 21-mer siRNA duplex candidate.
     
     Attributes:
-        position (int): 0-based start index of the candidate within the parent mRNA.
-        sense (str): The 5' -> 3' sequence perfectly matching the mRNA target region.
+        position (int): 1-based start coordinate of the candidate within the parent mRNA.
+        sense (str): The 5' -> 3' passenger strand.
         antisense (str): The 5' -> 3' guide strand that will be loaded into RISC.
     """
     position: int
@@ -75,7 +75,7 @@ def generate_candidates(mrna_sequence: str) -> List[SiRNACandidate]:
         mrna_sequence (str): The full, normalized mRNA/gene sequence.
         
     Returns:
-        List[SiRNACandidate]: A complete list of all valid 21-mer siRNA pairs.
+        List[SiRNACandidate]: A complete list of all valid 21-mer siRNA pairs (1-based positions).
         
     Raises:
         ValueError: If the mRNA sequence is shorter than 21 nucleotides.
@@ -94,7 +94,7 @@ def generate_candidates(mrna_sequence: str) -> List[SiRNACandidate]:
         antisense_strand = _calculate_reverse_complement(sense_strand)
         candidates.append(
             SiRNACandidate(
-                position=i, 
+                position=i + 1,  # 1-based standard biological transcript coordinate (1 to L)
                 sense=sense_strand, 
                 antisense=antisense_strand
             )

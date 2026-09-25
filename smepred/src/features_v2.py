@@ -50,7 +50,7 @@ def _sugar_group(sugar: str) -> str:
         return "is_2F"
     if sugar == "2OMe":
         return "is_2OMe"
-    if sugar in _BULKY_RIGID:
+    if sugar in _BULKY_RIGID or sugar == "2MOE":
         return "is_bulky_rigid"
     if sugar in _FLEXIBLE_EXOTIC:
         return "is_flexible_exotic"

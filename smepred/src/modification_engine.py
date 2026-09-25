@@ -82,6 +82,10 @@ class CmSiRNA:
     estimated_pIC50: Optional[float] = None
     estimated_IC50_nM: Optional[float] = None
     predicted_knockdown_pct: Optional[float] = None
+    sense_mods: str = ""
+    sense_positions: str = ""
+    antisense_mods: str = ""
+    antisense_positions: str = ""
 
     def to_dict(self) -> Dict[str, Any]:
         result = {
@@ -94,6 +98,14 @@ class CmSiRNA:
             "parent_antisense": self.parent_antisense,
             "mod_positions": self.mod_positions,
         }
+        if self.sense_mods:
+            result["sense_mods"] = self.sense_mods
+        if self.sense_positions:
+            result["sense_positions"] = self.sense_positions
+        if self.antisense_mods:
+            result["antisense_mods"] = self.antisense_mods
+        if self.antisense_positions:
+            result["antisense_positions"] = self.antisense_positions
         if self.efficacy_score:
             result["efficacy_score"] = self.efficacy_score
         if self.delta_score:
@@ -239,6 +251,8 @@ def single_mod_scan(
                 mod_strand="sense",
                 parent_sense=sense,
                 parent_antisense=antisense,
+                sense_mods=symbol,
+                sense_positions=str(pos),
             ))
             
         # Scan antisense strand
@@ -254,6 +268,8 @@ def single_mod_scan(
                 mod_strand="antisense",
                 parent_sense=sense,
                 parent_antisense=antisense,
+                antisense_mods=symbol,
+                antisense_positions=str(pos),
             ))
 
     return generated_variants
@@ -311,6 +327,10 @@ def multimod_gen(
         mod_strand="both",
         parent_sense=sense,
         parent_antisense=antisense,
+        sense_mods=sense_mods,
+        sense_positions=sense_positions,
+        antisense_mods=antisense_mods,
+        antisense_positions=antisense_positions,
     )
 
 
@@ -402,7 +422,7 @@ def multi_mod_scan(
         prediction_output = predict_modified(
             sense, antisense, mode="scan", model_key=model_key, full_scan=full_scan
         )
-        parent_score = prediction_output.get("parent_score_raw", prediction_output["parent_score"])
+        parent_score = prediction_output.get("parent_score", 0.0)
         single_results = prediction_output["results"]
     elif parent_score is None:
         raise ValueError("parent_score must be provided when single_results is pre-calculated.")
@@ -416,9 +436,12 @@ def multi_mod_scan(
             logger.info(f"Restricted beam search to {len(single_results)} FDA-approved core single modifications.")
 
     # Calculate baseline for delta comparisons
-    parent_adjusted_score, _, _ = calculate_adjusted_efficacy(
-        parent_score, sense, antisense, sense, antisense
-    )
+    if model_key == "IEEE_v5":
+        parent_adjusted_score = float(parent_score)
+    else:
+        parent_adjusted_score, _, _ = calculate_adjusted_efficacy(
+            parent_score, sense, antisense, sense, antisense
+        )
 
     def _score_variants_batch(variants: List[CmSiRNA], chunk_size: int = 200) -> List[CmSiRNA]:
         """Internal helper to batch-score variants using Model B, in chunks to limit memory.
@@ -496,6 +519,10 @@ def multi_mod_scan(
             mod_strand=result.mod_strand,
             parent_sense=sense,
             parent_antisense=antisense,
+            sense_mods=result.mod_symbol if result.mod_strand == "sense" else getattr(result, "sense_mods", ""),
+            sense_positions=str(result.mod_position) if result.mod_strand == "sense" else getattr(result, "sense_positions", ""),
+            antisense_mods=result.mod_symbol if result.mod_strand == "antisense" else getattr(result, "antisense_mods", ""),
+            antisense_positions=str(result.mod_position) if result.mod_strand == "antisense" else getattr(result, "antisense_positions", ""),
         )
         variant.efficacy_score = result.efficacy_score
         variant.delta_score = result.delta_score
@@ -576,6 +603,11 @@ def multi_mod_scan(
                 if not _is_chemically_viable("".join(mutable_sense), sense, "".join(mutable_antisense), antisense):
                     continue
 
+                s_tracking_m = [sym for sym, st in zip(tracking_symbols, tracking_strands) if st == "sense"]
+                s_tracking_p = [str(pos) for pos, st in zip(tracking_positions, tracking_strands) if st == "sense"]
+                a_tracking_m = [sym for sym, st in zip(tracking_symbols, tracking_strands) if st == "antisense"]
+                a_tracking_p = [str(pos) for pos, st in zip(tracking_positions, tracking_strands) if st == "antisense"]
+
                 round_candidates.append(CmSiRNA(
                     sense="".join(mutable_sense),
                     antisense="".join(mutable_antisense),
@@ -585,6 +617,10 @@ def multi_mod_scan(
                     mod_strand="+".join(tracking_strands),
                     parent_sense=sense,
                     parent_antisense=antisense,
+                    sense_mods=",".join(s_tracking_m),
+                    sense_positions=",".join(s_tracking_p),
+                    antisense_mods=",".join(a_tracking_m),
+                    antisense_positions=",".join(a_tracking_p),
                 ))
 
         scored_candidates = _score_variants_batch(round_candidates)
@@ -613,19 +649,33 @@ def multi_mod_scan(
                 from helixzero_ieee_v5.predict_ieee_v5 import predict_sirna_potency_batch
                 s_seqs = [v.parent_sense or v.sense for v in top_candidates]
                 a_seqs = [v.parent_antisense or v.antisense for v in top_candidates]
-                s_mods = [v.sense for v in top_candidates]
-                a_mods = [v.antisense for v in top_candidates]
+                p_s_seqs = [v.parent_sense or sense for v in top_candidates]
+                p_a_seqs = [v.parent_antisense or antisense for v in top_candidates]
+                s_mods = [v.sense_mods if v.sense_mods else (v.sense if v.sense != (v.parent_sense or v.sense) else "") for v in top_candidates]
+                s_pos = [v.sense_positions if v.sense_mods else "" for v in top_candidates]
+                a_mods = [v.antisense_mods if v.antisense_mods else (v.antisense if v.antisense != (v.parent_antisense or v.antisense) else "") for v in top_candidates]
+                a_pos = [v.antisense_positions if v.antisense_mods else "" for v in top_candidates]
                 v5_batch_res = predict_sirna_potency_batch(
                     sense_seqs=s_seqs, anti_seqs=a_seqs,
                     sense_mods_list=s_mods, anti_mods_list=a_mods,
+                    sense_pos_list=s_pos, anti_pos_list=a_pos,
+                    parent_sense_seqs=p_s_seqs, parent_anti_seqs=p_a_seqs,
                     conc_nM=10.0
                 )
                 for variant, v5_res in zip(top_candidates, v5_batch_res):
                     variant.estimated_pIC50 = v5_res["estimated_pIC50"]
                     variant.estimated_IC50_nM = v5_res["estimated_IC50_nM"]
                     variant.predicted_knockdown_pct = v5_res["predicted_knockdown_pct"]
-                    variant.efficacy_score = round(v5_res["predicted_knockdown_pct"], 2)
-                    variant.delta_score = round(v5_res["predicted_knockdown_pct"] - parent_adjusted_score, 2)
+                    adj_score, penalties, _ = calculate_adjusted_efficacy(
+                        v5_res["predicted_knockdown_pct"], variant.sense, variant.antisense,
+                        variant.parent_sense, variant.parent_antisense,
+                        mode="mod_ranking"
+                    )
+                    variant.penalties = penalties
+                    variant.efficacy_score = round(adj_score, 2)
+                    variant.delta_score = round(adj_score - parent_adjusted_score, 2)
+                top_candidates.sort(key=lambda x: x.efficacy_score, reverse=True)
+                final_variants = top_candidates
             except Exception as e:
                 logger.error(f"IEEE v5 candidate batch scoring failed: {e}")
         else:
@@ -643,8 +693,8 @@ def multi_mod_scan(
                 variant.efficacy_score = round(adj_score, 2)
                 variant.delta_score = round(adj_score - parent_adjusted_score, 2)
                 variant.penalties = penalties
-            
-        final_variants.sort(key=lambda v: v.efficacy_score, reverse=True)
+            top_candidates.sort(key=lambda x: x.efficacy_score, reverse=True)
+            final_variants = top_candidates
     
     logger.info(f"Beam search complete. Evaluated {len(all_evaluated_variants)} total permutations in fast mode. Returning {len(final_variants)} unique sequences.")
     return final_variants

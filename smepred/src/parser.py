@@ -17,10 +17,26 @@ logger = logging.getLogger(__name__)
 
 def _normalize_nucleotides(raw_sequence: str) -> str:
     """
-    Strips FASTA headers, non-alphabetic characters, numbers, and enforces uppercase RNA format.
+    Strips FASTA headers, un-prefixed accession/definition lines, non-alphabetic
+    characters, numbers, and enforces uppercase RNA format.
     """
     lines = raw_sequence.strip().splitlines()
-    seq_lines = [line.strip() for line in lines if not line.strip().startswith(">")]
+    seq_lines = []
+    for line in lines:
+        sline = line.strip()
+        if not sline:
+            continue
+        if sline.startswith(">"):
+            continue
+        # Strip metadata / accession lines copied without '>' (e.g. from NCBI or Ensembl headers)
+        letters = re.sub(r"[^A-Za-z]", "", sline)
+        if letters:
+            non_nuc = re.sub(r"[ACGTUacgtu]", "", letters)
+            # If line has more than 15% non-canonical characters, or starts with common accession prefixes
+            if len(non_nuc) / len(letters) > 0.15 or re.match(r"^(NM_|NR_|XM_|XR_|NC_|NG_|ENST|ENSG)", sline, re.IGNORECASE):
+                logger.info(f"Stripped un-prefixed metadata/header line: {sline[:60]}...")
+                continue
+        seq_lines.append(sline)
     clean_text = "".join(seq_lines)
 
     # Remove any non-alphabetic characters (numbers, whitespace, punctuation)

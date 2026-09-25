@@ -53,37 +53,18 @@ def predict(
         conc_nM=conc_nM,
         target_gene=target_gene,
         candidate_id=candidate_id,
-        include_docking=include_docking,
         include_biophysics=include_biophysics,
-        export_docked_pdb=export_docked_pdb
-    )
-
-def dock(
-    sense_seq: str,
-    anti_seq: str,
-    sense_mods: str = "",
-    anti_mods: str = "",
-    export_pdb_path: str = None,
-    **kwargs
-) -> Ago2DockingReport:
-    """Convenience top-level 3D Ago2 docking function."""
-    return get_engine().dock(
-        sense_seq=sense_seq,
-        anti_seq=anti_seq,
-        sense_mods=sense_mods,
-        anti_mods=anti_mods,
-        export_pdb_path=export_pdb_path
+        **kwargs
     )
 
 __all__ = [
     "HelixZero",
     "get_engine",
     "predict",
-    "dock",
     "parse_sirna_sequence",
     "CanonicalNucSlot",
     "siRNACandidate",
     "PredictionResult",
-    "Ago2DockingReport",
     "BiophysicalReport",
 ]
+

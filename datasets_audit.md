@@ -108,14 +108,16 @@ A comprehensive recursive code audit of the entire repository was performed acro
 
 ## 7. Clinical FDA & Independent External Benchmark Suite
 
+> **Authoritative Benchmark Reference**: All empirical benchmark evaluations across these external datasets are curated exclusively in [`final_benchmarks/`](file:///d:/Helixx/final_benchmarks/) (`final_benchmarks/00_MASTER_EXECUTIVE_BENCHMARK_REPORT.md`).
+
 - **Architecture**: External Validation Test Harness for Out-of-Distribution and Clinically Approved Commercial siRNA Drugs.
 - **Purpose**: Audits model generalizability against FDA-approved drugs (Patisiran, Givosiran, Lumasiran, Inclisiran, Vutrisiran, Nedosiran, Fitusiran) and independent peer-reviewed patent literature.
 
 | Model Name | Dataset Name | Implementation Path | Data Source | Role |
 | :--- | :--- | :--- | :--- | :--- |
-| **Clinical Benchmark Engine** | FDA-Approved Therapeutics Verified Set (`fda_approved_sirna_verified_sequences.csv`) | [`CM/Bench/fda_approved_sirna_verified_sequences.csv`](file:///d:/Helixx/CM/Bench/fda_approved_sirna_verified_sequences.csv) & [`smepred/tests/test_clinical_benchmark.py:25-90`](file:///d:/Helixx/smepred/tests/test_clinical_benchmark.py#L25-L90) | FDA Drug Approval Packages & Clinical Trial Literature | Independent Clinical Testing |
+| **Clinical Benchmark Engine** | FDA-Approved Therapeutics Verified Set (`fda_approved_sirna_verified_sequences.csv`) | [`CM/Bench/fda_approved_sirna_verified_sequences.csv`](file:///d:/Helixx/CM/Bench/fda_approved_sirna_verified_sequences.csv) & [`scripts/run_tier3_fda_blind_benchmark.py`](file:///d:/Helixx/scripts/run_tier3_fda_blind_benchmark.py) | FDA Drug Approval Packages & Clinical Trial Literature | Independent Clinical Testing |
 | **Clinical Benchmark Engine** | FDA-Approved Naked Baseline Benchmark (`fda_approved_sirna_naked_benchmark_final.csv`) | [`CM/Bench/fda_approved_sirna_naked_benchmark_final.csv`](file:///d:/Helixx/CM/Bench/fda_approved_sirna_naked_benchmark_final.csv) | FDA Approved Therapeutics Sequence Baselines | Clinical Baseline Testing |
-| **Clinical Benchmark Engine** | Molecular Therapy 2024 Benchmark Dataset (`level4_molecular_therapy_benchmark_report.csv`) | [`smepred/scripts/evaluate_molecular_therapy_correct_mods.py:30-110`](file:///d:/Helixx/smepred/scripts/evaluate_molecular_therapy_correct_mods.py#L30-L110) | `smepred/predict_results/level4_molecular_therapy_benchmark_report.csv` (Molecular Therapy Nucleic Acids 2024 / Alnylam Patent US10,435,694) | Out-of-Distribution Independent Testing |
+| **Clinical Benchmark Engine** | Molecular Therapy 2024 Benchmark Dataset (`level4_molecular_therapy_benchmark_report.csv`) | [`final_benchmarks/05_MODEL_5_HELIXZERO_IEEE_V5_BENCHMARK.md`](file:///d:/Helixx/final_benchmarks/05_MODEL_5_HELIXZERO_IEEE_V5_BENCHMARK.md) | `smepred/predict_results/level4_molecular_therapy_benchmark_report.csv` (Molecular Therapy Nucleic Acids 2024 / Alnylam Patent US10,435,694) | Out-of-Distribution Independent Testing |
 | **Clinical Benchmark Engine** | Alnylam TTR Patent Benchmark Report (`level4_alnylam_ttr_patent_validation_report.csv`) | [`smepred/predict_results/level4_alnylam_ttr_patent_validation_report.csv`](file:///d:/Helixx/smepred/predict_results/level4_alnylam_ttr_patent_validation_report.csv) | Alnylam Pharmaceuticals TTR siRNA Patent Series | External Patent Validation |
 
 ---

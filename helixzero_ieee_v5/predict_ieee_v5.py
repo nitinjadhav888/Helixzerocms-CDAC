@@ -47,13 +47,14 @@ print("✅ HelixZero IEEE v5 Inference Engine Ready!\n")
 def predict_sirna_potency(sense_seq: str, anti_seq: str, 
                           sense_mods: str = "", anti_mods: str = "", 
                           sense_positions: str = "", anti_positions: str = "",
+                          parent_sense: str = None, parent_anti: str = None,
                           conc_nM: float = 10.0) -> dict:
     """
     Runs end-to-end 2-stage prediction for a chemically modified siRNA candidate.
     """
     # 1. Parse Canonical NucSlot Chemical Ontology
-    s_slots = parse_canonical_sequence(sense_seq, sense_mods, sense_positions)
-    as_slots = parse_canonical_sequence(anti_seq, anti_mods, anti_positions)
+    s_slots = parse_canonical_sequence(sense_seq, sense_mods, sense_positions, parent_sense)
+    as_slots = parse_canonical_sequence(anti_seq, anti_mods, anti_positions, parent_anti)
     
     # 2. Extract 577-dimensional Multi-Modal Feature Vector
     X_base = features_v4.batch_features_v4([s_slots], [as_slots])
@@ -82,6 +83,7 @@ def predict_sirna_potency_batch(
     sense_seqs: list, anti_seqs: list,
     sense_mods_list: list = None, anti_mods_list: list = None,
     sense_pos_list: list = None, anti_pos_list: list = None,
+    parent_sense_seqs: list = None, parent_anti_seqs: list = None,
     conc_nM: float = 10.0
 ) -> list:
     """
@@ -94,9 +96,11 @@ def predict_sirna_potency_batch(
     if anti_mods_list is None: anti_mods_list = [""] * N
     if sense_pos_list is None: sense_pos_list = [""] * N
     if anti_pos_list is None: anti_pos_list = [""] * N
+    if parent_sense_seqs is None: parent_sense_seqs = [None] * N
+    if parent_anti_seqs is None: parent_anti_seqs = [None] * N
 
-    s_slots_list = [parse_canonical_sequence(s, sm, sp) for s, sm, sp in zip(sense_seqs, sense_mods_list, sense_pos_list)]
-    as_slots_list = [parse_canonical_sequence(a, am, ap) for a, am, ap in zip(anti_seqs, anti_mods_list, anti_pos_list)]
+    s_slots_list = [parse_canonical_sequence(s, sm, sp, ps) for s, sm, sp, ps in zip(sense_seqs, sense_mods_list, sense_pos_list, parent_sense_seqs)]
+    as_slots_list = [parse_canonical_sequence(a, am, ap, pa) for a, am, ap, pa in zip(anti_seqs, anti_mods_list, anti_pos_list, parent_anti_seqs)]
 
     X_base = features_v4.batch_features_v4(s_slots_list, as_slots_list)
 

@@ -18,6 +18,8 @@ __pycache__/
 *.db
 /smepred/data/processed/*.csv
 /smepred/data/processed/*.tsv
+/smepred/data/processed/*.parquet
+/smepred/data/processed/*.npz
 /MEG-mod-main/Saved_Best_Models/
 
 # Raw patent data (large, IP-sensitive)

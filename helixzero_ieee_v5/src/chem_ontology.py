@@ -76,57 +76,132 @@ class CanonicalNucSlot:
         
         return vec
 
-def parse_canonical_sequence(seq_str: str, mod_mask: str = None, positions_str: str = None) -> List[CanonicalNucSlot]:
+_VERBOSE_MOD_MAP = {
+    "2'-FLUORO": 'F', "2-FLUORO": 'F', "2'-F": 'F', "2-F": 'F',
+    "2'-O-METHYL": 'M', "2-O-METHYL": 'M', "2'-OME": 'M', "2-OME": 'M',
+    "PHOSPHOROTHIOATE": 'S', "PS": 'S',
+    "2'-DEOXY": 'D', "DNA": 'D',
+    "5'-VINYL PHOSPHONATE": '1', "5'-VP": '1', "5VP": '1',
+    "LOCKED NUCLEIC ACID": 'L', "LNA": 'L',
+    "2'-O-METHOXYETHYL": 'E', "2'-MOE": 'E', "MOE": 'E',
+    "ETHYLENE-BRIDGED NUCLEIC ACID": 'Y', "ENA": 'Y',
+    "UNLOCKED NUCLEIC ACID": '6', "UNA": '6',
+    "ARABINONUCLEIC ACID": '7', "ANA": '7',
+    "GLYCOL NUCLEIC ACID": '8', "GNA": '8',
+    "THREOSE NUCLEIC ACID": '9', "TNA": '9',
+    "INOSINE": 'J', "PSEUDOURIDINE": 'W', "5-METHYLCYTOSINE": 'V', "2-THIOURIDINE": 'K',
+}
+
+_CHAR_TO_SLOT_ATTRS = {
+    'M': {'sugar': '2OMe'},
+    'm': {'sugar': '2OMe'},
+    'F': {'sugar': '2F'},
+    'f': {'sugar': '2F'},
+    'D': {'sugar': 'deoxyribo'},
+    'd': {'sugar': 'deoxyribo'},
+    'L': {'sugar': 'LNA'},
+    'l': {'sugar': 'LNA'},
+    'E': {'sugar': 'MOE'},
+    'e': {'sugar': 'MOE'},
+    'Y': {'sugar': 'ENA'},
+    'y': {'sugar': 'ENA'},
+    '6': {'sugar': 'UNA'},
+    '7': {'sugar': 'ANA'},
+    '8': {'sugar': 'GNA'},
+    '9': {'sugar': 'TNA'},
+    'I': {'sugar': 'FANA'},
+    'N': {'sugar': '4thio'},
+    'B': {'sugar': 'Benzyl'},
+    'Q': {'sugar': 'Abasic'},
+    '2': {'sugar': '2OMe', 'linkage': 'PS'},
+    '3': {'sugar': '2F', 'linkage': 'PS'},
+    'S': {'linkage': 'PS'},
+    's': {'linkage': 'PS'},
+    '1': {'terminal_5p': '5VP'},
+    'J': {'basemod': 'inosine'},
+    'j': {'basemod': 'inosine'},
+    '5': {'basemod': 'inosine'},
+    'V': {'basemod': '5mC'},
+    'v': {'basemod': '5mC'},
+    'W': {'basemod': 'pseudouridine'},
+    'w': {'basemod': 'pseudouridine'},
+    'K': {'basemod': '2thioU'},
+    'k': {'basemod': '2thioU'},
+}
+
+def parse_canonical_sequence(seq_str: str, mod_mask: str = None, positions_str: str = None, parent_seq: str = None) -> List[CanonicalNucSlot]:
     """
     Parses sequence strings and optional modification masks into a list of CanonicalNucSlots.
     Handles:
-    1. Full 21-nt modified sequence string (e.g. "GMAAMMAAGAGMAMMMMAMTT")
+    1. Full 21-nt modified sequence string (e.g. "GMAAMMAAGAGMAMMMMAMTT" or "1ANSASGSSSSSHSUCDKAFS")
     2. Full 21-nt mask string (e.g. "RMRRMMRRRMRMMMMRMRRRR")
     3. Comma-separated mod string + positional string (e.g. mod_mask="M,M,M", positions_str="2,5,6")
+    4. Multi-modification accumulation at a single position (e.g. 5'-VP + 2'-OMe + PS at pos 1)
     """
     clean_seq = seq_str.strip().upper().replace('T', 'U')
     n = len(clean_seq)
+    p_seq = parent_seq.strip().upper().replace('T', 'U') if parent_seq else None
 
-    pos_mask = ['R'] * n
+    # Track slot attributes orthogonally per nucleotide position
+    pos_attrs = [{} for _ in range(n)]
 
     if mod_mask:
-        # Case A: Comma-separated symbols with explicit positions
-        if ',' in mod_mask and positions_str:
-            syms = [s.strip().upper() for s in mod_mask.split(',') if s.strip()]
+        # Case A: Symbols with explicit positions (e.g. "M,F,S" at "1,2,3" or "1,M,S" at "1,1,1")
+        if positions_str:
+            syms = [_VERBOSE_MOD_MAP.get(s.strip().upper(), s.strip().upper()) for s in mod_mask.split(',') if s.strip()]
             poss = [int(p.strip()) for p in positions_str.split(',') if p.strip()]
             for s, p in zip(syms, poss):
                 if 1 <= p <= n:
-                    pos_mask[p - 1] = s
+                    if s in _CHAR_TO_SLOT_ATTRS:
+                        pos_attrs[p - 1].update(_CHAR_TO_SLOT_ATTRS[s])
         # Case B: Modified sequence string of length n (e.g. "GMAAMMAAGAGMAMMMMAMTT")
-        elif len(mod_mask) == n and any(c in mod_mask for c in ['M', 'F', 'D', '2', 'J', 'S']):
+        elif len(mod_mask) == n and any(c not in ['A', 'C', 'G', 'U', 'T', 'R', '.'] for c in mod_mask):
             for idx, c in enumerate(mod_mask):
-                if c in ['M', 'F', 'D', '2', 'J', 'S']:
-                    pos_mask[idx] = c
-        # Case C: Direct positional mask string
+                if c in _CHAR_TO_SLOT_ATTRS:
+                    pos_attrs[idx].update(_CHAR_TO_SLOT_ATTRS[c])
+        # Case C: Direct positional mask string of length n (e.g. "RMRRMMRRRMRMMMMRMRRRR")
         elif ',' not in mod_mask:
             for idx, c in enumerate(mod_mask[:n]):
-                pos_mask[idx] = c
+                if c in _CHAR_TO_SLOT_ATTRS:
+                    pos_attrs[idx].update(_CHAR_TO_SLOT_ATTRS[c])
+    else:
+        # If no explicit mod_mask provided, check if clean_seq itself contains embedded modification codes
+        if any(c not in ['A', 'C', 'G', 'U', 'N', '.'] for c in clean_seq):
+            for idx, c in enumerate(clean_seq):
+                if c in _CHAR_TO_SLOT_ATTRS:
+                    pos_attrs[idx].update(_CHAR_TO_SLOT_ATTRS[c])
 
     slots = []
-    for i, base_char in enumerate(clean_seq):
+    for i in range(n):
+        base_char = clean_seq[i]
+        # Resolve true biological base: if base_char was replaced by a modification code (e.g. '1', 'S', 'M', 'F')
+        if p_seq and i < len(p_seq):
+            base_char = p_seq[i]
+        elif base_char not in ['A', 'C', 'G', 'U']:
+            # Fallback biological base inference for common modification codes
+            if base_char in ['V', 'C', 'c']:
+                base_char = 'C'
+            elif base_char in ['W', 'K', 'U', 'u', 'T', 't']:
+                base_char = 'U'
+            elif base_char in ['J', 'G', 'g']:
+                base_char = 'G'
+            else:
+                base_char = 'A'
+
         sugar = 'ribo'
         linkage = 'PO'
         term_5p = '5P' if i == 0 else 'OH'
         basemod = 'none'
 
-        m_code = pos_mask[i]
-        if m_code in ['M', 'm']:
-            sugar = '2OMe'
-        elif m_code in ['F', 'f']:
-            sugar = '2F'
-        elif m_code in ['D', 'd']:
-            sugar = 'deoxyribo'
-        elif m_code == '2' or m_code == 'S':
-            linkage = 'PS'
-            sugar = '2OMe'
-        elif m_code == 'J':
-            basemod = 'inosine'
-            sugar = '2OMe'
+        attrs = pos_attrs[i]
+        if 'sugar' in attrs:
+            sugar = attrs['sugar']
+        if 'linkage' in attrs:
+            linkage = attrs['linkage']
+        if 'terminal_5p' in attrs:
+            term_5p = attrs['terminal_5p']
+        if 'basemod' in attrs:
+            basemod = attrs['basemod']
 
         slots.append(CanonicalNucSlot(
             base=base_char,

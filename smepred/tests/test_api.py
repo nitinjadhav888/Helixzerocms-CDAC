@@ -62,6 +62,11 @@ def test_rank_endpoint_valid():
     assert "efficacy_score" in top
     assert "rank" in top
     assert top["rank"] == 1
+    assert "asymmetry_ddg" in top
+    assert isinstance(top["asymmetry_ddg"], (int, float))
+    assert "asymmetry_label" in top
+    assert top["asymmetry_label"] in ("Optimal", "Moderate", "High Risk")
+
 
 
 def test_rank_endpoint_invalid_sequence():
@@ -76,11 +81,11 @@ def test_rank_endpoint_invalid_sequence():
 
 
 def test_single_mod_scan_endpoint():
-    """Verify POST /single-mod evaluates single modifications with off-target safety."""
+    """Verify POST /single-mod evaluates single modifications with off-target safety and dynamic PK."""
     payload = {
         "sense": TEST_SENSE,
         "antisense": TEST_ANTISENSE,
-        "model": "B_v4",
+        "model": "IEEE_v5",
         "top_n": 10
     }
     response = client.post("/single-mod", json=payload)
@@ -91,35 +96,49 @@ def test_single_mod_scan_endpoint():
     assert "results" in data
     assert len(data["results"]) <= 10
     assert "isSafe" in data["parent_safety"]
+    top = data["results"][0]
+    assert top["estimated_pIC50"] is not None
+    assert top["estimated_IC50_nM"] is not None and top["estimated_IC50_nM"] > 0
+    assert top["predicted_knockdown_pct"] is not None and 0.0 <= top["predicted_knockdown_pct"] <= 100.0
+    assert "delta_score" in top
 
 
 def test_multi_mod_custom_endpoint():
-    """Verify POST /multi-mod evaluates specific custom modification masks."""
+    """Verify POST /multi-mod evaluates specific custom modification masks with dynamic PK."""
     payload = {
         "sense": TEST_SENSE,
         "antisense": TEST_ANTISENSE,
-        "sense_mods": "2'-OMe;2'-F;2'-OMe",
-        "sense_positions": "1;2;3",
-        "antisense_mods": "2'-OMe;2'-F;2'-OMe",
-        "antisense_positions": "1;2;3",
-        "model": "B_v4"
+        "sense_mods": "M,M",
+        "sense_positions": "1,2",
+        "antisense_mods": "F,F",
+        "antisense_positions": "1,2",
+        "model": "IEEE_v5"
     }
     response = client.post("/multi-mod", json=payload)
     assert response.status_code == 200
     data = response.json()
     assert "parent_score" in data
-    assert "result" in data or "results" in data
+    assert "result" in data
+    res = data["result"]
+    assert res["sense_mods"] == "M,M"
+    assert res["sense_positions"] == "1,2"
+    assert res["antisense_mods"] == "F,F"
+    assert res["antisense_positions"] == "1,2"
+    assert res["estimated_pIC50"] is not None
+    assert res["estimated_IC50_nM"] is not None and res["estimated_IC50_nM"] > 0
+    assert res["predicted_knockdown_pct"] is not None and 0.0 <= res["predicted_knockdown_pct"] <= 100.0
+    assert "delta_score" in res
 
 
 def test_multi_mod_scan_beam_search_endpoint():
-    """Verify POST /multi-mod-scan runs beam search for optimal modification stacking."""
+    """Verify POST /multi-mod-scan runs beam search for optimal modification stacking with dynamic PK."""
     payload = {
         "sense": TEST_SENSE,
         "antisense": TEST_ANTISENSE,
         "max_mods": 2,
         "beam_width": 5,
         "full_scan": False,
-        "model": "B_v4"
+        "model": "IEEE_v5"
     }
     response = client.post("/multi-mod-scan", json=payload)
     assert response.status_code == 200
@@ -127,6 +146,11 @@ def test_multi_mod_scan_beam_search_endpoint():
     assert "total_variants" in data
     assert "results" in data
     assert len(data["results"]) > 0
+    top = data["results"][0]
+    assert top["estimated_pIC50"] is not None
+    assert top["estimated_IC50_nM"] is not None and top["estimated_IC50_nM"] > 0
+    assert top["predicted_knockdown_pct"] is not None and 0.0 <= top["predicted_knockdown_pct"] <= 100.0
+    assert "delta_score" in top
 
 
 def test_offtarget_scan_endpoint():
@@ -154,93 +178,6 @@ def test_modifications_metadata_endpoint():
     assert len(data) > 0
 
 
-def test_dock_endpoint_unmodified():
-    """Verify POST /dock successfully executes 3D Ago2 structural docking simulation."""
-    payload = {
-        "sense": TEST_SENSE,
-        "antisense": TEST_ANTISENSE,
-        "sense_mods": "RRRRRRRRRRRRRRRRRRR",
-        "anti_mods": "RRRRRRRRRRRRRRRRRRR",
-        "conc_nM": 10.0,
-        "target_gene": "TTR",
-        "candidate_id": "test_unmod_dock"
-    }
-    response = client.post("/dock", json=payload)
-    assert response.status_code == 200
-    data = response.json()
-    
-    # Assert top-level prediction metadata
-    assert data["candidate_id"] == "test_unmod_dock"
-    assert data["target_gene"] == "TTR"
-    assert data["concentration_nM"] == 10.0
-    assert 0.0 <= data["predicted_knockdown_pct"] <= 100.0
-    assert data["predicted_pIC50"] > 0.0
-    assert data["predicted_ic50_nM"] > 0.0
-    
-    # Assert structural docking parameters
-    dock = data["docking"]
-    assert dock is not None
-    assert "mid_anchor_distance_A" in dock
-    assert "piwi_cleavage_distance_A" in dock
-    assert "paz_anchor_distance_A" in dock
-    assert "steric_clash_score" in dock
-    assert "estimated_binding_dG_kcal" in dock
-    assert "pocket_contacts_count" in dock
-    assert "catalytic_alignment_status" in dock
-    assert dock["mid_anchor_distance_A"] > 0.0
-    assert dock["piwi_cleavage_distance_A"] > 0.0
-    assert dock["catalytic_alignment_status"] in ("OPTIMAL", "SUBOPTIMAL", "INHIBITED_STERIC")
-    
-    # Assert 3D PDB structure and PyMOL script generation
-    assert "pdb_data" in data
-    assert "ATOM" in data["pdb_data"]
-    assert "pymol_script" in data
-    assert "load" in data["pymol_script"].lower()
-
-
-def test_dock_endpoint_modified_patisiran():
-    """Verify POST /dock with modified FDA therapeutic Patisiran generates clash-free docked complex."""
-    payload = {
-        "sense": "GGAUCAUCUCAAGUCUUAC",
-        "antisense": "GUAAGACUUGAGAUGAUCC",
-        "sense_mods": "MMFMFMFMFMFMFMFMFMF",
-        "anti_mods": "MFMFMFMFFFFFMFMFMMM",
-        "conc_nM": 10.0,
-        "target_gene": "TTR",
-        "candidate_id": "patisiran_test"
-    }
-    response = client.post("/dock", json=payload)
-    assert response.status_code == 200
-    data = response.json()
-    assert data["predicted_pIC50"] >= 7.0
-    assert data["docking"]["pocket_contacts_count"] > 0
-    assert "ATOM" in data["pdb_data"]
-
-
-def test_dock_demo_all_drugs():
-    """Verify GET /dock/demo/{drug_id} returns valid parameters for all clinical demonstration drugs."""
-    demo_drugs = ["patisiran", "givosiran", "roche_jak1", "unmodified"]
-    for drug_id in demo_drugs:
-        response = client.get(f"/dock/demo/{drug_id}")
-        assert response.status_code == 200
-        data = response.json()
-        assert "name" in data
-        assert "sense" in data
-        assert "antisense" in data
-        assert len(data["sense"]) >= 19
-        assert len(data["antisense"]) >= 19
-        assert "target_gene" in data
-        assert data["conc_nM"] > 0.0
-
-
-def test_dock_demo_not_found():
-    """Verify GET /dock/demo/{drug_id} returns 404 for an unknown drug identifier."""
-    response = client.get("/dock/demo/unknown_nonexistent_drug")
-    assert response.status_code == 404
-    data = response.json()
-    assert "detail" in data
-
-
 def test_rank_upload_endpoint():
     """Verify POST /rank/upload processes multipart FASTA file upload."""
     fasta_content = b">NM_000371.4 TTR gene\nATGGCCAAGCGAAGCAAGGGAUCAUCUCAAGUCUUACACCGUAAGACUUGAGAUGAUCC\n"
@@ -253,16 +190,4 @@ def test_rank_upload_endpoint():
     assert len(data["results"]) <= 5
     assert "efficacy_score" in data["results"][0]
 
-
-def test_api_boundary_negative_dose_handling():
-    """Verify POST /dock gracefully handles non-positive concentration doses."""
-    payload = {
-        "sense": TEST_SENSE,
-        "antisense": TEST_ANTISENSE,
-        "conc_nM": -5.0,
-        "candidate_id": "test_neg_dose"
-    }
-    response = client.post("/dock", json=payload)
-    # Concentration is clipped/handled internally or returns valid prediction
-    assert response.status_code in (200, 422)
 

@@ -200,11 +200,59 @@ def check_functionality(sirna_strand: str) -> Tuple[bool, str]:
     return True, ""
 
 
+# ─── Thermodynamic Asymmetry (Schwarz-Zamore Rule) ───────────────────────────
+
+# RNA nearest-neighbor free energy at 37°C (Xia et al. 1998 / SantaLucia 2004) in kcal/mol
+_RNA_NN_DG: Dict[str, float] = {
+    'AA': -0.93, 'AU': -1.10, 'AC': -2.24, 'AG': -2.08,
+    'UA': -1.33, 'UU': -0.93, 'UC': -1.43, 'UG': -2.70,
+    'CA': -1.78, 'CU': -1.70, 'CC': -2.70, 'CG': -2.36,
+    'GA': -1.70, 'GU': -1.78, 'GC': -2.08, 'GG': -2.70,
+}
+
+
+def calculate_asymmetry_ddg(sense: str, antisense: str, n: int = 4) -> Tuple[float, str]:
+    """
+    Calculates genuine Schwarz-Zamore thermodynamic asymmetry (ΔΔG) in kcal/mol
+    using Xia et al. (1998) / SantaLucia (2004) nearest-neighbor RNA thermodynamic parameters at 37°C.
+    
+    Definition:
+      ΔΔG = ΔG_5'(antisense/guide) - ΔG_5'(sense/passenger)
+      
+    Since RNA duplex formation ΔG is negative:
+      - Less negative ΔG = weaker/frayed terminal base pairing (easier to melt/unwind).
+      - More negative ΔG = tighter terminal base pairing (harder to unwind).
+      - ΔΔG = (-2.2) - (-5.0) = +2.8 kcal/mol.
+      
+    Classification:
+      - ΔΔG >= 1.5 kcal/mol  : 'Optimal' (Biased guide strand RISC loading)
+      - 0.0 <= ΔΔG < 1.5     : 'Moderate' (Moderate guide bias, potential co-loading)
+      - ΔΔG < 0.0            : 'High Risk' (Passenger strand loaded into Ago2 -> off-target cytotoxicity)
+    """
+    s = sense[:n].upper().replace('T', 'U')
+    a = antisense[:n].upper().replace('T', 'U')
+    
+    sense_dg = sum(_RNA_NN_DG.get(s[i:i+2], -1.5) for i in range(len(s) - 1))
+    anti_dg = sum(_RNA_NN_DG.get(a[i:i+2], -1.5) for i in range(len(a) - 1))
+    
+    ddg = round(anti_dg - sense_dg, 2)
+    
+    if ddg >= 1.5:
+        label = "Optimal"
+    elif ddg >= 0.0:
+        label = "Moderate"
+    else:
+        label = "High Risk"
+        
+    return ddg, label
+
+
 # ─── Batch Annotation Helpers ─────────────────────────────────────────────────
 
 def annotate_candidates(senses: List[str], antisenses: List[str]) -> List[Dict[str, Any]]:
     """
-    Batch-annotates candidates with their toxicity scores and functional compliance flags.
+    Batch-annotates candidates with their toxicity scores, functional compliance flags,
+    and genuine Schwarz-Zamore thermodynamic asymmetry (ΔΔG).
     Used heavily by the `predictor` during sliding-window evaluation.
     """
     annotations = []
@@ -214,12 +262,16 @@ def annotate_candidates(senses: List[str], antisenses: List[str]) -> List[Dict[s
         is_functional_anti, reason_anti = check_functionality(anti_strand)
         is_functional = is_functional_sense and is_functional_anti
         failure_reason = reason_sense or reason_anti
+        asym_ddg, asym_label = calculate_asymmetry_ddg(sense_strand, anti_strand)
         
         annotations.append({
             "toxicity_score": None if viability is None else round(viability, 1),
             "toxicity_label": get_toxicity_label(viability),
             "func_ok": is_functional,
             "func_reason": failure_reason,
+            "asymmetry_ddg": asym_ddg,
+            "asymmetry_label": asym_label,
         })
         
     return annotations
+

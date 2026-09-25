@@ -46,6 +46,7 @@ from pydantic import BaseModel, Field, ConfigDict
 # Local internal imports
 from src.predictor import (
     rank_by_naked_score,
+    select_curated_leads,
     predict_modified,
     _get_efficacy_label,
     _predict_naked,
@@ -60,6 +61,7 @@ from src.filters import get_toxicity_score, get_toxicity_label, _extract_seed
 from src.offtarget import get_offtarget_engine
 from src.features import extract_batch_v4
 from src.modification_engine import multi_mod_scan
+from src.assistant_service import generate_chat_response, analyze_top_leads
 
 # Configure module-level logger
 logging.basicConfig(
@@ -148,6 +150,19 @@ class OffTargetRequest(BaseModel):
     antisense: str = Field(..., description="21-nt antisense strand")
     antisense_mods: str = Field("", description="Modification mask for antisense strand")
 
+class ChatMessage(BaseModel):
+    role: str = Field(..., description="'user' or 'model'")
+    content: str = Field(..., description="Text content")
+
+class AssistantChatRequest(BaseModel):
+    messages: List[ChatMessage]
+    live_context: Optional[Dict[str, Any]] = None
+    image_data: Optional[str] = None
+
+class AssistantTop5Request(BaseModel):
+    candidates: List[Dict[str, Any]]
+    target_gene: Optional[str] = "Target Gene"
+
 
 # ─── API Endpoints ────────────────────────────────────────────────────────────
 
@@ -205,11 +220,14 @@ def rank_endpoint(req: RankRequest):
     """
     try:
         limit = req.top_n if req.top_n > 0 else None
-        results = rank_by_naked_score(req.sequence, top_n=limit, input_type=req.input_type)
+        all_results = rank_by_naked_score(req.sequence, top_n=None, input_type=req.input_type)
+        curated_leads = select_curated_leads(all_results, transcript_sequence=req.sequence, total_transcript_length=len(req.sequence), min_separation=35, max_leads=10)
+        display_results = all_results[:limit] if limit else all_results
         return {
-            "total_candidates": len(results),
+            "total_candidates": len(all_results),
             "input_type": req.input_type,
-            "results": [r.to_dict() for r in results],
+            "curated_leads": [l.to_dict() for l in curated_leads],
+            "results": [r.to_dict() for r in display_results],
         }
     except FileNotFoundError as e:
         logger.error(f"Model file missing: {e}", exc_info=True)
@@ -230,11 +248,14 @@ async def rank_upload_endpoint(file: UploadFile = File(...), top_n: int = 20):
     try:
         content = (await file.read()).decode("utf-8")
         limit = top_n if top_n > 0 else None
-        results = rank_by_naked_score(content, top_n=limit)
+        all_results = rank_by_naked_score(content, top_n=None)
+        curated_leads = select_curated_leads(all_results, transcript_sequence=content, total_transcript_length=len(content), min_separation=35, max_leads=10)
+        display_results = all_results[:limit] if limit else all_results
         return {
             "filename": file.filename,
-            "total_candidates": len(results),
-            "results": [r.to_dict() for r in results],
+            "total_candidates": len(all_results),
+            "curated_leads": [l.to_dict() for l in curated_leads],
+            "results": [r.to_dict() for r in display_results],
         }
     except Exception as e:
         raise HTTPException(status_code=422, detail=f"File processing failed: {str(e)}")
@@ -283,7 +304,6 @@ def single_mod_endpoint(req: SingleModRequest):
             },
             "parent_safety": parent_safety,
             "structural_properties": output.get("structural_properties"),
-            "site_importance": output.get("site_importance"),
             "results": [r.to_dict() for r in top_results],
         }
     except Exception as e:
@@ -333,7 +353,6 @@ def multi_mod_endpoint(req: MultiModRequest):
             "naked_baseline": output.get("naked_baseline", output["parent_score"]),
             "model": req.model,
             "structural_properties": output.get("structural_properties"),
-            "site_importance": output.get("site_importance"),
             "result": variant_dict,
         }
     except Exception as e:
@@ -378,7 +397,6 @@ def recommend_endpoint(req: RecommendRequest):
             "parent_sense": req.sense,
             "parent_antisense": req.antisense,
             "parent_score": output["parent_score"],
-            "site_importance": output.get("site_importance"),
             "recommendations": [c.to_dict() for c in top_candidates]
         }
     except Exception as e:
@@ -525,21 +543,30 @@ def multi_mod_from_single_endpoint(req: MultiModFromSingleRequest):
         seed_proxy = ProxyVariant(req.seed_variant) if req.seed_variant else None
 
         # Reconstruct Baseline
-        if req.parent_score is None:
+        parent_baseline = req.parent_score
+        model_b_baseline = None
+        if req.model == "IEEE_v5":
+            try:
+                from helixzero_ieee_v5.predict_ieee_v5 import predict_sirna_potency
+                v5_anchor = predict_sirna_potency(req.sense, req.antisense, "", "", 10.0)
+                model_b_baseline = round(v5_anchor["predicted_knockdown_pct"], 2)
+                if parent_baseline is None:
+                    parent_baseline = model_b_baseline
+            except Exception as e:
+                logger.warning(f"IEEE v5 baseline calculation fallback: {e}")
+
+        if parent_baseline is None:
             features = extract_batch_v4([req.sense], [req.antisense])
             raw = float(_normalize_scores(_predict_naked(features), mode=req.normalize_mode)[0])
             naked_adj, _, _ = calculate_adjusted_efficacy(raw, req.sense, req.antisense, req.sense, req.antisense)
             parent_baseline = round(naked_adj, 2)
-        else:
-            parent_baseline = req.parent_score
 
-        # Was hardcoded to legacy _get_model("B") regardless of req.model --
-        # fixed to honor the caller's model selection like every other endpoint.
-        raw_b = float(_predict_model_b(
-            [req.sense], [req.antisense], [req.sense], [req.antisense], model_key=req.model
-        )[0])
-        mb_adj, _, _ = calculate_adjusted_efficacy(raw_b, req.sense, req.antisense, req.sense, req.antisense)
-        model_b_baseline = round(mb_adj, 2)
+        if model_b_baseline is None:
+            raw_b = float(_predict_model_b(
+                [req.sense], [req.antisense], [req.sense], [req.antisense], model_key=req.model
+            )[0])
+            mb_adj, _, _ = calculate_adjusted_efficacy(raw_b, req.sense, req.antisense, req.sense, req.antisense)
+            model_b_baseline = round(mb_adj, 2)
 
         bw = req.beam_width
         if req.model in ["Ensemble_v4", "GNN_v2"] and bw > 25:
@@ -645,158 +672,36 @@ def get_supported_modifications():
         raise HTTPException(status_code=500, detail="Modification taxonomy file missing or corrupted.")
 
 
-# ─── 3D Argonaute-2 (hAgo2 PDB 4W5N) Structural Docking Endpoints ─────────────
+# ─── Scientific Co-Pilot & Assistant Endpoints ────────────────────────────────
 
-class DockingRequest(BaseModel):
-    sense: str
-    antisense: str
-    sense_mods: str = ""
-    anti_mods: str = ""
-    sense_positions: str = ""
-    anti_positions: str = ""
-    conc_nM: float = 10.0
-    target_gene: Optional[str] = "Target"
-    candidate_id: Optional[str] = "siRNA_candidate"
-
-
-@app.post("/dock")
-def dock_sirna_candidate(req: DockingRequest):
+@app.post("/assistant/chat")
+async def assistant_chat(req: AssistantChatRequest):
     """
-    Runs real 3D Human Argonaute-2 (PDB ID: 4W5N) structural docking,
-    active-site catalytic pocket alignment, steric clash scoring,
-    and multi-model potency prediction.
+    Conversational scientific assistant powered by Google Gemini and grounded in HelixZero biophysics.
     """
     try:
-        import importlib
-        import helixzero
-        import helixzero.structural_docking.duplex_builder
-        import helixzero.structural_docking.docking_engine
-        importlib.reload(helixzero.structural_docking.duplex_builder)
-        importlib.reload(helixzero.structural_docking.docking_engine)
-        engine = helixzero.get_engine()
-        engine.docking_engine = helixzero.structural_docking.docking_engine.Ago2DockingEngine()
-        from helixzero.structural_docking.visualizer import DockingVisualizer
-
-        dock_cache_dir = ROOT_DIR / "data" / "docked_cache"
-        dock_cache_dir.mkdir(parents=True, exist_ok=True)
-        safe_id = "".join(c if c.isalnum() else "_" for c in (req.candidate_id or "candidate"))
-        pdb_file = dock_cache_dir / f"{safe_id}_docked.pdb"
-
-        res = helixzero.predict(
-            sense_seq=req.sense,
-            anti_seq=req.antisense,
-            sense_mods=req.sense_mods,
-            anti_mods=req.anti_mods,
-            sense_positions=req.sense_positions,
-            anti_positions=req.anti_positions,
-            conc_nM=req.conc_nM,
-            target_gene=req.target_gene,
-            candidate_id=req.candidate_id or "siRNA_candidate",
-            include_docking=True,
-            include_biophysics=True,
-            export_docked_pdb=str(pdb_file)
+        reply = await generate_chat_response(
+            [m.model_dump() for m in req.messages],
+            live_context=req.live_context,
+            image_data=req.image_data
         )
-
-        pdb_content = ""
-        if pdb_file.exists():
-            with open(pdb_file, "r", encoding="utf-8") as f:
-                pdb_content = f.read()
-
-        pml_script = DockingVisualizer.generate_pymol_script(f"{safe_id}_docked.pdb", dock_cache_dir / f"{safe_id}.pml")
-
-        return {
-            "candidate_id": str(res.candidate_id),
-            "target_gene": str(res.target_gene),
-            "concentration_nM": float(res.concentration_nM),
-            "predicted_knockdown_pct": float(res.predicted_knockdown_pct),
-            "confidence_interval_95": [float(x) for x in res.confidence_interval_95],
-            "predicted_pIC50": float(res.predicted_pIC50),
-            "predicted_ic50_nM": float(res.predicted_ic50_nM),
-            "hill_slope": float(res.hill_slope),
-            "catboost_knockdown_pct": float(res.catboost_knockdown_pct),
-            "hierarchical_knockdown_pct": float(res.hierarchical_knockdown_pct),
-            "gnn_knockdown_pct": float(res.gnn_knockdown_pct),
-            "ensemble_uncertainty": float(res.ensemble_uncertainty),
-            "biophysics": {
-                "delta_G_duplex_kcal": float(res.biophysics.delta_G_duplex_kcal),
-                "delta_G_open_kcal": float(res.biophysics.delta_G_open_kcal),
-                "terminal_asymmetry_ddG": float(res.biophysics.terminal_asymmetry_ddG),
-                "risc_loading_asymmetry": str(res.biophysics.risc_loading_asymmetry),
-                "gc_content_pct": float(res.biophysics.gc_content_pct),
-                "ps_linkages_count": int(res.biophysics.ps_linkages_count),
-                "mod_density_pct": float(res.biophysics.mod_density_pct),
-                "serum_stability_index": float(res.biophysics.serum_stability_index),
-                "immunogenicity_risk": str(res.biophysics.immunogenicity_risk),
-                "tlr_motifs_detected": list(res.biophysics.tlr_motifs_detected),
-            } if res.biophysics else None,
-            "docking": {
-                "mid_anchor_distance_A": float(res.docking.mid_anchor_distance_A),
-                "piwi_cleavage_distance_A": float(res.docking.piwi_cleavage_distance_A),
-                "paz_anchor_distance_A": float(res.docking.paz_anchor_distance_A),
-                "steric_clash_score": float(res.docking.steric_clash_score),
-                "estimated_binding_dG_kcal": float(res.docking.estimated_binding_dG_kcal),
-                "pocket_contacts_count": int(res.docking.pocket_contacts_count),
-                "catalytic_alignment_status": str(res.docking.catalytic_alignment_status),
-            } if res.docking else None,
-            "pdb_data": str(pdb_content),
-            "pymol_script": str(pml_script),
-        }
+        return {"reply": reply}
     except Exception as e:
-        logger.error(f"3D Argonaute-2 docking failed: {e}")
-        raise HTTPException(status_code=500, detail=f"3D docking simulation error: {str(e)}")
+        logger.error(f"Assistant chat endpoint failed: {e}")
+        return {"reply": f"⚠️ Assistant service error: {str(e)}"}
 
 
-@app.get("/dock/demo/{drug_id}")
-def get_docking_demo(drug_id: str):
+@app.post("/assistant/recommend-top5")
+async def assistant_recommend_top5(req: AssistantTop5Request):
     """
-    Returns verified chemical parameters for demonstration clinical therapeutics.
+    Deterministic Pareto-TOPSIS Top 5 Lead Selector + Gemini Scientific Dossier.
     """
-    demos = {
-        "patisiran": {
-            "name": "Patisiran (ALN-TTR02, Onpattro)",
-            "target_gene": "TTR",
-            "sense": "GGAUCAUCUCAAGUCUUAC",
-            "antisense": "GUAAGACUUGAGAUGAUCC",
-            "sense_mods": "MMFMFMFMFMFMFMFMFMF",
-            "anti_mods": "MFMFMFMFFFFFMFMFMMM",
-            "conc_nM": 10.0,
-            "description": "First-in-class FDA-approved GalNAc/LNP siRNA targeting hereditary transthyretin-mediated amyloidosis."
-        },
-        "givosiran": {
-            "name": "Givosiran (ALN-AS1, Givlaari)",
-            "target_gene": "ALAS1",
-            "sense": "AUGAGUGACUGGAGUGUUG",
-            "antisense": "CAACACUCCAGUCACUCAU",
-            "sense_mods": "MMMMFMFMFMFMMMMMMMM",
-            "anti_mods": "MFMMMFMFFFFMMMMFMFM",
-            "conc_nM": 5.0,
-            "description": "FDA-approved ESC-GalNAc therapeutic targeting aminolevulinate synthase 1 for acute hepatic porphyria."
-        },
-        "roche_jak1": {
-            "name": "Roche JAK1 Lead (WO2024256707A1)",
-            "target_gene": "JAK1",
-            "sense": "ACCGGAUGAGGUUCUAUUUCA",
-            "antisense": "UGAAAUAGAACCUCAUCCGGU",
-            "sense_mods": "MMFMFMFMFMFMFMFMFMFMF",
-            "anti_mods": "MFMFMFMFFFFFMFMFMFMMM",
-            "conc_nM": 2.0,
-            "description": "Roche patent lead compound 614 tiling human JAK1 mRNA with 5'-VP and parent checkerboard chemistry."
-        },
-        "unmodified": {
-            "name": "Unmodified RNA Benchmark",
-            "target_gene": "Control",
-            "sense": "GGAUCAUCUCAAGUCUUAC",
-            "antisense": "GUAAGACUUGAGAUGAUCC",
-            "sense_mods": "RRRRRRRRRRRRRRRRRRR",
-            "anti_mods": "RRRRRRRRRRRRRRRRRRR",
-            "conc_nM": 10.0,
-            "description": "Canonical naked RNA control demonstrating degradation vulnerability and lack of nuclease protection."
-        }
-    }
-    drug = demos.get(drug_id.lower())
-    if not drug:
-        raise HTTPException(status_code=404, detail=f"Demo drug '{drug_id}' not found. Choose from: {list(demos.keys())}")
-    return drug
+    try:
+        result = await analyze_top_leads(req.candidates, req.target_gene or "Target RNA")
+        return result
+    except Exception as e:
+        logger.error(f"Assistant recommend top 5 endpoint failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ─── Entry Point ──────────────────────────────────────────────────────────────
@@ -804,4 +709,5 @@ def get_docking_demo(drug_id: str):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("api.main:app", host="0.0.0.0", port=8000, reload=True)
+
 

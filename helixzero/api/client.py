@@ -17,11 +17,9 @@ from helixzero.ontology.tokenizer import parse_sirna_sequence, CanonicalNucSlot
 from helixzero.api.schemas import (
     siRNACandidate,
     PredictionResult,
-    Ago2DockingReport,
     BiophysicalReport
 )
 from helixzero.featurizers.biophysics_featurizer import BiophysicsFeaturizer
-from helixzero.structural_docking.docking_engine import Ago2DockingEngine
 from helixzero.models.ensemble import MetaStackingEnsemble
 
 
@@ -32,7 +30,6 @@ class HelixZero:
 
     def __init__(self):
         self.biophysics_engine = BiophysicsFeaturizer()
-        self.docking_engine = Ago2DockingEngine()
         self.ensemble = MetaStackingEnsemble()
 
     def predict(
@@ -46,9 +43,8 @@ class HelixZero:
         conc_nM: float = 10.0,
         target_gene: Optional[str] = None,
         candidate_id: str = "siRNA_candidate",
-        include_docking: bool = True,
         include_biophysics: bool = True,
-        export_docked_pdb: Optional[str] = None
+        **kwargs
     ) -> PredictionResult:
         """
         Runs complete predictive and mechanistic pipeline for a therapeutic candidate.
@@ -74,16 +70,6 @@ class HelixZero:
         if include_biophysics:
             bio_report = self.biophysics_engine.analyze(sense_seq, anti_seq, s_slots, a_slots)
 
-        # 4. 3D Argonaute-2 Structural Docking
-        dock_report = None
-        if include_docking:
-            dock_report = self.docking_engine.dock_candidate(
-                s_slots,
-                a_slots,
-                candidate_id=candidate_id,
-                export_pdb_path=export_docked_pdb
-            )
-
         return PredictionResult(
             candidate_id=candidate_id,
             target_gene=target_gene or "Unspecified",
@@ -98,23 +84,8 @@ class HelixZero:
             gnn_knockdown_pct=pred_gnn,
             ensemble_uncertainty=round(abs(ci_95[1] - ci_95[0]) / 3.92, 2),
             biophysics=bio_report,
-            docking=dock_report
+            docking=None
         )
-
-    def dock(
-        self,
-        sense_seq: str,
-        anti_seq: str,
-        sense_mods: str = "",
-        anti_mods: str = "",
-        export_pdb_path: Optional[str] = None
-    ) -> Ago2DockingReport:
-        """
-        Runs standalone 3D Argonaute-2 docking for a candidate.
-        """
-        s_slots = parse_sirna_sequence(sense_seq, sense_mods)
-        a_slots = parse_sirna_sequence(anti_seq, anti_mods)
-        return self.docking_engine.dock_candidate(s_slots, a_slots, export_pdb_path=export_pdb_path)
 
     def analyze_biophysics(
         self,
@@ -129,3 +100,4 @@ class HelixZero:
         s_slots = parse_sirna_sequence(sense_seq, sense_mods)
         a_slots = parse_sirna_sequence(anti_seq, anti_mods)
         return self.biophysics_engine.analyze(sense_seq, anti_seq, s_slots, a_slots)
+

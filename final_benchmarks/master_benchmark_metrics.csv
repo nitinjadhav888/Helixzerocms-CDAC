@@ -1,0 +1,12 @@
+Model,Dataset,N,pcc,spcc,auc,rmse,mae,r2
+Model A (Naked LightGBM),Takayuki Screen (Taka.csv),702,0.8788,0.8734,0.9275,12.39,9.64,0.6525
+Model A (Naked LightGBM),Mixset 7-Studies (Mix.csv),472,0.8291,0.8093,0.9456,20.32,17.35,0.4605
+Model A (Naked LightGBM),Huesken Held-Out (Hu.csv),2361,0.8044,0.8065,0.9099,9.18,6.99,0.6252
+Model A (Naked LightGBM - Neg Control),CMsiRNAdb Hetero (Chemistry Blind),2576,0.1771,0.1645,0.5711,29.59,24.7,-0.0901
+Model B v4 (CatBoost),CMsiRNAdb Homogeneous Held-Out,472,0.7401,0.754,0.8745,21.48,18.05,0.3989
+Model B v4 (CatBoost),CMsiRNAdb Heterogeneous Held-Out,2576,0.6217,0.6049,0.8077,22.74,18.95,0.3563
+MEG-mod GNN TransformerConv,CMsiRNAdb Heterogeneous Test Split,300,0.0631,0.0788,0.5,38.33,35.95,-82.9264
+HelixZero Ensemble v4,CMsiRNAdb Homogeneous Test Set,472,0.7335,0.7469,0.8687,23.76,20.09,0.2646
+HelixZero Ensemble v4,CMsiRNAdb Heterogeneous Test Set,2576,0.6176,0.6018,0.8059,23.16,19.31,0.3327
+HelixZero IEEE v5 Hierarchical,IEEE Gold/Bronze Master (Zero-Leakage Test Split),7674,0.8187,0.8154,0.9283,18.1,13.69,0.6655
+HelixZero IEEE v5 Hierarchical,Molecular Therapy 2025 (N=30 Clinical Duplexes),30,0.533,0.5193,0.5,1.95,1.67,-0.2678

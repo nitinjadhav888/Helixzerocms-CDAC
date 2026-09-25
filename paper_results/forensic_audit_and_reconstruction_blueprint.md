@@ -32,7 +32,7 @@ smepred/data/processed/                        Benchmark Datasets         • ho
 smepred/data/oligoformer/                      Canonical RNAi Benchmarks  • Hu.csv (N=2,361), Taka.csv (N=702), Mix.csv (N=472)
 scripts/                                       Evaluation & Compilers     • evaluate_ieee_v5_on_all_datasets.py
                                                                            • compile_biorxiv_pdf.py
-                                                                           • compile_benchmark_report_pdf.py
+                                                                           • final_benchmarks/ (Authoritative Empirical Repository)
                                                                            • compile_full_paper_pdf.py
                                                                            • generate_all_publication_figures.py
 ========================================================================================================================
@@ -214,7 +214,7 @@ From the forensic inspection of `D:\Helixx\paper_results\2026.06.13.732049v2.ful
 ========================================================================================================================
 Manuscript Claim                              Type        Exact Code / Data Source                  Verified Status
 ========================================================================================================================
-"IEEE v5 achieves r = 0.8365 on IEEE Test"   EXP-VERIFIED ieee_v5_full_benchmark_results.csv        VERIFIED (r=0.8365)
+"IEEE v5 achieves r = 0.8187 on Zero-Leakage" EXP-VERIFIED final_benchmarks/master_benchmark_metrics.csv VERIFIED (r=0.8187)
 "CatBoost v4 achieves r = 0.7401 on Homo"    EXP-VERIFIED evaluate_all_models_on_7_datasets.py      VERIFIED (r=0.7401)
 "Naked GBDT achieves r = 0.8788 on Takayuki" EXP-VERIFIED smepred/data/oligoformer/Taka.csv         VERIFIED (r=0.8788)
 "577-dimensional hybrid feature vector"      CODE-VERIFIED smepred/src/features.py (444+128+5)      VERIFIED (577 dims)

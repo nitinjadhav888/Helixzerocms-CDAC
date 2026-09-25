@@ -8,3 +8,4 @@ DEMO_SCRIPT.md
 __pycache__/
 *.pyc
 .DS_Store
+.env

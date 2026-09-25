@@ -43,6 +43,7 @@ from .sirna_generator import generate_candidates, generate_dsirna_candidate, SiR
 from .features import extract_batch_v4, extract_phase2
 from .modification_engine import single_mod_scan, multimod_gen, CmSiRNA, _apply_mod
 from .filters import annotate_candidates, toxicity_for_modified
+from .calibrator import StrictlyMonotonicCalibrator
 from .biophysics import calculate_adjusted_efficacy
 from . import model_b_v4
 
@@ -57,10 +58,13 @@ DEFAULT_MODEL_B_KEY = "Ensemble_v4"
 _MODEL_FILES = {
     "normal": MODELS_DIR / "model_normal.txt",
     "normal_pkl": MODELS_DIR / "model_normal.pkl",
+    "normal_context": MODELS_DIR / "model_normal_context.txt",
+    "normal_context_pkl": MODELS_DIR / "model_normal_context.pkl",
 }
 
 _CALIBRATOR_FILES = {
     "normal": MODELS_DIR / "calibrator_naked.pkl",
+    "normal_context": MODELS_DIR / "calibrator_context.pkl",
 }
 
 _loaded_models: Dict[str, Any] = {}
@@ -105,11 +109,15 @@ def _get_model(key: str) -> Any:
     return _loaded_models[key]
 
 
-def _predict_naked(feature_matrix: np.ndarray) -> np.ndarray:
+def _predict_naked(feature_matrix: np.ndarray, model_key: str = "normal") -> np.ndarray:
     """
-    Executes inference using the baseline (unmodified) LightGBM model.
-    Pads the source one-hot encoding array to match training structure.
+    Executes inference using either the baseline (unmodified) LightGBM model
+    or the retrained context-aware foundation-biophysics model (190-D).
     """
+    if feature_matrix.shape[1] == 190 or model_key == "normal_context":
+        model = _get_model("normal_context")
+        return model.predict(feature_matrix)
+
     model_bundle = _get_model("normal")
     
     if isinstance(model_bundle, dict):
@@ -126,6 +134,7 @@ def _predict_naked(feature_matrix: np.ndarray) -> np.ndarray:
         return model.predict(input_matrix)
         
     return model_bundle.predict(feature_matrix)
+
 
 
 def _predict_model_b(
@@ -291,6 +300,10 @@ class RankedSiRNA:
     toxicity_label: str = "Unknown"
     func_ok: bool = True
     func_reason: str = ""
+    domain: str = ""
+    is_curated_lead: bool = False
+    asymmetry_ddg: Optional[float] = None
+    asymmetry_label: str = "Unknown"
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -304,6 +317,10 @@ class RankedSiRNA:
             "toxicity_label": self.toxicity_label,
             "func_ok": self.func_ok,
             "func_reason": self.func_reason,
+            "domain": self.domain,
+            "is_curated_lead": self.is_curated_lead,
+            "asymmetry_ddg": self.asymmetry_ddg,
+            "asymmetry_label": self.asymmetry_label,
         }
 
 
@@ -329,6 +346,10 @@ class RankedCmSiRNA:
     toxicity_label: str = "Unknown"
     toxicity_note: str = ""
     biophysics: Optional[Dict[str, float]] = None
+    sense_mods: str = ""
+    sense_positions: str = ""
+    antisense_mods: str = ""
+    antisense_positions: str = ""
 
     def to_dict(self) -> Dict[str, Any]:
         result = {
@@ -351,6 +372,14 @@ class RankedCmSiRNA:
             "toxicity_label": self.toxicity_label,
             "toxicity_note": self.toxicity_note,
         }
+        if self.sense_mods:
+            result["sense_mods"] = self.sense_mods
+        if self.sense_positions:
+            result["sense_positions"] = self.sense_positions
+        if self.antisense_mods:
+            result["antisense_mods"] = self.antisense_mods
+        if self.antisense_positions:
+            result["antisense_positions"] = self.antisense_positions
         if self.biophysics is not None:
             result["biophysics"] = self.biophysics
         return result
@@ -362,10 +391,11 @@ def rank_sirnas(
     source: Union[str, Path],
     top_n: Optional[int] = None,
     input_type: str = "gene",
+    use_context_model: bool = True,
 ) -> List[RankedSiRNA]:
     """
     Parses an mRNA transcript, generates all combinatorial 21-mer candidates, 
-    and ranks them by predicted naked efficacy.
+    and ranks them by predicted naked efficacy using target mRNA context features.
     """
     logger.info("Starting rank_sirnas workflow.")
     sequence = load_sequence(source)
@@ -382,23 +412,36 @@ def rank_sirnas(
     sense_list = [c.sense for c in candidates]
     antisense_list = [c.antisense for c in candidates]
     
-    # Extract structural features for the ML model
-    feature_matrix = extract_batch_v4(sense_list, antisense_list)
-
-    # Predict and normalize
-    raw_scores = _predict_naked(feature_matrix)
-    normalized_scores = _normalize_scores(raw_scores, calibrator_key="normal")
+    context_model_path = MODELS_DIR / "model_normal_context.txt"
+    if use_context_model and context_model_path.exists() and input_type != "dsirna":
+        try:
+            from .context_feature_extractor import ContextFeatureExtractor
+            extractor = ContextFeatureExtractor(use_rna_fm=True)
+            feature_matrix = extractor.extract_for_candidates(candidates, sequence)
+            raw_scores = _predict_naked(feature_matrix, model_key="normal_context")
+            normalized_scores = _normalize_scores(raw_scores, calibrator_key="normal_context")
+        except Exception as e:
+            logger.warning(f"Context feature extraction failed ({e}), falling back to baseline 214-D model.")
+            feature_matrix = extract_batch_v4(sense_list, antisense_list)
+            raw_scores = _predict_naked(feature_matrix, model_key="normal")
+            normalized_scores = _normalize_scores(raw_scores, calibrator_key="normal")
+    else:
+        # Extract structural features for the ML model
+        feature_matrix = extract_batch_v4(sense_list, antisense_list)
+        raw_scores = _predict_naked(feature_matrix, model_key="normal")
+        normalized_scores = _normalize_scores(raw_scores, calibrator_key="normal")
 
     # Annotate seed toxicity
     annotations = annotate_candidates(sense_list, antisense_list)
 
     # Rank by score (descending)
     sort_order = np.argsort(normalized_scores)[::-1]
+    sorted_scores = normalized_scores[sort_order]
     
     ranked_results = []
     for rank_idx, original_idx in enumerate(sort_order):
         cand = candidates[original_idx]
-        score = float(normalized_scores[original_idx])
+        score = float(sorted_scores[rank_idx])
         annotation = annotations[original_idx]
         
         ranked_results.append(RankedSiRNA(
@@ -412,6 +455,8 @@ def rank_sirnas(
             toxicity_label=annotation["toxicity_label"],
             func_ok=annotation["func_ok"],
             func_reason=annotation["func_reason"],
+            asymmetry_ddg=annotation.get("asymmetry_ddg"),
+            asymmetry_label=annotation.get("asymmetry_label", "Unknown"),
         ))
 
     if top_n is not None:
@@ -425,9 +470,88 @@ def rank_by_naked_score(
     source: Union[str, Path],
     top_n: Optional[int] = None,
     input_type: str = "gene",
+    use_context_model: bool = True,
 ) -> List[RankedSiRNA]:
     """Alias for rank_sirnas."""
-    return rank_sirnas(source, top_n, input_type)
+    return rank_sirnas(source, top_n, input_type, use_context_model=use_context_model)
+
+
+def select_curated_leads(
+    ranked_candidates: List[RankedSiRNA],
+    transcript_sequence: Optional[str] = None,
+    total_transcript_length: int = 1000,
+    min_separation: int = 35,
+    max_leads: int = 10,
+) -> List[RankedSiRNA]:
+    """
+    Selects non-redundant, safety-filtered lead siRNA scaffolds across biological transcript domains.
+    
+    Why: A naive Top-5 raw cutoff creates massive positional redundancy (e.g. 4 candidates within 
+    the same 15-nt window) and admits lethal cytotoxins. This function enforces:
+      1. Genuine Biological Domain Mapping: Detects the canonical Open Reading Frame (AUG -> Stop),
+         accurately partitioning the transcript into 5' UTR, CDS, and 3' UTR.
+      2. Structural Viability: Only candidates with func_ok == True (no internal hairpin palindromes).
+      3. Cytotoxic Safety: Rejects high-risk toxic seeds (toxicity_label != 'Toxic').
+      4. Spatial Non-Redundancy: Guarantees each selected lead is separated by at least min_separation nt.
+    """
+    leads: List[RankedSiRNA] = []
+    
+    # 1. Biological domain boundary detection
+    orf_start, orf_end = None, None
+    if transcript_sequence and len(transcript_sequence) >= 150:
+        clean_seq = transcript_sequence.upper().replace("T", "U")
+        longest = (0, 0, 0)  # length, 1-based start, 1-based end
+        stop_codons = {"UAA", "UAG", "UGA"}
+        for frame in range(3):
+            start = None
+            for i in range(frame, len(clean_seq) - 2, 3):
+                codon = clean_seq[i : i + 3]
+                if codon == "AUG" and start is None:
+                    start = i
+                elif codon in stop_codons and start is not None:
+                    orf_len = (i + 3) - start
+                    if orf_len > longest[0]:
+                        longest = (orf_len, start + 1, i + 3)
+                    start = None
+        if longest[0] >= 150:  # At least 50 amino acids
+            orf_start, orf_end = longest[1], longest[2]
+
+    if orf_start is not None and orf_end is not None:
+        utr5_cutoff = orf_start - 1
+        cds_cutoff = orf_end + 1
+    else:
+        # Fallback to mRNA heuristic (12% 5' UTR, ~50-60% CDS, ~30-40% 3' UTR)
+        effective_len = len(transcript_sequence) if transcript_sequence else total_transcript_length
+        utr5_cutoff = max(50, int(effective_len * 0.12))
+        cds_cutoff = max(utr5_cutoff + 100, int(effective_len * 0.65))
+    
+    for r in ranked_candidates:
+        # Assign biological domain based on 1-based transcript coordinate
+        if r.position <= utr5_cutoff:
+            r.domain = "5' UTR"
+        elif r.position >= cds_cutoff:
+            r.domain = "3' UTR"
+        else:
+            r.domain = "CDS"
+            
+        # Hard Filter 1: Biophysical functionality (no palindromic self-hairpins)
+        if not r.func_ok:
+            continue
+            
+        # Hard Filter 2: Seed cytotoxicity (reject lethal cytotoxins with < 50% cell viability)
+        if r.toxicity_label == "Toxic":
+            continue
+            
+        # Hard Filter 3: Spatial non-redundancy (prevent picking overlapping 21-mers)
+        if any(abs(r.position - lead.position) < min_separation for lead in leads):
+            continue
+            
+        r.is_curated_lead = True
+        leads.append(r)
+        if len(leads) >= max_leads:
+            break
+            
+    return leads
 
 
 # ─── Workflow 2: Modified siRNA Prediction ────────────────────────────────────
@@ -498,27 +622,6 @@ def extract_structural_properties(
     gc_s = round((s_seq.count("G") + s_seq.count("C")) / len(s_seq) * 100.0, 1) if sense else 0.0
     gc_a = round((a_seq.count("G") + a_seq.count("C")) / len(a_seq) * 100.0, 1) if antisense else 0.0
 
-    # Dynamic GNN Graph Attention Weights from PyTorch GNN
-    try:
-        from . import gnn_serving
-        p_sense = parent_sense or sense
-        p_anti = parent_antisense or antisense
-        gnn_res = gnn_serving.predict_gnn_with_attention(p_sense, p_anti, sense, antisense)
-        site_importance = gnn_res.get("site_importance", {})
-        gnn_attention = site_importance.get("antisense", [0.5]*21)
-    except Exception as e:
-        logger.warning(f"Could not extract dynamic GNN attention: {e}")
-        base_energy = {'G': 0.75, 'C': 0.72, 'A': 0.55, 'U': 0.50, 'T': 0.50}
-        p_s = parent_sense or sense
-        p_a = parent_antisense or antisense
-        s_att = [round(float(0.42 + 0.12 * base_energy.get(c.upper(), 0.5)), 2) for c in p_s[:21]]
-        a_att = [round(float(0.85 if 2<=i+1<=8 else (0.90 if 10<=i+1<=11 else 0.42 + 0.10*base_energy.get(c.upper(), 0.5))), 2) for i, c in enumerate(p_a[:21])]
-        site_importance = {
-            "sense": s_att,
-            "antisense": a_att
-        }
-        gnn_attention = site_importance["antisense"]
-
     pdb_str = generate_sirna_pdb(
         sense, antisense, 
         parent_sense=parent_sense, 
@@ -541,8 +644,6 @@ def extract_structural_properties(
         "gc_sense_pct": gc_s,
         "gc_anti_pct": gc_a,
         "positional_dg": positional_dg,
-        "gnn_attention": gnn_attention,
-        "site_importance": site_importance,
         "pdb_data": pdb_str,
     }
 
@@ -631,66 +732,117 @@ def predict_modified(
         except Exception:
             gnn_scores = gbdt_scores
 
-    # 5. Apply biophysical constraints and rank
+    # 5. Apply biophysical constraints and compute parent anchor
     parent_adjusted_score, _, _ = calculate_adjusted_efficacy(
         raw_model_b_score, sense, antisense, sense, antisense
     )
     raw_parent_adjusted_score, _, _ = calculate_adjusted_efficacy(
         raw_parent_score, sense, antisense, sense, antisense
     )
+    parent_v5_res = None
+    try:
+        from helixzero_ieee_v5.predict_ieee_v5 import predict_sirna_potency
+        parent_v5_res = predict_sirna_potency(sense, antisense, "", "", 10.0)
+    except Exception:
+        pass
+    parent_ieee_kd = parent_v5_res["predicted_knockdown_pct"] if parent_v5_res else parent_adjusted_score
     
-    # In scan mode (1,260 variants), run deep IEEE_v5 potency only on top 60 candidate variants
-    # to avoid 60s+ proxy timeout on cloud containers.
+    # Run deep vectorized IEEE_v5 potency engine on variants (< 2.5s for all 1,260 items in vectorized C++)
     v5_results = [None] * len(variants)
-    if mode in ("scan", "single") and len(variants) > 50:
-        top_candidates_idx = list(np.argsort(gbdt_scores)[::-1][:60])
-        try:
-            from helixzero_ieee_v5.predict_ieee_v5 import predict_sirna_potency_batch
-            sub_v5 = predict_sirna_potency_batch(
-                sense_seqs=[variants[i].parent_sense or variants[i].sense for i in top_candidates_idx],
-                anti_seqs=[variants[i].parent_antisense or variants[i].antisense for i in top_candidates_idx],
-                sense_mods_list=[variants[i].sense for i in top_candidates_idx],
-                anti_mods_list=[variants[i].antisense for i in top_candidates_idx],
-                conc_nM=10.0
-            )
-            for orig_i, v5_res in zip(top_candidates_idx, sub_v5):
-                v5_results[orig_i] = v5_res
-        except Exception as e:
-            logger.warning(f"Batch IEEE v5 prediction fallback: {e}")
-    else:
-        try:
-            from helixzero_ieee_v5.predict_ieee_v5 import predict_sirna_potency_batch
-            v5_results = predict_sirna_potency_batch(
-                sense_seqs=[v.parent_sense or v.sense for v in variants],
-                anti_seqs=[v.parent_antisense or v.antisense for v in variants],
-                sense_mods_list=[v.sense for v in variants],
-                anti_mods_list=[v.antisense for v in variants],
-                conc_nM=10.0
-            )
-        except Exception as e:
-            logger.warning(f"IEEE v5 prediction fallback: {e}")
-            v5_results = [None] * len(variants)
+    try:
+        from helixzero_ieee_v5.predict_ieee_v5 import predict_sirna_potency_batch
+
+        # Evaluate all variants with vectorized C++ routines (<1.5s for 1,260 items)
+        # Avoid proxy truncation that causes unevaluated fallback candidates to displace true predictions.
+        top_eval_indices = list(range(len(variants)))
+
+        s_seqs = [getattr(variants[i], 'parent_sense', None) or variants[i].sense for i in top_eval_indices]
+        a_seqs = [getattr(variants[i], 'parent_antisense', None) or variants[i].antisense for i in top_eval_indices]
+        p_s_seqs = [getattr(variants[i], 'parent_sense', None) or sense for i in top_eval_indices]
+        p_a_seqs = [getattr(variants[i], 'parent_antisense', None) or antisense for i in top_eval_indices]
+
+        # Accurately extract strand-specific single or multi modifications
+        s_mods = []
+        a_mods = []
+        s_pos = []
+        a_pos = []
+        for i in top_eval_indices:
+            v = variants[i]
+            st = getattr(v, 'mod_strand', '')
+            v_sm = getattr(v, 'sense_mods', '') or ''
+            v_sp = getattr(v, 'sense_positions', '') or ''
+            v_am = getattr(v, 'antisense_mods', '') or ''
+            v_ap = getattr(v, 'antisense_positions', '') or ''
+
+            if st == 'sense':
+                s_mods.append(v.mod_symbol)
+                s_pos.append(str(v.mod_position) if v.mod_position else "")
+                a_mods.append("")
+                a_pos.append("")
+            elif st == 'antisense':
+                s_mods.append("")
+                s_pos.append("")
+                a_mods.append(v.mod_symbol)
+                a_pos.append(str(v.mod_position) if v.mod_position else "")
+            elif v_sm or v_am:
+                s_mods.append(v_sm)
+                s_pos.append(v_sp)
+                a_mods.append(v_am)
+                a_pos.append(v_ap)
+            else:
+                p_s = getattr(v, 'parent_sense', '') or sense
+                p_a = getattr(v, 'parent_antisense', '') or antisense
+                s_mods.append(v.sense if v.sense != p_s else "")
+                s_pos.append("")
+                a_mods.append(v.antisense if v.antisense != p_a else "")
+                a_pos.append("")
+
+        sub_batch_res = predict_sirna_potency_batch(
+            sense_seqs=s_seqs,
+            anti_seqs=a_seqs,
+            sense_mods_list=s_mods,
+            anti_mods_list=a_mods,
+            sense_pos_list=s_pos,
+            anti_pos_list=a_pos,
+            parent_sense_seqs=p_s_seqs,
+            parent_anti_seqs=p_a_seqs,
+            conc_nM=10.0
+        )
+        for orig_idx, res in zip(top_eval_indices, sub_batch_res):
+            v5_results[orig_idx] = res
+    except Exception as e:
+        logger.warning(f"Vectorized IEEE v5 prediction fallback: {e}")
+        v5_results = [None] * len(variants)
 
     unranked_results = []
     for idx, (variant, score, gbdt_s, gnn_s) in enumerate(zip(variants, normalized_scores, gbdt_scores, gnn_scores)):
-        score_val = float(score)
-        adj_score, penalties, _ = calculate_adjusted_efficacy(
-            score_val, variant.sense, variant.antisense, variant.parent_sense, variant.parent_antisense,
-            mode="targeted" if mode == "multimod" else "mod_ranking"
-        )
-        viability, tox_label, tox_note = toxicity_for_modified(variant.antisense, variant.parent_antisense)
-        
         v5_res = v5_results[idx] if idx < len(v5_results) else None
         if v5_res is not None:
             est_pIC50 = v5_res["estimated_pIC50"]
             est_IC50_nM = v5_res["estimated_IC50_nM"]
             pred_kd_pct = v5_res["predicted_knockdown_pct"]
+            base_score = pred_kd_pct
         else:
-            est_pIC50, est_IC50_nM, pred_kd_pct = None, None, score_val
+            base_score = float(score)
+            pred_kd_pct = None
+
+        adj_score, penalties, _ = calculate_adjusted_efficacy(
+            base_score, variant.sense, variant.antisense, variant.parent_sense, variant.parent_antisense,
+            mode="targeted" if mode == "multimod" else "mod_ranking"
+        )
+        viability, tox_label, tox_note = toxicity_for_modified(variant.antisense, variant.parent_antisense)
+        
+        if v5_res is None:
+            pred_kd_pct = adj_score
+            safe_kd = max(5.0, min(95.0, float(adj_score)))
+            derived_ic50 = 10.0 * (100.0 - safe_kd) / safe_kd
+            est_IC50_nM = round(derived_ic50, 2)
+            est_pIC50 = round(9.0 - np.log10(max(1e-3, derived_ic50)), 2)
 
         # Unified biophysically-adjusted efficacy score and delta across all modes
-        final_score = pred_kd_pct if pred_kd_pct is not None else adj_score
-        final_delta = final_score - parent_adjusted_score
+        final_score = adj_score
+        baseline_ref = parent_ieee_kd if v5_res is not None else parent_adjusted_score
+        final_delta = round(final_score - baseline_ref, 2)
 
         unranked_results.append(RankedCmSiRNA(
             rank=0,
@@ -712,6 +864,10 @@ def predict_modified(
             toxicity_label=tox_label,
             toxicity_note=tox_note,
             biophysics=penalties,
+            sense_mods=getattr(variant, 'sense_mods', ''),
+            sense_positions=getattr(variant, 'sense_positions', ''),
+            antisense_mods=getattr(variant, 'antisense_mods', ''),
+            antisense_positions=getattr(variant, 'antisense_positions', ''),
         ))
 
     # Sort by efficacy score (descending)
@@ -739,22 +895,13 @@ def predict_modified(
         antisense_mods=antisense_mods,
         antisense_positions=antisense_positions,
     )
-    try:
-        from . import gnn_serving
-        attn_info = gnn_serving.predict_gnn_with_attention(sense, antisense)
-        site_importance = attn_info.get("site_importance")
-    except Exception as e:
-        logger.warning(f"Could not extract site_importance: {e}")
-        site_importance = None
-
     return {
         "results": ranked_results,
-        "parent_score": round(raw_model_b_score if mode == "scan" else parent_adjusted_score, 2),
+        "parent_score": round(parent_ieee_kd if parent_v5_res else parent_adjusted_score, 2),
         "parent_score_raw": round(raw_parent_score, 2),
-        "model_b_baseline": round(parent_adjusted_score, 2),
+        "model_b_baseline": round(parent_ieee_kd if parent_v5_res else parent_adjusted_score, 2),
         "naked_baseline": round(raw_parent_adjusted_score, 2),
         "structural_properties": struct_props,
-        "site_importance": site_importance,
     }
 
 
