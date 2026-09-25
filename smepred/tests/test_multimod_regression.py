@@ -47,6 +47,5 @@ def test_all_multimod_edge_case_payloads(payload):
     
     assert "structural_properties" in res
     if res["structural_properties"]:
-        assert "duplex_mfe_kcal" in res["structural_properties"]
-
+        assert "pdb_data" in res["structural_properties"]
 

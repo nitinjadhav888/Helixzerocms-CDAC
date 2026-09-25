@@ -556,6 +556,9 @@ def select_curated_leads(
 
 # ─── Workflow 2: Modified siRNA Prediction ────────────────────────────────────
 
+# Re-exported from src.pdb_generator for backwards compatibility
+from .pdb_generator import generate_sirna_pdb
+
 
 def extract_structural_properties(
     sense: str, 
@@ -573,7 +576,7 @@ def extract_structural_properties(
 ) -> Dict[str, Any]:
     """
     Extracts 2D secondary structure dot-bracket notation, MFE thermodynamics (kcal/mol),
-    positional DG stability curves, and dynamic PyTorch GNN attention weights.
+    positional DG stability curves, dynamic PyTorch GNN attention weights, and 3D PDB models.
     """
     s_seq = sense.upper().replace("T", "U")
     a_seq = antisense.upper().replace("T", "U")
@@ -619,6 +622,20 @@ def extract_structural_properties(
     gc_s = round((s_seq.count("G") + s_seq.count("C")) / len(s_seq) * 100.0, 1) if sense else 0.0
     gc_a = round((a_seq.count("G") + a_seq.count("C")) / len(a_seq) * 100.0, 1) if antisense else 0.0
 
+    pdb_str = generate_sirna_pdb(
+        sense, antisense, 
+        parent_sense=parent_sense, 
+        parent_antisense=parent_antisense,
+        mod_symbol=mod_symbol,
+        mod_position=mod_position,
+        mod_positions=mod_positions,
+        mod_strand=mod_strand,
+        sense_mods=sense_mods,
+        sense_positions=sense_positions,
+        antisense_mods=antisense_mods,
+        antisense_positions=antisense_positions,
+    )
+    
     return {
         "cofold_dotbracket": mfe_struct,
         "duplex_mfe_kcal": d_energy,
@@ -627,6 +644,7 @@ def extract_structural_properties(
         "gc_sense_pct": gc_s,
         "gc_anti_pct": gc_a,
         "positional_dg": positional_dg,
+        "pdb_data": pdb_str,
     }
 
 
