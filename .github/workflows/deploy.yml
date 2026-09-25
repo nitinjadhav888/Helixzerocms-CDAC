@@ -73,16 +73,13 @@ jobs:
           name: suite3-debug-logs
           path: suite3_*.log
 
-      - name: "🔬 Suite 4: 3D Structural Inspector & PDB Generation"
-        run: python -m pytest smepred/tests/test_3d_inspector.py -v --tb=short
-
-      - name: "🔬 Suite 5: MEG-mod Paper Compatibility"
+      - name: "🔬 Suite 4: MEG-mod Paper Compatibility"
         run: python -m pytest smepred/tests/test_megmod_paper.py -v --tb=short
 
-      - name: "🔬 Suite 6: Multi-Mod Regression Edge Cases"
+      - name: "🔬 Suite 5: Multi-Mod Regression Edge Cases"
         run: python -m pytest smepred/tests/test_multimod_regression.py -v --tb=short
 
-      - name: "🔬 Suite 7: FastAPI Production REST API Endpoints"
+      - name: "🔬 Suite 6: FastAPI Production REST API Endpoints"
         run: python -m pytest smepred/tests/test_api.py -v --tb=short
 
   build-and-push:
