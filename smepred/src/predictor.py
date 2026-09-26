@@ -46,6 +46,7 @@ from .filters import annotate_candidates, toxicity_for_modified
 from .calibrator import StrictlyMonotonicCalibrator
 from .biophysics import calculate_adjusted_efficacy
 from . import model_b_v4
+from .chem_alphabet import get_mod_delta_dg, normalize_mod_code, MODIFICATION_ALPHABET
 
 logger = logging.getLogger(__name__)
 
@@ -350,6 +351,8 @@ class RankedCmSiRNA:
     sense_positions: str = ""
     antisense_mods: str = ""
     antisense_positions: str = ""
+    duplex_mfe_kcal: Optional[float] = None
+    delta_duplex_dg: Optional[float] = None
 
     def to_dict(self) -> Dict[str, Any]:
         result = {
@@ -372,6 +375,10 @@ class RankedCmSiRNA:
             "toxicity_label": self.toxicity_label,
             "toxicity_note": self.toxicity_note,
         }
+        if self.duplex_mfe_kcal is not None:
+            result["duplex_mfe_kcal"] = round(self.duplex_mfe_kcal, 2)
+        if self.delta_duplex_dg is not None:
+            result["delta_duplex_dg"] = round(self.delta_duplex_dg, 2)
         if self.sense_mods:
             result["sense_mods"] = self.sense_mods
         if self.sense_positions:
@@ -577,9 +584,17 @@ def extract_structural_properties(
     """
     Extracts 2D secondary structure dot-bracket notation, MFE thermodynamics (kcal/mol),
     positional DG stability curves, dynamic PyTorch GNN attention weights, and 3D PDB models.
+    Incorporates empirical thermodynamic increments (MOD_DELTA_DG) to compute true variant-specific
+    duplex binding energy (kcal/mol) and local unfolding stability shifts.
     """
-    s_seq = sense.upper().replace("T", "U")
-    a_seq = antisense.upper().replace("T", "U")
+    def to_std_canonical(seq: str, parent: Optional[str] = None) -> str:
+        if parent and len(parent) == len(seq):
+            return parent.upper().replace("T", "U")
+        mod_map = {'F': 'U', 'M': 'U', 'S': 'U', 'D': 'C', 'E': 'U', 'L': 'A', '1': 'U'}
+        return ''.join(c if c in 'AUGC' else mod_map.get(c.upper(), 'U') for c in seq.upper().replace('T', 'U'))
+
+    s_seq = to_std_canonical(sense, parent_sense)
+    a_seq = to_std_canonical(antisense, parent_antisense)
     
     # Nearest-neighbor thermodynamic free energy parameters (kcal/mol per base-pair step, Xia / Turner 1998)
     nn_table = {
@@ -606,13 +621,13 @@ def extract_structural_properties(
         mfe_a = round(fc_a.mfe()[1], 2) if fc_a else 0.0
         
         duplex = RNA.duplexfold(s_seq, a_seq)
-        d_energy = round(duplex.energy, 2) if (duplex and duplex.energy != 0.0) else round(float(sum(positional_dg[:19]) + 3.4), 2)
+        base_d_energy = round(duplex.energy, 2) if (duplex and duplex.energy != 0.0) else round(float(sum(positional_dg[:19]) + 3.4), 2)
         
         fc_d = RNA.fold_compound(s_seq + "&" + a_seq)
         mfe_struct, mfe_d = fc_d.mfe() if fc_d else ("(((((((((((((((((((..&..)))))))))))))))))))", 0.0)
     except Exception:
         # Nearest-Neighbor RNA duplex thermodynamics fallback (Turner/Xia model with +3.4 kcal/mol initiation)
-        d_energy = round(float(sum(positional_dg[:19]) + 3.4), 2)
+        base_d_energy = round(float(sum(positional_dg[:19]) + 3.4), 2)
         gc_s_count = sum(1 for b in s_seq if b in "GC")
         gc_a_count = sum(1 for b in a_seq if b in "GC")
         mfe_s = round(-0.8 * gc_s_count, 2)
@@ -621,6 +636,70 @@ def extract_structural_properties(
         
     gc_s = round((s_seq.count("G") + s_seq.count("C")) / len(s_seq) * 100.0, 1) if sense else 0.0
     gc_a = round((a_seq.count("G") + a_seq.count("C")) / len(a_seq) * 100.0, 1) if antisense else 0.0
+
+    # Parse and accumulate chemical modifications across all input patterns
+    applied_mods: List[Tuple[str, int, str]] = []
+    seen_mod_keys = set()
+
+    def add_mod(m_code: str, p: int, strand: str):
+        if 1 <= p <= 21 and m_code:
+            norm = normalize_mod_code(m_code)
+            if norm:
+                k = (norm, p, strand.lower())
+                if k not in seen_mod_keys:
+                    seen_mod_keys.add(k)
+                    applied_mods.append((norm, p, strand.lower()))
+
+    # 1. From mod_symbol, mod_position/mod_positions, mod_strand
+    if mod_symbol and (mod_position or mod_positions):
+        st = 'sense' if 'sense' in str(mod_strand).lower() and 'anti' not in str(mod_strand).lower() else 'antisense'
+        pos_raw = str(mod_positions if mod_positions is not None and str(mod_positions).strip() else mod_position)
+        for p_str in pos_raw.replace('+', ',').split(','):
+            if p_str.strip().isdigit():
+                add_mod(mod_symbol, int(p_str.strip()), st)
+
+    # 2. From sense_mods / sense_positions
+    if sense_mods and sense_positions:
+        s_m = [m.strip() for m in str(sense_mods).replace('+', ',').split(',') if m.strip()]
+        s_p = [int(p.strip()) for p in str(sense_positions).replace('+', ',').split(',') if p.strip().isdigit()]
+        for m, p in zip(s_m, s_p):
+            add_mod(m, p, 'sense')
+
+    # 3. From antisense_mods / antisense_positions
+    if antisense_mods and antisense_positions:
+        a_m = [m.strip() for m in str(antisense_mods).replace('+', ',').split(',') if m.strip()]
+        a_p = [int(p.strip()) for p in str(antisense_positions).replace('+', ',').split(',') if p.strip().isdigit()]
+        for m, p in zip(a_m, a_p):
+            add_mod(m, p, 'antisense')
+
+    # 4. From sequence characters (non-canonical single letter codes)
+    for idx, c in enumerate(sense):
+        if c.upper() not in "ACGTU." and c.upper() in MODIFICATION_ALPHABET:
+            add_mod(c, idx + 1, 'sense')
+    for idx, c in enumerate(antisense):
+        if c.upper() not in "ACGTU." and c.upper() in MODIFICATION_ALPHABET:
+            add_mod(c, idx + 1, 'antisense')
+
+    # Apply empirical thermodynamic perturbation (Xia/Turner NN & Alnylam ESC literature)
+    total_delta_dg = 0.0
+    for mod_code, pos, strand in applied_mods:
+        ddg = get_mod_delta_dg(mod_code)
+        total_delta_dg += ddg
+
+        # Distribute local thermodynamic perturbation into the positional dinucleotide steps
+        # Sense strand runs 5' to 3' (steps 0 to 19 match pos 1..21).
+        # Antisense strand runs antiparallel 5' to 3' (pos p pairs with sense pos 22 - p).
+        step_idx = (pos - 1) if strand == 'sense' else (21 - pos)
+        step_idx = max(0, min(19, step_idx))
+        if step_idx == 0:
+            positional_dg[0] = round(positional_dg[0] + ddg, 2)
+        elif step_idx == 19:
+            positional_dg[19] = round(positional_dg[19] + ddg, 2)
+        else:
+            positional_dg[step_idx - 1] = round(positional_dg[step_idx - 1] + ddg / 2.0, 2)
+            positional_dg[step_idx] = round(positional_dg[step_idx] + ddg / 2.0, 2)
+
+    d_energy = round(base_d_energy + total_delta_dg, 2)
 
     pdb_str = generate_sirna_pdb(
         sense, antisense, 
@@ -639,6 +718,8 @@ def extract_structural_properties(
     return {
         "cofold_dotbracket": mfe_struct,
         "duplex_mfe_kcal": d_energy,
+        "delta_duplex_dg": round(total_delta_dg, 2),
+        "parent_duplex_mfe_kcal": base_d_energy,
         "sense_mfe_kcal": mfe_s,
         "anti_mfe_kcal": mfe_a,
         "gc_sense_pct": gc_s,
@@ -814,6 +895,23 @@ def predict_modified(
         logger.warning(f"Vectorized IEEE v5 prediction fallback: {e}")
         v5_results = [None] * len(variants)
 
+    p_s_first = ps_list[0] if ps_list else sense
+    p_a_first = pa_list[0] if pa_list else antisense
+    struct_props = extract_structural_properties(
+        sense, antisense, 
+        parent_sense=p_s_first, 
+        parent_antisense=p_a_first,
+        mod_symbol=mod_symbol,
+        mod_position=mod_position,
+        mod_positions=mod_positions,
+        mod_strand=mod_strand,
+        sense_mods=sense_mods,
+        sense_positions=sense_positions,
+        antisense_mods=antisense_mods,
+        antisense_positions=antisense_positions,
+    )
+    parent_duplex_dg = float(struct_props.get("parent_duplex_mfe_kcal") or struct_props.get("duplex_mfe_kcal") or -37.4)
+
     unranked_results = []
     for idx, (variant, score, gbdt_s, gnn_s) in enumerate(zip(variants, normalized_scores, gbdt_scores, gnn_scores)):
         v5_res = v5_results[idx] if idx < len(v5_results) else None
@@ -844,6 +942,29 @@ def predict_modified(
         baseline_ref = parent_ieee_kd if v5_res is not None else parent_adjusted_score
         final_delta = round(final_score - baseline_ref, 2)
 
+        # Calculate variant-specific thermodynamic duplex perturbation
+        v_delta_dg = 0.0
+        if getattr(variant, 'mod_symbol', None):
+            v_delta_dg += get_mod_delta_dg(variant.mod_symbol)
+        v_sm = getattr(variant, 'sense_mods', '')
+        v_am = getattr(variant, 'antisense_mods', '')
+        if v_sm:
+            for sm in str(v_sm).replace('+', ',').split(','):
+                if sm.strip(): v_delta_dg += get_mod_delta_dg(sm.strip())
+        if v_am:
+            for am in str(v_am).replace('+', ',').split(','):
+                if am.strip(): v_delta_dg += get_mod_delta_dg(am.strip())
+        if not (getattr(variant, 'mod_symbol', None) or v_sm or v_am):
+            for c in variant.sense:
+                if c.upper() not in "ACGTU." and c.upper() in MODIFICATION_ALPHABET:
+                    v_delta_dg += get_mod_delta_dg(c)
+            for c in variant.antisense:
+                if c.upper() not in "ACGTU." and c.upper() in MODIFICATION_ALPHABET:
+                    v_delta_dg += get_mod_delta_dg(c)
+
+        var_duplex_mfe = round(parent_duplex_dg + v_delta_dg, 2)
+        var_delta_duplex_dg = round(v_delta_dg, 2)
+
         unranked_results.append(RankedCmSiRNA(
             rank=0,
             sense=variant.sense,
@@ -868,6 +989,8 @@ def predict_modified(
             sense_positions=getattr(variant, 'sense_positions', ''),
             antisense_mods=getattr(variant, 'antisense_mods', ''),
             antisense_positions=getattr(variant, 'antisense_positions', ''),
+            duplex_mfe_kcal=var_duplex_mfe,
+            delta_duplex_dg=var_delta_duplex_dg,
         ))
 
     # Sort by efficacy score (descending)
@@ -880,21 +1003,6 @@ def predict_modified(
         ranked_results.append(item)
 
     logger.info(f"Successfully evaluated {len(ranked_results)} modified siRNA variants.")
-    p_s_first = ps_list[0] if ps_list else sense
-    p_a_first = pa_list[0] if pa_list else antisense
-    struct_props = extract_structural_properties(
-        sense, antisense, 
-        parent_sense=p_s_first, 
-        parent_antisense=p_a_first,
-        mod_symbol=mod_symbol,
-        mod_position=mod_position,
-        mod_positions=mod_positions,
-        mod_strand=mod_strand,
-        sense_mods=sense_mods,
-        sense_positions=sense_positions,
-        antisense_mods=antisense_mods,
-        antisense_positions=antisense_positions,
-    )
     return {
         "results": ranked_results,
         "parent_score": round(parent_ieee_kd if parent_v5_res else parent_adjusted_score, 2),

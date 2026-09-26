@@ -1,0 +1,1505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HelixZero-CMS — Production Software & ML Architecture Presentation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #090b10;
+    --surface: #12151d;
+    --surface2: #1a1f2b;
+    --surface3: #212736;
+    --border: #242a38;
+    --accent: #22d3c4;
+    --accent-dim: #1a9e93;
+    --accent2: #8b7fd6;
+    --green: #34d399;
+    --yellow: #fbbf24;
+    --red: #f87171;
+    --rose: #fb7185;
+    --text: #e7ebf2;
+    --muted: #8b93a7;
+    --radius: 12px;
+    --font-display: 'Space Grotesk', system-ui, sans-serif;
+    --font-body: 'IBM Plex Sans', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: radial-gradient(1200px 500px at 15% -10%, rgba(34,211,196,0.06), transparent),
+                radial-gradient(900px 400px at 90% 0%, rgba(139,127,214,0.06), transparent),
+                var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    -webkit-font-smoothing: antialiased;
+  }
+  
+  header {
+    background: linear-gradient(180deg, var(--surface), var(--bg));
+    border-bottom: 1px solid var(--border);
+    padding: 12px 28px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    position: relative;
+    flex-shrink: 0;
+    z-index: 10;
+  }
+  header::after {
+    content: '';
+    position: absolute; left: 0; right: 0; bottom: -1px; height: 1px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2), transparent 70%);
+    opacity: 0.55;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand-icon {
+    width: 28px; height: 28px;
+    filter: drop-shadow(0 0 10px rgba(34,211,196,0.4));
+  }
+  .brand h1 {
+    font-family: var(--font-display);
+    font-size: 1.15rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: #fff;
+  }
+  .brand h1 span { color: var(--accent); }
+  .brand p { font-size: 0.75rem; color: var(--muted); }
+  
+  .header-center {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .live-badge {
+    background: #14261f;
+    color: var(--green);
+    border: 1px solid #24493a;
+    font-size: 0.72rem;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-weight: 600;
+    font-family: var(--font-mono);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .live-badge::before {
+    content: ''; width: 6px; height: 6px; background: var(--green); border-radius: 50%; box-shadow: 0 0 6px var(--green);
+  }
+  .slide-counter {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--accent);
+    background: var(--surface2);
+    padding: 4px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+  }
+  
+  .header-actions { display: flex; gap: 8px; margin-left: 12px; }
+  .btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-family: var(--font-body);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.18s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn:hover { background: var(--surface3); border-color: var(--accent); color: var(--accent); }
+  .btn-accent { background: var(--accent); color: #04140f; border-color: var(--accent); font-weight: 600; }
+  .btn-accent:hover { background: #2ee6d6; color: #000; }
+
+  main {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    padding: 20px 32px 16px;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .slide {
+    display: none;
+    flex-direction: column;
+    height: 100%;
+    animation: fadeIn 0.25s ease-out forwards;
+  }
+  .slide.active { display: flex; }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  
+  .slide-header {
+    margin-bottom: 16px;
+    flex-shrink: 0;
+  }
+  .slide-eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--accent);
+    letter-spacing: 0.12em;
+    margin-bottom: 4px;
+    font-weight: 600;
+  }
+  .slide-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .slide-title {
+    font-family: var(--font-display);
+    font-size: 1.55rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: #fff;
+  }
+  .badges-group { display: flex; gap: 8px; flex-shrink: 0; }
+  .badge-pill {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    padding: 3px 10px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 4px;
+  }
+  .slide-subtitle {
+    font-size: 0.88rem;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+  
+  .slide-body {
+    flex: 1;
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+  
+  .cards-container {
+    display: grid;
+    gap: 18px;
+    height: 100%;
+  }
+  .cards-count-1 { grid-template-columns: 1fr; }
+  .cards-count-2 { grid-template-columns: 1.15fr 0.85fr; }
+  .cards-count-3 { grid-template-columns: 1fr 1fr 1fr; }
+  
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  }
+  .card.border-cyan { border-top: 3px solid var(--accent); }
+  .card.border-purple { border-top: 3px solid var(--accent2); }
+  .card.border-emerald { border-top: 3px solid var(--green); }
+  .card.border-rose { border-top: 3px solid var(--rose); }
+  
+  .card-title {
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  
+  .card ul { padding-left: 18px; display: flex; flex-direction: column; gap: 10px; }
+  .card li { font-size: 0.85rem; line-height: 1.5; color: #d1d5db; }
+  .card strong { color: #fff; }
+  
+  .flow-step {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 10px;
+    font-size: 0.82rem;
+    line-height: 1.45;
+  }
+  .flow-step strong { color: var(--accent); }
+  
+  .mentor-box {
+    background: linear-gradient(135deg, rgba(139,127,214,0.12), rgba(34,211,196,0.05));
+    border: 1px solid rgba(139,127,214,0.35);
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 14px;
+  }
+  .mentor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+  }
+  .mentor-pill {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    background: var(--accent2);
+    color: #0c081e;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  .mentor-name { font-size: 0.78rem; font-weight: 700; color: #fff; }
+  .mentor-citation { font-family: var(--font-mono); font-size: 0.7rem; color: var(--muted); }
+
+  .deck-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.78rem;
+    margin-top: 6px;
+  }
+  .deck-table th {
+    background: var(--surface2);
+    color: var(--accent);
+    text-align: left;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+  }
+  .deck-table td {
+    padding: 7px 10px;
+    border: 1px solid var(--border);
+    color: #d1d5db;
+  }
+  .deck-table tr:nth-child(even) { background: rgba(255,255,255,0.015); }
+  
+  .stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: auto;
+  }
+  .stat-box {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+  }
+  .stat-val {
+    font-family: var(--font-display);
+    font-size: 1.45rem;
+    font-weight: 700;
+    color: var(--accent);
+  }
+  .stat-label { font-size: 0.72rem; color: #fff; font-weight: 600; margin-top: 2px; }
+  .stat-sub { font-size: 0.65rem; color: var(--muted); }
+  
+  pre {
+    background: #06070a;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin: 8px 0;
+    overflow-x: auto;
+  }
+  code {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: #7dd3fc;
+  }
+
+  footer {
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 8px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+  .progress-wrap {
+    flex: 1;
+    height: 4px;
+    background: var(--surface2);
+    border-radius: 2px;
+    margin: 0 20px;
+    overflow: hidden;
+  }
+  .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    width: 5.55%;
+    transition: width 0.25s ease;
+  }
+  .footer-hint { font-size: 0.72rem; color: var(--muted); font-family: var(--font-mono); }
+
+  #notes-drawer {
+    position: fixed;
+    right: 0; top: 57px; bottom: 41px;
+    width: 380px;
+    background: #0f121a;
+    border-left: 1px solid var(--border);
+    padding: 20px;
+    box-shadow: -10px 0 30px rgba(0,0,0,0.5);
+    display: none;
+    flex-direction: column;
+    z-index: 50;
+  }
+  #notes-drawer.open { display: flex; }
+  .notes-header { font-family: var(--font-display); font-size: 1rem; font-weight: 700; color: var(--accent); margin-bottom: 12px; }
+  .notes-body { flex: 1; overflow-y: auto; font-size: 0.88rem; line-height: 1.65; color: #cbd5e1; }
+  
+  #overview-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(9, 11, 16, 0.94);
+    backdrop-filter: blur(8px);
+    z-index: 100;
+    padding: 40px;
+    display: none;
+    flex-direction: column;
+  }
+  #overview-modal.open { display: flex; }
+  .overview-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+  .overview-header h3 { font-family: var(--font-display); font-size: 1.4rem; color: #fff; }
+  .overview-grid {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 14px;
+    overflow-y: auto;
+  }
+  .overview-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    cursor: pointer;
+    transition: all 0.18s;
+  }
+  .overview-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .overview-num { font-family: var(--font-mono); font-size: 0.7rem; color: var(--accent); margin-bottom: 4px; }
+  .overview-title { font-size: 0.75rem; color: #fff; font-weight: 600; line-height: 1.3; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M12 2v20M4.93 4.93l14.14 14.14M2 12h20M4.93 19.07l14.14-14.14" stroke="#22d3c4"/>
+    </svg>
+    <div>
+      <h1>HelixZero<span>-CMS</span></h1>
+      <p>siRNA Chemical Modification Scanner & ML Architecture</p>
+    </div>
+  </div>
+  
+  <div class="header-center">
+    <div class="live-badge">PRODUCTION ENGINE ACTIVE</div>
+    <div class="slide-counter" id="slide-indicator">SLIDE 01 / 18</div>
+  </div>
+  
+  <div class="header-actions">
+    <button class="btn" onclick="prevSlide()">◀ Prev</button>
+    <button class="btn btn-accent" onclick="nextSlide()">Next ▶</button>
+    <button class="btn" onclick="toggleOverview()">▦ Overview</button>
+    <button class="btn" onclick="toggleNotes()">📝 Notes</button>
+    <button class="btn" onclick="toggleFullscreen()">⛶ Fullscreen</button>
+  </div>
+</header>
+
+<main>
+
+        <section class='slide active' id='slide-1' data-slide='1'>
+            <div class='slide-header'>
+                <div class='slide-eyebrow'>EXECUTIVE OVERVIEW - PLATFORM ARCHITECTURE</div>
+                <div class='slide-title-row'>
+                    <h2 class='slide-title'>HelixZero-CMS: Production siRNA and RNAi Design Platform</h2>
+                    <div class='badges-group'><span class='badge-pill'>PRODUCTION ACTIVE</span><span class='badge-pill'>RNAi / siRNA THERAPEUTICS</span><span class='badge-pill'>C-DAC PUNE HPC-M&BA</span></div>
+                </div>
+                <div class='slide-subtitle'>FastAPI Microservice, 577-D Multi-Modal Feature Extraction, and Hierarchical Machine Learning</div>
+            </div>
+            <div class='slide-body'>
+                <div class='cards-container cards-count-2'>
+                    
+            <div class='card border-cyan'>
+                <div class='card-title'>Core Platform Scope and Engineering</div>
+                
+                
+                <ul>
+                    <li><strong>Target Biological Modality:</strong> Specifically engineered for <strong>double-stranded RNAi / siRNA therapeutics</strong> (21-mer duplexes acting through the cellular RISC / Argonaute-2 pathway), strictly distinguished from single-stranded antisense oligonucleotides (ASOs).</li>
+                    <li><strong>Production Software Stack:</strong> Python 3.11 with a modular FastAPI microservice architecture, designed for rapid whole-transcriptome scanning and real-time combinatorial optimization.</li>
+                    <li><strong>Hierarchical Design Workflow:</strong> mRNA sequence ingestion -> 21-mer sliding window -> 577-D multi-modal vectorization -> Hierarchical ML potency prediction -> 2-bit packed safety audit -> Pareto-TOPSIS candidate ranking.</li>
+                    <li><strong>Current Operational Scope:</strong> High-throughput inference operates without real-time 3D Ago2 atomic docking; structural compatibility is maintained via calibrated biophysical rules and spatial clearances.</li>
+                </ul>
+                
+                
+            </div>
+            
+            <div class='card border-purple'>
+                <div class='card-title'>Key Platform Performance Metrics</div>
+                
+                
+                <div class='stats-grid'><div class='stat-box'><div class='stat-val'>577-D</div><div class='stat-label'>Multi-Modal Feature Vector</div><div class='stat-sub'>Positional + Deep Embeddings + Physics</div></div><div class='stat-box'><div class='stat-val'>< 25 ms</div><div class='stat-label'>Model Inference Latency</div><div class='stat-sub'>CatBoost Symmetric Oblivious Trees</div></div><div class='stat-box'><div class='stat-val'>~3,700</div><div class='stat-label'>Screening Throughput</div><div class='stat-sub'>Candidate siRNAs Evaluated / Second</div></div><div class='stat-box'><div class='stat-val'>r = 0.8187</div><div class='stat-label'>Held-Out Potency Accuracy</div><div class='stat-sub'>Zero-Leakage Test Split (N=7,674, R² = 0.6655)</div></div></div>
+            </div>
+            
+                </div>
+            </div>
+            <div class='slide-notes' style='display:none;'>Good morning everyone. Today, I am honored to present the software architecture and machine learning engineering behind HelixZero. HelixZero is a production-grade software platform specifically designed for the discovery, screening, and chemical optimization of therapeutic small interfering RNAs—or siRNAs—operating through the RNA interference (RNAi) pathway. Unlike single-stranded antisense oligonucleotides (ASOs), our system focuses strictly on double-stranded 21-mer siRNA therapeutics that load into the cellular RISC complex. Built on Python 3.11 with a high-performance FastAPI microservice backend, HelixZero screens thousands of candidate siRNAs per second, extracts a 577-dimensional multi-modal feature vector, and uses hierarchical machine learning to predict intrinsic potency and dose response.</div>
+        </section>
+        
+        <section class='slide ' id='slide-2' data-slide='2'>
+            <div class='slide-header'>
+                <div class='slide-eyebrow'>PROBLEM SPACE - BIOPHYSICAL CONSTRAINTS</div>
+                <div class='slide-title-row'>
+                    <h2 class='slide-title'>The Biophysical and Computational Bottlenecks of siRNA Design</h2>
+                    <div class='badges-group'><span class='badge-pill'>BIOLOGICAL REALITY</span><span class='badge-pill'>COMBINATORIAL EXPLOSION</span><span class='badge-pill'>CONCENTRATION CONFOUNDING</span></div>
+                </div>
+                <div class='slide-subtitle'>Why Traditional Bioinformatics and Standard Machine Learning Fail on Modified RNAi Drugs</div>
+            </div>
+            <div class='slide-body'>
+                <div class='cards-container cards-count-2'>
+                    
+            <div class='card border-rose'>
+                <div class='card-title'>Biological Realities vs. Software Constraints</div>
+                
+                
+                <ul>
+                    <li><strong>Exhaustive 21-Mer Requirement:</strong> Human Argonaute-2 sterically demands a 21-nucleotide duplex with 2-nucleotide 3-prime overhangs. Software must evaluate every overlapping 21-mer across full-length mRNA transcripts (up to 10,000+ nucleotides).</li>
+                    <li><strong>Chemical Discontinuity:</strong> Commercial siRNAs are <strong>100% chemically modified</strong> (2'-OMe, 2'-F, phosphorothioate backbones, GalNAc conjugates). Naked sequence algorithms suffer complete failure on modified duplexes (<strong>r = 0.1771, R² = -0.0901</strong>).</li>
+                    <li><strong>The Concentration Confounder:</strong> Biological assays measure percentage knockdown at arbitrary doses (from 0.001 nM to 100 nM). Single-label regression conflates intrinsic molecular potency with exposure dose.</li>
+                    <li><strong>Combinatorial Explosion:</strong> A 21-mer duplex with 42 nucleotide slots and 30 chemistries represents <strong>30^42 (approximately 10^62)</strong> possible states, requiring intelligent guided search.</li>
+                </ul>
+                
+                
+            </div>
+            
+            <div class='card border-purple'>
+                <div class='card-title'>Mentor Literature Touchpoint - Oligonucleotide Biophysics</div>
+                
+                <div class='mentor-box'>
+                    <div class='mentor-header'>
+                        <span class='mentor-pill'>CDAC: MENTOR RESEARCH ALIGNMENT</span>
+                        <span class='mentor-name'>Dr. Uddhavesh Sonavane (HOD) & Mallikarjunachari V. N. Uppuladinne (Mentor)</span>
+                    </div>
+                    <div class='mentor-citation'>📄 J. Biomol. Struct. Dyn. (2019) 37(18): 4739–4750</div>
+                </div>
+                
+                
+                <p>In their 2019 JBSD paper on antisense gapmer-RNA duplexes, Sonavane sir and Mallikarjunachari sir demonstrated that chemical substitutions (such as LNA, MOE, and phosphorothioate linkages) fundamentally remodel duplex hydration shells, backbone dihedral angles, and thermal stability (Tm), while requiring strict preservation of central catalytic cleavage geometry.</p>
+                <p style='margin-top:8px;'><strong>Engineering Translation to RNAi:</strong> While single-stranded ASOs recruit RNase H and siRNAs recruit Argonaute-2, the underlying physical chemistry is shared: chemical modifications alter A-form helical geometry and steric clearance. A software model that treats RNA as a naive 4-letter alphabet cannot generalize to chemically engineered siRNA therapeutics.</p>
+                
+                
+            </div>
+            
+                </div>
+            </div>
+            <div class='slide-notes' style='display:none;'>Here we confront the core problem in RNA therapeutics: naked sequence models fail catastrophically when applied to chemically modified siRNAs, showing negative R-squared. Every commercial siRNA drug today is heavily modified. In their 2019 paper on antisense gapmers, Sonavane sir and Mallikarjunachari sir showed that modifications like LNA, MOE, and phosphorothioates remodel hydration shells and backbone flexibility. While ASOs recruit RNase H and siRNAs recruit Argonaute-2, both demand strict preservation of catalytic geometry. A model without chemical awareness is completely blind to these effects.</div>
+        </section>
+        
+        <section class='slide ' id='slide-3' data-slide='3'>
+            <div class='slide-header'>
+                <div class='slide-eyebrow'>SYSTEM TOPOLOGY - 5-TIER PIPELINE</div>
+                <div class='slide-title-row'>
+                    <h2 class='slide-title'>System Topology: The 5-Tier Hierarchical Engineering Pipeline</h2>
+                    <div class='badges-group'><span class='badge-pill'>MODULAR DECOUPLING</span><span class='badge-pill'>FAST INFERENCE</span><span class='badge-pill'>MULTI-TIERED PIPELINE</span></div>
+                </div>
+                <div class='slide-subtitle'>End-to-End Modular Decoupling of Ingestion, Vectorization, ML Inference, and Safety</div>
+            </div>
+            <div class='slide-body'>
+                <div class='cards-container cards-count-2'>
+                    
+            <div class='card border-cyan'>
+                <div class='card-title'>5-Tier Pipeline Walkthrough</div>
+                
+                
+                <div class='flow-step'><strong>Tier 1 - High-Speed Ingestion & Sliding Window:</strong> <code>sirna_generator.py</code> slides a 21-mer window across mRNA, computing antisense duplexes with O(1) translation.</div>
+                <div class='flow-step'><strong>Tier 2 - 577-D Feature Extraction Engine:</strong> <code>features_v4.py</code> vectorizes positional chemistry (444-D), RNA foundation embeddings (128-D), and ViennaRNA thermodynamics (5-D).</div>
+                <div class='flow-step'><strong>Tier 3 - Multi-Engine Machine Learning Suite:</strong> Model A (LightGBM, 214-D), Model B v4 (CatBoost, 577-D), and IEEE v5 Hierarchical Potency & Hill Sigmoid Regressors.</div>
+                <div class='flow-step'><strong>Tier 4 - Biophysical Guardrails & Safety Engine:</strong> 7 penalty modules (nuclease, TLR7/8, RISC asymmetry) + 2-bit packed transcriptome off-target search.</div>
+                <div class='flow-step'><strong>Tier 5 - Combinatorial Optimization & Ranking:</strong> Multi-slot beam search (Width = 20) + Pareto-TOPSIS multi-criteria decision making.</div>
+                
+                
+            </div>
+            
+            <div class='card border-emerald'>
+                <div class='card-title'>Design Principle: Avoid Monolithic Collapse</div>
+                
+                
+                <ul>
+                    <li><strong>Decoupled Responsibilities:</strong> Whole-transcriptome sequence filtering (< 1 ms) is completely decoupled from heavy chemical potency evaluation and dose-response modeling.</li>
+                    <li><strong>Independent Auditing:</strong> Each tier can be unit-tested and calibrated against biological gold standards independently.</li>
+                    <li><strong>Pluggable Model Backends:</strong> Fast switching between CatBoost, GNN, Ensemble, and IEEE v5 via the central model registry.</li>
+                </ul>
+                
+                
+            </div>
+            
+                </div>
+            </div>
+            <div class='slide-notes' style='display:none;'>Slide 3 presents the overall system topology. Instead of a monolithic black-box neural net that tries to predict everything at once, HelixZero decouples the software into five distinct tiers: Tier 1 handles sequence ingestion and sliding window; Tier 2 extracts our 577-D multi-modal signature; Tier 3 runs our gradient-boosted machine learning engines; Tier 4 enforces biophysical and safety guardrails; and Tier 5 performs combinatorial beam search and Pareto-TOPSIS ranking.</div>
+        </section>
+        
+        <section class='slide ' id='slide-4' data-slide='4'>
+            <div class='slide-header'>
+                <div class='slide-eyebrow'>TIER 1 - INGESTION - SLIDING WINDOW ENGINE</div>
+                <div class='slide-title-row'>
+                    <h2 class='slide-title'>Tier 1 - Ingestion: Exhaustive 21-Mer Sliding Window and O(1) Translation</h2>
+                    <div class='badges-group'><span class='badge-pill'>O(1) REVERSE COMPLEMENT</span><span class='badge-pill'>DSIRNA PROCESSING</span><span class='badge-pill'>ZERO HEAP OVERHEAD</span></div>
+                </div>
+                <div class='slide-subtitle'>Generating Thousands of Therapeutic Candidates in Milliseconds via Compiled C Translation</div>
+            </div>
+            <div class='slide-body'>
+                <div class='cards-container cards-count-2'>
+                    
+            <div class='card border-cyan'>
+                <div class='card-title'>Sliding Window Complexity & O(1) Translation</div>
+                
+                
+                <ul>
+                    <li><strong>Exhaustive Sliding Window:</strong> For an mRNA of length L, the engine generates (L - 21 + 1) overlapping 21-mer candidates. For a 3,000-nucleotide mRNA, 2,980 candidates are created in <strong>under 5 milliseconds</strong>.</li>
+                    <li><strong>The Reverse Complement Bottleneck:</strong> Naive string loops or dictionary lookups trigger Python heap memory churn. HelixZero uses compiled C-level translation tables:</li>
+                </ul>
+                <pre><code>_RNA_COMPLEMENT = str.maketrans("AUGC", "UACG")
+
+def _calculate_reverse_complement(sequence: str) -> str:
+    # Zero intermediate heap allocations; runs at native C speed
+    return sequence.translate(_RNA_COMPLEMENT)[::-1]</code></pre>
+                
+                
+            </div>
+            
+            <div class='card border-emerald'>
+                <div class='card-title'>DsiRNA (Dicer-Substrate 27-Mer) Cleavage Emulation</div>
+                
+                
+                <ul>
+                    <li><strong>Biomimetic DsiRNA Cleavage:</strong> Dicer substrates (27-mers) are cleaved endogenously by human Dicer to yield mature 21-mer duplexes (<em>Kim et al., Nature Biotechnology 2005</em>).</li>
+                    <li><strong>Deterministic Terminal Rule:</strong> Dicer anchors at the 2-nucleotide 3-prime overhang of the sense strand and cleaves 21 nucleotides inward:</li>
+                </ul>
+                <pre><code>def generate_dsirna_candidate(dsirna_sequence: str):
+    # Extracts the exact mature 21-mer therapeutic drug product
+    sense_strand = dsirna_sequence[-21:]
+    return SiRNACandidate(sense=sense_strand, ...)</code></pre>
+                
+                
+            </div>
+            
+                </div>
+            </div>
+            <div class='slide-notes' style='display:none;'>In Tier 1, sliding window generation is the first computational bottleneck. A single long transcript like TTR or PCSK9 generates thousands of candidates. Using Python's str.maketrans at the compiled C-level, we compute reverse complements with zero heap allocation in under 5 milliseconds. We also handle 27-mer Dicer-substrate duplexes by deterministic 21-mer terminal cleavage mapping.</div>
+        </section>
+        
+        <section class='slide ' id='slide-5' data-slide='5'>
+            <div class='slide-header'>
+                <div class='slide-eyebrow'>DATA GOVERNANCE - TAXONOMY & SPLITTING</div>
+                <div class='slide-title-row'>
+                    <h2 class='slide-title'>Data Governance: 10-Resource Taxonomy and Zero-Leakage GroupKFold Protocol</h2>
+                    <div class='badges-group'><span class='badge-pill'>N = 40,255 ASSAYS</span><span class='badge-pill'>ZERO-LEAKAGE GKF</span><span class='badge-pill'>STRICT PEER-REVIEW STANDARDS</span></div>
+                </div>
+                <div class='slide-subtitle'>Curating 40,255 Assays with Strict Sequence-Identity Partitioning to Prevent Model Hallucination</div>
+            </div>
+            <div class='slide-body'>
+                <div class='cards-container cards-count-2'>
+                    
+            <div class='card border-cyan'>
+                <div class='card-title'>10-Resource Dataset Taxonomy</div>
+                
+                
+                <table class='deck-table'>
+                    <thead><tr><th>Dataset</th><th>Sample Count</th><th>Type</th><th>Provenance & Role</th></tr></thead>
+                    <tbody>
+                        <tr><td><strong>CMsiRNAdb Master</strong></td><td>40,255</td><td>Mixed</td><td>37,946 BRONZE (68 doses) + 2,309 GOLD Hill curves</td></tr>
+                        <tr><td><strong>Huesken Held-Out</strong></td><td>2,361</td><td>Naked</td><td>Canonical gold standard across 34 mRNAs (Nat Biotechnol)</td></tr>
+                        <tr><td><strong>Takayuki Screen</strong></td><td>702</td><td>Naked</td><td>Unmodified validation screen across multi-target mRNAs</td></tr>
+                        <tr><td><strong>Mixset 7-Studies</strong></td><td>472</td><td>Naked</td><td>Multi-lab consolidated unmodified benchmark</td></tr>
+                        <tr><td><strong>CMsiRNAdb Homogeneous</strong></td><td>472</td><td>Modified</td><td>Uniform chemical backbones (held-out test)</td></tr>
+                        <tr><td><strong>CMsiRNAdb Heterogeneous</strong></td><td>2,576</td><td>Modified</td><td>Complex clinical modifications (alternating 2'-F/2'-OMe)</td></tr>
+                    </tbody>
+                </table>
+                
+                
+            </div>
+            
+            <div class='card border-rose'>
+                <div class='card-title'>The Zero-Leakage GroupKFold Protocol</div>
+                
+                
+                <ul>
+                    <li><strong>The Sequence Leakage Trap:</strong> Standard random train/test splits leak identical or 1-nucleotide shifted antisense sequences, artificially boosting correlation to r > 0.90.</li>
+                    <li><strong>Rigorous GroupKFold Partitioning:</strong> Folds are partitioned strictly on <strong>unique core antisense sequence</strong>. No test sequence or chemical analog ever appears in training:</li>
+                </ul>
+                <pre><code># Programmatic assertion in all training loops
+val_seqs = set(groups[val_idx])
+tr_seqs = set(groups[tr_idx])
+assert len(val_seqs.intersection(tr_seqs)) == 0, "Leakage detected!"</code></pre>
+                
+                
+            </div>
+            
+                </div>
+            </div>
+            <div class='slide-notes' style='display:none;'>Slide 5 covers our training data and strict validation protocol. We consolidated 10 datasets totaling over 40,000 biological assays. The most critical software standard here is zero sequence leakage. If you split randomly, identical sequences end up in train and test, inflating accuracy. We enforce GroupKFold grouped strictly on the core antisense sequence, programmatically verifying zero sequence overlap between folds.</div>
+        </section>
+        
+        <section class='slide ' id='slide-6' data-slide='6'>
+            <div class='slide-header'>
+                <div class='slide-eyebrow'>DATA SCHEMA - ORTHOGONAL CHEMICAL ONTOLOGY</div>
+                <div class='slide-title-row'>
+                    <h2 class='slide-title'>Data Schema: Multi-Slot Chemical Schema and Orthogonal NucSlot Dataclass</h2>
+                    <div class='badges-group'><span class='badge-pill'>CHEM_SCHEMA.PY</span><span class='badge-pill'>6-ATTRIBUTE SLOTS</span><span class='badge-pill'>50+ REGEX PARSERS</span></div>
+                </div>
+                <div class='slide-subtitle'>Fixing the Broken Legacy 1-Character Serialization with Typed 6-Attribute Nucleotide Slots</div>
+            </div>
+            <div class='slide-body'>
+                <div class='cards-container cards-count-2'>
+                    
+            <div class='card border-rose'>
+                <div class='card-title'>The Broken 1-Char String Flaw vs. NucSlot Fix</div>
+                
+                
+                <ul>
+                    <li><strong>Legacy Serialization Bug:</strong> Legacy databases used single ASCII characters (M = 2'-OMe, F = 2'-F, S = phosphorothioate). Sugar, linkage, and base became mutually exclusive. A nucleotide could not have a 2'-F sugar <em>and</em> a phosphorothioate linkage!</li>
+                    <li><strong>The Orthogonal 6-Attribute Schema (chem_schema.py):</strong></li>
+                </ul>
+                <pre><code>@dataclass
+class NucSlot:
+    base: str                         # A, C, G, U (base never lost)
+    sugar: str = "ribo"               # ribo, 2F, 2OMe, LNA, MOE, deoxyribo
+    linkage_3p: str = "PO"            # PO, PS, PS2, Boranophosphate
+    base_mod: Optional[str] = None    # m5C, pseudouridine, inosine
+    terminal_5p: Optional[str] = None # 5P, 5VP (vinylphosphonate), 5OMeCap
+    conjugate: Optional[str] = None   # GalNAc, Cholesterol, PEG
+    raw_name: str = ""                # Preserves original IUPAC string</code></pre>
+                
+                
+            </div>
+            
+            <div class='card border-purple'>
+                <div class='card-title'>Mentor Literature Touchpoint - Sugar Pucker & Conformation</div>
+                
+                <div class='mentor-box'>
+                    <div class='mentor-header'>
+                        <span class='mentor-pill'>CDAC: MENTOR RESEARCH ALIGNMENT</span>
+                        <span class='mentor-name'>Mallikarjunachari V. N. Uppuladinne (Mentor)</span>
+                    </div>
+                    <div class='mentor-citation'>📄 Quantum Chemical Studies of 2'-4' Conformationally Restricted Monomers</div>
+                </div>
+                
+                
+                <p>Mallikarjunachari sir's quantum chemical research proved that 2'-substituents (e.g., 2'-F vs. 2'-OMe) dictate whether the furanose adopts a rigid <strong>C3'-endo (North)</strong> or <strong>C2'-endo (South)</strong> conformation, altering A-form geometry and van der Waals envelopes independently from phosphate linkages.</p>
+                <p style='margin-top:8px;'><strong>Engineering Translation:</strong> Our NucSlot dataclass explicitly decouples sugar puckering from internucleotide phosphate linkages, allowing HelixZero to accurately model coexisting 2'-F sugars and phosphorothioate backbones.</p>
+                
+                
+            </div>
+            
+                </div>
+            </div>
+            <div class='slide-notes' style='display:none;'>Slide 6 explains a major software refactoring. Historical databases stored modifications as a single string of letters like 'M' or 'F', making sugar and linkage mutually exclusive. As Mallikarjunachari sir's quantum chemical research demonstrated, sugar pucker and internucleotide linkages are independent physical variables. Our NucSlot dataclass decouples base, sugar, linkage, base modifications, terminal caps, and delivery conjugates into orthogonal attributes.</div>
+        </section>
+        
+        <section class='slide ' id='slide-7' data-slide='7'>
+            <div class='slide-header'>
+                <div class='slide-eyebrow'>FEATURE ENGINEERING - 577-DIMENSIONAL VECTOR</div>
+                <div class='slide-title-row'>
+                    <h2 class='slide-title'>Feature Engineering: The 577-Dimensional Multi-Modal Signature</h2>
+                    <div class='badges-group'><span class='badge-pill'>577-D SIGNATURE</span><span class='badge-pill'>FEATURES_V4.PY</span><span class='badge-pill'>MULTI-MODAL FUSION</span></div>
+                </div>
+                <div class='slide-subtitle'>Vectorizing Positional Stereochemistry, Pretrained Foundation Models, and Thermodynamics</div>
+            </div>
+            <div class='slide-body'>
+                <div class='cards-container cards-count-2'>
+                    
+            <div class='card border-cyan'>
+                <div class='card-title'>Exact 577-D Mathematical Breakdown</div>
+                
+                
+                <div class='flow-step'><strong>Feature Vector Composition (577 Total Dimensions):</strong><br>
+                444-D Positional Chemistry + 64-D RNA-FM Embeddings + 64-D RNA-Ernie Embeddings + 5-D ViennaRNA Physics</div>
+                <table class='deck-table'>
+                    <thead><tr><th>Feature Block</th><th>Dims</th><th>Source Engine</th><th>Biological & Physical Meaning</th></tr></thead>
+                    <tbody>
+                        <tr><td><strong>Positional v2 (Slots)</strong></td><td><strong>420</strong></td><td>Multi-slot encoding</td><td>42 slots × 10 attributes: base, sugar (2F/2OMe/LNA), linkage (PO/PS), caps</td></tr>
+                        <tr><td><strong>Global Chemistry</strong></td><td><strong>24</strong></td><td>Descriptor engine</td><td>Total 2'-F/2'-OMe ratio, terminal PS count, total charge, duplex GC%</td></tr>
+                        <tr><td><strong>RNA-FM Foundation</strong></td><td><strong>64</strong></td><td>12-layer Transformer (PCA)</td><td>32-D sense + 32-D antisense evolutionary and structural representations</td></tr>
+                        <tr><td><strong>RNA-Ernie Context</strong></td><td><strong>64</strong></td><td>Structural Transformer (PCA)</td><td>32-D sense + 32-D antisense secondary structure awareness embeddings</td></tr>
+                        <tr><td><strong>ViennaRNA Physics</strong></td><td><strong>5</strong></td><td>ViennaRNA C-API</td><td>Sense MFE, Antisense MFE, Duplex ΔG, Ensemble Diversity, GC fraction</td></tr>
+                    </tbody>
+                </table>
+                
+                
+            </div>
+            
+            <div class='card border-emerald'>
+                <div class='card-title'>ViennaRNA Real Biophysics (5 Dimensions)</div>
+                
+                
+                <ul>
+                    <li><strong>Real Physical Folding:</strong> Evaluates Turner nearest-neighbor free energy parameters via compiled C bindings (RNA.fold, RNA.duplexfold):</li>
+                    <li>1. Sense strand Minimum Free Energy (MFE, normalized between -50 and 0 kcal/mol).</li>
+                    <li>2. Antisense strand MFE (normalized between -50 and 0 kcal/mol).</li>
+                    <li>3. Duplex hybridization binding energy (normalized between -70 and 0 kcal/mol).</li>
+                    <li>4. Ensemble structural diversity metric (base-pair distance / 21).</li>
+                    <li>5. Combined duplex GC content fraction.</li>
+                </ul>
+                
+                
+            </div>
+            
+                </div>
+            </div>
+            <div class='slide-notes' style='display:none;'>Slide 7 shows our exact 577-dimensional feature stack in features_v4.py. We have 444 dimensions of positional and global chemistry, 128 dimensions from pre-trained RNA foundation models—RNA-FM and RNA-Ernie—compressed via PCA, and 5 dimensions of physical folding thermodynamics from the ViennaRNA C-API.</div>
+        </section>
+        
+        <section class='slide ' id='slide-8' data-slide='8'>
+            <div class='slide-header'>
+                <div class='slide-eyebrow'>FEATURE PIPELINE - BATCH EXTRACTION & FAULT TOLERANCE</div>
+                <div class='slide-title-row'>
+                    <h2 class='slide-title'>Feature Pipeline: Batch Vectorization and ViennaRNA Integration</h2>
+                    <div class='badges-group'><span class='badge-pill'>BATCH NUMPY ARRAYS</span><span class='badge-pill'>C-EXTENSION INTEGRATION</span><span class='badge-pill'>FAULT TOLERANCE</span></div>
+                </div>
+                <div class='slide-subtitle'>High-Performance Vector Assembly at ~8,400 Candidates/Second with Graceful Fallbacks</div>
+            </div>
+            <div class='slide-body'>
+                <div class='cards-container cards-count-2'>
+                    
+            <div class='card border-cyan'>
+                <div class='card-title'>Code Implementation: features_v4.py</div>
+                
+                
+                <pre><code># smepred/src/features_v4.py
+def build_features_v4(sense_slots, anti_slots) -> np.ndarray:
+    v2    = build_features_v2(sense_slots, anti_slots)      # 444-D
+    fm    = _rnafm_features(sense_slots, anti_slots)        # 64-D
+    ernie = _rnaernie_features(sense_slots, anti_slots)     # 64-D
+    vr    = _vienna_features(sense_slots, anti_slots)       # 5-D
+    return np.concatenate([v2, fm, ernie, vr])             # 577-D Float32
+
+def batch_features_v4(sense_list, anti_list) -> np.ndarray:
+    # Pre-allocates contiguous C-ordered array: shape (N, 577)
+    X = np.zeros((len(sense_list), 577), dtype=np.float32)
+    for i, (s, a) in enumerate(zip(sense_list, anti_list)):
+        X[i] = build_features_v4(s, a)
+    return X</code></pre>
+                
+                
+            </div>
+            
+            <div class='card border-emerald'>
+                <div class='card-title'>Throughput & Resilience Engineering</div>
+                
+                
+                <ul>
+                    <li><strong>Memory-Efficient Vectorization:</strong> Pre-allocating contiguous float32 arrays avoids memory fragmentation, achieving <strong>~8,400 candidate vectors/second</strong>.</li>
+                    <li><strong>Graceful C-Extension Fallback:</strong> If ViennaRNA shared libraries are missing in a lightweight execution environment, the engine switches to vectorized nearest-neighbor GC-proxy thermodynamics without pipeline crashing.</li>
+                    <li><strong>PCA Projection Caching:</strong> Pre-computed orthogonal projection matrices allow instantaneous 640-D to 32-D dimensionality reduction for foundation model embeddings.</li>
+                </ul>
+                
+                
+            </div>
+            
+                </div>
+            </div>
+            <div class='slide-notes' style='display:none;'>Slide 8 shows how features are built in code. Pre-allocating contiguous C-ordered float32 NumPy arrays gives us a throughput of ~8,400 feature vectors per second on CPU. If the ViennaRNA C-extension is missing in a minimal Docker image, the code doesn't crash; it smoothly falls back to vectorized nearest-neighbor thermodynamics.</div>
+        </section>
+        
+        <section class='slide ' id='slide-9' data-slide='9'>
+            <div class='slide-header'>
+                <div class='slide-eyebrow'>THE 3-CARD FRAMEWORK - ML SPECIALIZATION</div>
+                <div class='slide-title-row'>
+                    <h2 class='slide-title'>The 3-Card Framework: Model A (Naked), Model B v4 (Chemistry), and Card 3 (Biophysics)</h2>
+                    <div class='badges-group'><span class='badge-pill'>MODEL A (LIGHTGBM)</span><span class='badge-pill'>MODEL B V4 (CATBOOST)</span><span class='badge-pill'>CARD 3 (BIOPHYSICS)</span></div>
+                </div>
+                <div class='slide-subtitle'>Decoupling Sequence Screening, Chemical Potency, and Clinical Biophysical Gating</div>
+            </div>
+            <div class='slide-body'>
+                <div class='cards-container cards-count-2'>
+                    
+            <div class='card border-cyan'>
+                <div class='card-title'>The 3-Card Functional Topology</div>
+                
+                
+                <table class='deck-table'>
+                    <thead><tr><th>Card Layer</th><th>Engine</th><th>Features</th><th>Target Objective & Performance</th></tr></thead>
+                    <tbody>
+                        <tr><td><strong>CARD 1: Naked Screen</strong></td><td><strong>Model A (LightGBM)</strong></td><td>214 Descriptors</td><td>Fast sequence screening (< 1 ms). <strong>r = 0.8788</strong> (Takayuki), <strong>r = 0.8044</strong> (Huesken).</td></tr>
+                        <tr><td><strong>CARD 2: Chemical Potency</strong></td><td><strong>Model B v4 (CatBoost)</strong></td><td>577-D Vector</td><td>Chemistry-aware regression (< 25 ms). <strong>r = 0.7401</strong> (Homog), <strong>r = 0.6217</strong> (Heterog).</td></tr>
+                        <tr><td><strong>CARD 3: Biophysics & Lift</strong></td><td><strong>Biophysics Rule Engine</strong></td><td>7 Penalty Engines</td><td>Calibrated 0.12 scaling deducting for nuclease, immune, and synthesis liabilities.</td></tr>
+                    </tbody>
+                </table>
+                
+                
+            </div>
+            
+            <div class='card border-purple'>
+                <div class='card-title'>Mentor Literature Touchpoint - Stacked Descriptors & Ensembles</div>
+                
+                <div class='mentor-box'>
+                    <div class='mentor-header'>
+                        <span class='mentor-pill'>CDAC: MENTOR RESEARCH ALIGNMENT</span>
+                        <span class='mentor-name'>Dr. Vinod Jani & Dr. Uddhavesh Sonavane</span>
+                    </div>
+                    <div class='mentor-citation'>📄 MolToxPred: Small Molecule Toxicity Prediction, RSC Advances (2024) 14: 2197–2207</div>
+                </div>
+                
+                
+                <p>In <em>MolToxPred</em>, Vinod sir and Sonavane sir demonstrated that a stacked model combining LightGBM, Random Forest, and MLP on structured physicochemical descriptors outperformed monolithic architectures (achieving AUROC >88%).</p>
+                <p style='margin-top:8px;'><strong>Engineering Translation:</strong> HelixZero adopts this exact philosophy: rather than forcing a single network to learn sequence and chemical rules simultaneously, we decouple sequence screening (LightGBM) from chemical potency (CatBoost), preventing feature dominance.</p>
+                
+                
+            </div>
+            
+                </div>
+            </div>
+            <div class='slide-notes' style='display:none;'>Slide 9 presents our 3-Card Framework. Taking inspiration from Vinod sir and Sonavane sir's MolToxPred paper where stacked tree models on structured descriptors proved superior to monolithic deep networks, we separate sequence screening (Model A) from chemical potency (Model B v4) and biophysical penalties. This functional separation guarantees that sequence-level rules don't overwrite chemical modification signals.</div>
+        </section>
+        
+        <section class='slide ' id='slide-10' data-slide='10'>
+            <div class='slide-header'>
+                <div class='slide-eyebrow'>ALGORITHM SELECTION - GBDT EFFICIENCY</div>
+                <div class='slide-title-row'>
+                    <h2 class='slide-title'>Algorithm Selection: Why LightGBM and CatBoost Dominate Tabular Biology</h2>
+                    <div class='badges-group'><span class='badge-pill'>HISTOGRAM GBDT</span><span class='badge-pill'>OBLIVIOUS TREES</span><span class='badge-pill'>ZERO OVERFITTING</span></div>
+                </div>
+                <div class='slide-subtitle'>Oblivious Trees, Histogram Binning, Deterministic Latency, and Tabular Generalization</div>
+            </div>
+            <div class='slide-body'>
+                <div class='cards-container cards-count-2'>
+                    
+            <div class='card border-cyan'>
+                <div class='card-title'>Why LightGBM for Model A (Sequence Screening)?</div>
+                
+                
+                <ul>
+                    <li><strong>Histogram Binning:</strong> Discretizes 214 continuous sequence and thermodynamic features into 256 bins, enabling whole-transcriptome inference at <strong>>3,700 candidates/second</strong> on standard CPU.</li>
+                    <li><strong>Leaf-Wise Splitting:</strong> Explores asymmetric, high-order sequence motif interactions (e.g., Reynolds position 1 A/U paired with position 19 GC-clamp).</li>
+                    <li><strong>Failure Mode:</strong> Collapses on chemically modified duplexes (<strong>r = 0.1771</strong>) because naked models assume standard unmodified ribose geometry.</li>
+                </ul>
+                
+                
+            </div>
+            
+            <div class='card border-emerald'>
+                <div class='card-title'>Why CatBoost for Model B v4 & IEEE v5 (Chemical Potency)?</div>
+                
+                
+                <ul>
+                    <li><strong>Symmetric (Oblivious) Trees:</strong> CatBoost applies identical split conditions across entire tree levels, compiling to single-pass cache-friendly memory lookups with latency <strong>under 25 milliseconds</strong>.</li>
+                    <li><strong>Ordered Boosting:</strong> Eliminates target leakage during gradient estimation, essential when dealing with clustered pharmacological modification datasets.</li>
+                    <li><strong>Deep Net Failure on Modified RNA:</strong> End-to-end graph neural networks (e.g., MEG-mod TransformerConv) overfit severely (<strong>r = 0.0631</strong>) due to dataset sparsity in chemical combinations.</li>
+                </ul>
+                
+                
+            </div>
+            
+                </div>
+            </div>
+            <div class='slide-notes' style='display:none;'>Why did we choose LightGBM and CatBoost instead of deep neural networks? Because biological tabular datasets feature sparse, clustered combinations. CatBoost's oblivious symmetric trees evaluate splits simultaneously in hardware cache with deterministic latency under 25 milliseconds, while GNNs overfit severely with an r of 0.06.</div>
+        </section>
+        
+        <section class='slide ' id='slide-11' data-slide='11'>
+            <div class='slide-header'>
+                <div class='slide-eyebrow'>MODEL TRAINING - HYPERPARAMETERS & OBJECTIVES</div>
+                <div class='slide-title-row'>
+                    <h2 class='slide-title'>Model Training: Audited Hyperparameter Configurations and Loss Objectives</h2>
+                    <div class='badges-group'><span class='badge-pill'>AUDITED HYPERPARAMETERS</span><span class='badge-pill'>EARLY STOPPING</span><span class='badge-pill'>RMSE OBJECTIVE</span></div>
+                </div>
+                <div class='slide-subtitle'>Exact Hyperparameter Specifications Across All Production GBDT and GNN Models</div>
+            </div>
+            <div class='slide-body'>
+                <div class='cards-container cards-count-2'>
+                    
+            <div class='card border-cyan'>
+                <div class='card-title'>Production Hyperparameter Matrix</div>
+                
+                
+                <table class='deck-table'>
+                    <thead><tr><th>Hyperparameter</th><th>Model A (LightGBM)</th><th>Model B v4 (CatBoost)</th><th>Module 2 Potency</th><th>Module 3 Dose Response</th><th>MEG-mod GNN</th></tr></thead>
+                    <tbody>
+                        <tr><td><strong>Objective / Loss</strong></td><td>MSE (L2 Loss)</td><td>RMSE</td><td>RMSE</td><td>RMSE</td><td>Smooth L1 Loss</td></tr>
+                        <tr><td><strong>Input Dims</strong></td><td>214 Features</td><td>577 Features</td><td>577 Features</td><td><strong>579 Features</strong></td><td>54-node Graph</td></tr>
+                        <tr><td><strong>Iterations / Trees</strong></td><td>500</td><td>1,500</td><td>1,000</td><td>1,200</td><td>100 Epochs</td></tr>
+                        <tr><td><strong>Learning Rate</strong></td><td>0.050</td><td>0.030</td><td>0.040</td><td>0.035</td><td>0.0001 (AdamW)</td></tr>
+                        <tr><td><strong>Tree Depth</strong></td><td>Unlimited (max 31)</td><td>7</td><td>8</td><td>7</td><td>4-layer TransConv</td></tr>
+                        <tr><td><strong>L2 Regularization</strong></td><td>0.0</td><td>3.0</td><td>4.0</td><td>3.0</td><td>Weight Decay 1e-4</td></tr>
+                        <tr><td><strong>Early Stopping</strong></td><td>30 rounds</td><td>50 rounds</td><td>60 rounds (od_wait)</td><td>50 rounds</td><td>15 epochs</td></tr>
+                        <tr><td><strong>Cross-Validation</strong></td><td>5-Fold GroupKFold</td><td>5-Fold GroupKFold</td><td>5-Fold GroupKFold</td><td>5-Fold GroupKFold</td><td>5-Fold GroupKFold</td></tr>
+                    </tbody>
+                </table>
+                
+                
+            </div>
+            
+            <div class='card border-emerald'>
+                <div class='card-title'>Key Training Architecture Details</div>
+                
+                
+                <ul>
+                    <li><strong>Module 3 Input Dimensionality (579 Dimensions):</strong> Formed by concatenating the 577-D base vector + 1-D predicted pIC50 from Module 2 + 1-D log10(concentration in nM + 1e-6).</li>
+                    <li><strong>Regularization Strategy:</strong> L2 leaf regularization set to 3.0 to 4.0 in CatBoost models suppresses spurious weights from rare chemical modification patterns.</li>
+                </ul>
+                
+                
+            </div>
+            
+                </div>
+            </div>
+            <div class='slide-notes' style='display:none;'>Slide 11 gives our exact training hyperparameters audited directly from code. Notice that Module 3 has 579 inputs: it takes the 577 base features plus the predicted pIC50 from Module 2 and the log-dose. Learning rates are tuned between 0.03 and 0.05 with L2 leaf regularization at 3.0 to 4.0 to penalize rare chemical memorization.</div>
+        </section>
+        
+        <section class='slide ' id='slide-12' data-slide='12'>
+            <div class='slide-header'>
+                <div class='slide-eyebrow'>FLAGSHIP ENGINE - IEEE V5 HIERARCHICAL MODEL</div>
+                <div class='slide-title-row'>
+                    <h2 class='slide-title'>Flagship Engine: IEEE v5 Hierarchical Potency (pIC50) and Hill Modeling</h2>
+                    <div class='badges-group'><span class='badge-pill'>IEEE V5 HIERARCHICAL</span><span class='badge-pill'>pIC50 PREDICTION</span><span class='badge-pill'>HILL SIGMOID</span></div>
+                </div>
+                <div class='slide-subtitle'>Decoupling Intrinsic Potency from Experimental Dose: Predicting Both pIC50 and Concentration Response</div>
+            </div>
+            <div class='slide-body'>
+                <div class='cards-container cards-count-2'>
+                    
+            <div class='card border-cyan'>
+                <div class='card-title'>Two-Stage Hierarchical Mathematical Formulation</div>
+                
+                
+                <div class='flow-step'><strong>Stage 1 - Intrinsic Potency Engine (Module 2 CatBoost):</strong><br>
+                Predicts concentration-independent molecular potency: <strong>pIC50 = -log10(IC50)</strong>.<br>
+                Direct nanomolar conversion: <strong>IC50 (nM) = 10^(9 - pIC50)</strong>.</div>
+                <div class='flow-step'><strong>Stage 2 - Dose-Conditioned Response Engine (Module 3 CatBoost):</strong><br>
+                Evaluates predicted potency alongside assay exposure dose C using an audited 4-parameter Hill sigmoid:<br>
+                <strong>Knockdown % = Minimum + (Maximum - Minimum) / (1 + 10^((log10(IC50) - log10(Dose)) × Hill Slope))</strong></div>
+                
+                
+            </div>
+            
+            <div class='card border-emerald'>
+                <div class='card-title'>Code Implementation: predict_ieee_v5.py</div>
+                
+                
+                <pre><code># Stage 1: Intrinsic Potency (pIC50)
+pred_pIC50 = float(mod2_engine.predict(X_base)[0])
+ic50_nM    = float(10**(9.0 - pred_pIC50))
+
+# Stage 2: Dose-Response (Hill Sigmoid)
+log_conc   = np.log10(conc_nM + 1e-6).reshape(-1, 1)
+X_mod3     = np.hstack([np.array([[pred_pIC50]]), log_conc, X_base]) # 579-D
+pred_kd    = float(np.clip(mod3_engine.predict(X_mod3)[0], 0.0, 100.0))</code></pre>
+                <ul>
+                    <li><strong>Generalization Power:</strong> Enables the user to simulate full dose-response curves (0.01 nM to 100 nM) without retraining for each experimental assay condition.</li>
+                </ul>
+                
+                
+            </div>
+            
+                </div>
+            </div>
+            <div class='slide-notes' style='display:none;'>Slide 12 explains our flagship IEEE v5 engine. In pharmacology, potency and dose are separate variables. Stage 1 takes the 577-D vector and predicts pIC50, which converts to nanomolar IC50. Stage 2 stacks that predicted pIC50 with the log-dose and the base features to compute % knockdown via the Hill equation. This allows scientists to simulate complete concentration curves computationally.</div>
+        </section>
+        
+        <section class='slide ' id='slide-13' data-slide='13'>
+            <div class='slide-header'>
+                <div class='slide-eyebrow'>OPTIMIZATION ENGINE - COMBINATORIAL BEAM SEARCH</div>
+                <div class='slide-title-row'>
+                    <h2 class='slide-title'>Optimization Engine: Combinatorial Chemical Search via Guided Beam Pruning</h2>
+                    <div class='badges-group'><span class='badge-pill'>MODIFICATION_ENGINE.PY</span><span class='badge-pill'>BEAM SEARCH (WIDTH=20)</span><span class='badge-pill'>CHEMICAL VIABILITY RULES</span></div>
+                </div>
+                <div class='slide-subtitle'>Navigating the 30^42 Chemical State Space via Fast CatBoost Scoring and Biological Viability Rules</div>
+            </div>
+            <div class='slide-body'>
+                <div class='cards-container cards-count-2'>
+                    
+            <div class='card border-cyan'>
+                <div class='card-title'>Multi-Slot Beam Search Algorithm</div>
+                
+                
+                <ul>
+                    <li><strong>Step 1 - Single-Mod Scan (1,260 variants):</strong> Evaluates 30 chemistries × 21 positions × 2 strands using Model B v4 in <strong>~150 ms</strong>.</li>
+                    <li><strong>Step 2 - Round-Robin Diversification:</strong> Groups top variants by chemical family (2'-OMe, 2'-F, LNA, MOE, PS) to seed an initial diverse beam of width = 20.</li>
+                    <li><strong>Step 3 - Iterative Expansion Rounds:</strong> Pairs beam candidates with single-mod candidates, applies chemical viability rules, scores viable candidates via CatBoost (< 25 ms), and prunes to top 20.</li>
+                    <li><strong>Step 4 - Final High-Fidelity Rescoring:</strong> Top 100 candidates rescored with the IEEE v5 hierarchical engine.</li>
+                </ul>
+                
+                
+            </div>
+            
+            <div class='card border-purple'>
+                <div class='card-title'>Mentor Literature Touchpoint - TANGO Conformational Search</div>
+                
+                <div class='mentor-box'>
+                    <div class='mentor-header'>
+                        <span class='mentor-pill'>CDAC: MENTOR RESEARCH ALIGNMENT</span>
+                        <span class='mentor-name'>Mallikarjunachari V. N. Uppuladinne & Dr. Vinod Jani</span>
+                    </div>
+                    <div class='mentor-citation'>📄 TANGO: Conformation Generation and Optimization Tool, J. Comput. Chem. (2019) 40: 2119–2127</div>
+                </div>
+                
+                
+                <p>In <em>TANGO</em>, the C-DAC group solved high-dimensional conformational searches by pairing systematic torsional rotation with energy optimization.</p>
+                <p style='margin-top:8px;'><strong>Engineering Translation:</strong> HelixZero applies this exact concept to chemical space: guided beam expansion avoids combinatorial traps in the 30^42 landscape, while hard viability constraints act as steric energy cutoffs.</p>
+                <p style='margin-top:8px;'><strong>Hard Constraints:</strong> 5'-VP/5'-P only at position 1; 3'-P only at position 21; max 1 conjugate per strand; max 2 consecutive bulky mods (LNA/MOE).</p>
+                
+                
+            </div>
+            
+                </div>
+            </div>
+            <div class='slide-notes' style='display:none;'>Slide 13 details our combinatorial optimization engine. With 42 positions and 30 chemistries, the search space is 30 to the power of 42. Inspired by Mallikarjunachari sir and Vinod sir's TANGO tool, we run an intelligent beam search. A single-mod scan evaluates 1,260 variants in ~150 ms, creates a diverse initial beam of 20, expands iteratively, prunes inviable chemistries, and rescores the top 100 with IEEE v5.</div>
+        </section>
+        
+        <section class='slide ' id='slide-14' data-slide='14'>
+            <div class='slide-header'>
+                <div class='slide-eyebrow'>REALITY FILTERS - BIOPHYSICAL GUARDRAILS</div>
+                <div class='slide-title-row'>
+                    <h2 class='slide-title'>Reality Filters: 7-Module Biophysical Guardrails and Calibrated 0.12 Scaling</h2>
+                    <div class='badges-group'><span class='badge-pill'>7 PENALTY MODULES</span><span class='badge-pill'>0.12 SCALING CONSTANT</span><span class='badge-pill'>SYNTHESIS & SERUM RULES</span></div>
+                </div>
+                <div class='slide-subtitle'>Literature-Grounded Deductions Preventing Synthetically Inviable or Immunogenic Candidates</div>
+            </div>
+            <div class='slide-body'>
+                <div class='cards-container cards-count-2'>
+                    
+            <div class='card border-cyan'>
+                <div class='card-title'>The 7 Biophysical Penalty Engines (biophysics.py)</div>
+                
+                
+                <table class='deck-table'>
+                    <thead><tr><th>Module</th><th>Max Penalty</th><th>Biological Rationale & Literature Anchor</th></tr></thead>
+                    <tbody>
+                        <tr><td><strong>1. Nuclease</strong></td><td>20.0 pts</td><td>Unprotected 2'-OH in endoribonuclease cleavage sites (Alnylam AT3 pattern)</td></tr>
+                        <tr><td><strong>2. Immuno (TLR7/8)</strong></td><td>28.0 pts</td><td>Unmasked GU-rich motifs (GUUGU, UGU) triggering cytokine storm (Judge 2005)</td></tr>
+                        <tr><td><strong>3. RISC Loading</strong></td><td>60.0 pts</td><td>Inverted thermodynamic asymmetry favoring passenger strand loading (Schwarz 2003)</td></tr>
+                        <tr><td><strong>4. Thermo End</strong></td><td>20.0 pts</td><td>Excessive 5' antisense GC-clamp preventing helicase unwinding</td></tr>
+                        <tr><td><strong>5. Serum Stability</strong></td><td>60.0 pts</td><td>Missing 3' dinucleotide PS protection; fatal 5' AS GalNAc (Weingärtner 2020)</td></tr>
+                        <tr><td><strong>6. SPOS Synthesis</strong></td><td>25.0 pts</td><td>G-quadruplex runs (G >= 4) causing solid-phase synthesis column failure</td></tr>
+                        <tr><td><strong>7. Chemistry Tier</strong></td><td>40.0 pts</td><td>High-risk unapproved chemical entities vs. clinical FDA/EMA benchmarks</td></tr>
+                    </tbody>
+                </table>
+                
+                
+            </div>
+            
+            <div class='card border-emerald'>
+                <div class='card-title'>The 0.12 Calibration Constant</div>
+                
+                
+                <ul>
+                    <li><strong>Calibrated Equation:</strong> Adjusted Score = max(0, min(100, Raw Score - (0.12 × Total Penalty Points))) × Complementarity Gate</li>
+                    <li><strong>Clinical Calibration:</strong> The 0.12 scaling factor was calibrated against FDA commercial drugs (Patisiran, Givosiran, Inclisiran), ensuring approved drugs retain <strong>78% - 90%</strong> of their raw ML score while heavily penalizing unstable constructs.</li>
+                </ul>
+                
+                
+            </div>
+            
+                </div>
+            </div>
+            <div class='slide-notes' style='display:none;'>Slide 14 details our reality filter. Machine learning algorithms can easily memorize dataset quirks and reward synthetically inviable molecules. Our 7 penalty engines deduct points for nuclease vulnerability, immune-activating GU motifs, and solid-phase synthesis failures like G-quadruplexes. The 0.12 scaling factor was calibrated so FDA commercial drugs retain 78 to 90% of their raw score.</div>
+        </section>
+        
+        <section class='slide ' id='slide-15' data-slide='15'>
+            <div class='slide-header'>
+                <div class='slide-eyebrow'>TRANSCRIPTOME SAFETY - SUB-MICROSECOND BITWISE ENGINE</div>
+                <div class='slide-title-row'>
+                    <h2 class='slide-title'>Transcriptome Safety: Sub-Microsecond 2-Bit Packed K-mer Index and Auditing</h2>
+                    <div class='badges-group'><span class='badge-pill'>2-BIT PACKED K-MER</span><span class='badge-pill'>OFFTARGET.PY</span><span class='badge-pill'>O(1) SUB-MICROSECOND</span></div>
+                </div>
+                <div class='slide-subtitle'>Compressing 450 MB Transcriptome FASTA into a 50 MB In-Memory Hash Set for <500 ns Lookups</div>
+            </div>
+            <div class='slide-body'>
+                <div class='cards-container cards-count-2'>
+                    
+            <div class='card border-cyan'>
+                <div class='card-title'>2-Bit Packed Representation & Slicer Check</div>
+                
+                
+                <ul>
+                    <li><strong>The Transcriptome Scanning Bottleneck:</strong> Running BLAST or Bowtie2 against the human transcriptome (450 MB FASTA) takes 2–10 seconds per candidate, destroying interactive software performance.</li>
+                    <li><strong>The 2-Bit Packed Bitwise Index (offtarget.py):</strong> Maps A=00, C=01, G=10, U/T=11. A 15-mer is packed into a single 32-bit unsigned integer:</li>
+                </ul>
+                <pre><code>_NUC_MAP = {'A': 0, 'C': 1, 'G': 2, 'T': 3, 'U': 3}
+def _pack_kmer(kmer: str) -> Optional[int]:
+    val = 0
+    for char in kmer:
+        val = (val << 2) | _NUC_MAP[char]
+    return val</code></pre>
+                <ul>
+                    <li>Compresses 450 MB of transcriptome sequences into a <strong>50 MB memory-resident hash set</strong> with query latency <strong>under 500 nanoseconds</strong>!</li>
+                </ul>
+                
+                
+            </div>
+            
+            <div class='card border-emerald'>
+                <div class='card-title'>4-Step Safety Audit Protocol</div>
+                
+                
+                <ul>
+                    <li><strong>1. 15-Mer Slicer Match (Fatal):</strong> If the antisense positions 1–15 match any unintended transcript, overallSafetyScore = 0.0.</li>
+                    <li><strong>2. Weighted Seed Match (Positions 2–8):</strong> Seed Burden = (1.0 × 8-mer matches) + (0.8 × 7m8 matches) + (0.6 × 7a1 matches) + (0.3 × 6-mer matches).</li>
+                    <li><strong>3. Thermodynamic Asymmetry:</strong> Inverted stability (Delta-Delta G > 0) docks passenger strand, triggering a 40-point safety deduction.</li>
+                    <li><strong>4. Chemical Seed Masking:</strong> Toxic seeds are marked 'Mitigated' if 2'-OMe at pos 2 or GNA at pos 7 disrupts miRNA-like seed pairing.</li>
+                </ul>
+                
+                
+            </div>
+            
+                </div>
+            </div>
+            <div class='slide-notes' style='display:none;'>Slide 15 highlights one of our best software optimizations. Calling external tools like BLAST takes several seconds per sequence. By mapping nucleotides into 2 bits, we pack 15-mers into standard 32-bit integers. A 450 MB transcriptome compresses into a 50 MB in-memory hash set, checking off-target slicer matches in under 500 nanoseconds.</div>
+        </section>
+        
+        <section class='slide ' id='slide-16' data-slide='16'>
+            <div class='slide-header'>
+                <div class='slide-eyebrow'>LEAD SELECTION - PARETO-TOPSIS RANKING</div>
+                <div class='slide-title-row'>
+                    <h2 class='slide-title'>Lead Selection: Multi-Objective Pareto-TOPSIS Ranking and Toxicity Veto</h2>
+                    <div class='badges-group'><span class='badge-pill'>PARETO-TOPSIS</span><span class='badge-pill'>LEAD_SELECTOR.PY</span><span class='badge-pill'>HARD TOXICITY VETO</span></div>
+                </div>
+                <div class='slide-subtitle'>Finding the Optimal Frontier Between Knockdown Efficacy, Seed Viability, and Asymmetry</div>
+            </div>
+            <div class='slide-body'>
+                <div class='cards-container cards-count-2'>
+                    
+            <div class='card border-rose'>
+                <div class='card-title'>Why Simple Weighted Sums Fail</div>
+                
+                
+                <ul>
+                    <li><strong>The Masking Trap:</strong> In drug discovery, a candidate with 99% predicted efficacy but severe off-target seed toxicity (causing cell death) must not be ranked #1. Simple weighted sums allow a high score in one dimension to mask fatal toxicity.</li>
+                    <li><strong>The TOPSIS Method (lead_selector.py):</strong> Computes geometric distance to the <em>Ideal Best</em> and <em>Ideal Worst</em> in normalized multi-criteria space.</li>
+                </ul>
+                
+                
+            </div>
+            
+            <div class='card border-cyan'>
+                <div class='card-title'>Multi-Criteria Weights & Hard Veto Penalties</div>
+                
+                
+                <ul>
+                    <li><strong>1. Efficacy (Weight = 0.35):</strong> Predicted knockdown percentage (y / 100).</li>
+                    <li><strong>2. Seed Cell Viability (Weight = 0.25):</strong> Empirical cell survival score from 4,096 hexamer screen.</li>
+                    <li><strong>3. Thermodynamic Asymmetry (Weight = 0.15):</strong> Normalized end-stability: (Delta-Delta G + 2.0) / 6.0 across range -2.0 to +4.0 kcal/mol.</li>
+                    <li><strong>4. Off-Target Clearance (Weight = 0.15):</strong> Step function (1.0 if 0 hits, 0.5 if 1 hit, 0.1 if >= 2 hits).</li>
+                    <li><strong>5. Biophysical Integrity (Weight = 0.10):</strong> Normalized penalty deduction: max(0, 1 - Penalty / 30).</li>
+                    <li><strong>Multiplicative Hard Vetoes:</strong> Seed cell viability < 50% causes 30% penalty (Score × 0.70); Off-target hits > 1 cause 40% penalty (Score × 0.60).</li>
+                </ul>
+                
+                
+            </div>
+            
+                </div>
+            </div>
+            <div class='slide-notes' style='display:none;'>Slide 16 covers lead selection. In pharmacology, simple weighted sums fail because high efficacy can easily mask fatal toxicity. We implement Pareto-TOPSIS, measuring distance to ideal and worst solutions across 5 normalized criteria, applying hard multiplicative penalties if seed viability drops below 50% or if off-target hits occur.</div>
+        </section>
+        
+        <section class='slide ' id='slide-17' data-slide='17'>
+            <div class='slide-header'>
+                <div class='slide-eyebrow'>BENCHMARK AUDIT - SINGLE SOURCE OF TRUTH</div>
+                <div class='slide-title-row'>
+                    <h2 class='slide-title'>Benchmark Audit: Single Source of Truth - 5-Model Empirical Evaluation Matrix</h2>
+                    <div class='badges-group'><span class='badge-pill'>FROZEN GROUND TRUTH</span><span class='badge-pill'>PCC = 0.8187</span><span class='badge-pill'>R² = 0.6655</span></div>
+                </div>
+                <div class='slide-subtitle'>Audited Empirical Metrics from final_benchmarks/master_benchmark_metrics.csv</div>
+            </div>
+            <div class='slide-body'>
+                <div class='cards-container cards-count-2'>
+                    
+            <div class='card border-cyan'>
+                <div class='card-title'>Master Benchmark Metrics Table</div>
+                
+                
+                <table class='deck-table'>
+                    <thead><tr><th>Model Architecture</th><th>Dataset / Task</th><th>N</th><th>PCC (r)</th><th>SPCC (ρ)</th><th>ROC-AUC</th><th>RMSE</th><th>MAE</th><th>R² Score</th></tr></thead>
+                    <tbody>
+                        <tr><td><strong>Model A (LightGBM)</strong></td><td>Takayuki Screen</td><td>702</td><td><strong>0.8788</strong></td><td>0.8734</td><td>0.9275</td><td>12.39</td><td>9.64</td><td>0.6525</td></tr>
+                        <tr><td><strong>Model A (LightGBM)</strong></td><td>Mixset 7-Studies</td><td>472</td><td><strong>0.8291</strong></td><td>0.8093</td><td>0.9456</td><td>20.32</td><td>17.35</td><td>0.4605</td></tr>
+                        <tr><td><strong>Model A (LightGBM)</strong></td><td>Huesken Held-Out</td><td>2,361</td><td><strong>0.8044</strong></td><td>0.8065</td><td>0.9099</td><td>9.18</td><td>6.99</td><td>0.6252</td></tr>
+                        <tr style='color:#f87171;'><td><strong>Model A (Neg Control)</strong></td><td>CMsiRNAdb Hetero</td><td>2,576</td><td><strong>0.1771</strong></td><td>0.1645</td><td>0.5711</td><td>29.59</td><td>24.70</td><td><strong>-0.0901</strong></td></tr>
+                        <tr><td><strong>Model B v4 (CatBoost)</strong></td><td>CMsiRNAdb Homog</td><td>472</td><td><strong>0.7401</strong></td><td>0.7540</td><td>0.8745</td><td>21.48</td><td>18.05</td><td>0.3989</td></tr>
+                        <tr><td><strong>Model B v4 (CatBoost)</strong></td><td>CMsiRNAdb Heterog</td><td>2,576</td><td><strong>0.6217</strong></td><td>0.6049</td><td>0.8077</td><td>22.74</td><td>18.95</td><td>0.3563</td></tr>
+                        <tr><td><strong>MEG-mod GNN</strong></td><td>CMsiRNAdb Heterog</td><td>300</td><td><strong>0.0631</strong></td><td>0.0788</td><td>0.5000</td><td>38.33</td><td>35.95</td><td>-82.93</td></tr>
+                        <tr><td><strong>Ensemble v4</strong></td><td>CMsiRNAdb Homog</td><td>472</td><td><strong>0.7335</strong></td><td>0.7469</td><td>0.8687</td><td>23.76</td><td>20.09</td><td>0.2646</td></tr>
+                        <tr><td><strong>Ensemble v4</strong></td><td>CMsiRNAdb Heterog</td><td>2,576</td><td><strong>0.6176</strong></td><td>0.6018</td><td>0.8059</td><td>23.16</td><td>19.31</td><td>0.3327</td></tr>
+                        <tr style='background:rgba(34,211,196,0.1); font-weight:bold;'><td><strong>IEEE v5 Hierarchical</strong></td><td><strong>Zero-Leakage Test</strong></td><td><strong>7,674</strong></td><td><strong>0.8187</strong></td><td><strong>0.8154</strong></td><td><strong>0.9283</strong></td><td><strong>18.10</strong></td><td><strong>13.69</strong></td><td><strong>0.6655</strong></td></tr>
+                    </tbody>
+                </table>
+                
+                
+            </div>
+            
+            <div class='card border-emerald'>
+                <div class='card-title'>What Pearson r = 0.8187 Means Here</div>
+                
+                
+                <p><strong>Pearson r = Covariance(Actual, Predicted) / (StdDev(Actual) × StdDev(Predicted))</strong>. Across 7,674 held-out test duplexes under strict zero-sequence leakage, an r = 0.8187 (R² = 0.6655) proves that over <strong>66.5% of total variance</strong> in modified siRNA knockdown potency is linearly explained by the model.</p>
+                <p style='margin-top:8px;'><strong>Negative Control Significance:</strong> Model A's negative R² (-0.0901) on modified data proves that sequence-only models perform worse than predicting the mean, confirming that chemical representations are indispensable.</p>
+                
+                
+            </div>
+            
+                </div>
+            </div>
+            <div class='slide-notes' style='display:none;'>Slide 17 reports our official benchmarks from final_benchmarks. On 7,674 held-out test duplexes with zero sequence leakage, the IEEE v5 engine achieves Pearson r = 0.8187 and R-squared = 0.6655. Notice the negative control: Model A on modified data gets R-squared = -0.09, proving that sequence-only models are worse than predicting the mean. Chemical awareness is mandatory.</div>
+        </section>
+        
+        <section class='slide ' id='slide-18' data-slide='18'>
+            <div class='slide-header'>
+                <div class='slide-eyebrow'>PRODUCTION & ROADMAP - FASTAPI & SIMULATION</div>
+                <div class='slide-title-row'>
+                    <h2 class='slide-title'>Production and Roadmap: FastAPI Microservice, Docker, and Downstream Simulation</h2>
+                    <div class='badges-group'><span class='badge-pill'>FASTAPI MICROSERVICE</span><span class='badge-pill'>DOCKER MULTI-STAGE</span><span class='badge-pill'>7 CI/CD TEST SUITES</span></div>
+                </div>
+                <div class='slide-subtitle'>Containerized Service Architecture, CI/CD Test Automation, and Synergies with C-DAC REMD Lab</div>
+            </div>
+            <div class='slide-body'>
+                <div class='cards-container cards-count-2'>
+                    
+            <div class='card border-cyan'>
+                <div class='card-title'>Production Microservice Endpoints (Port 8000)</div>
+                
+                
+                <ul>
+                    <li><code>POST /rank</code> & <code>POST /rank/upload</code>: Naked sequence screening via Model A (< 1 ms/seq).</li>
+                    <li><code>POST /single-mod</code> & <code>POST /multi-mod-scan</code>: Real-time chemical modification optimization via Model B v4 (< 150 ms).</li>
+                    <li><code>POST /offtarget-scan</code>: Sub-microsecond bitwise transcriptome safety audit.</li>
+                    <li><code>GET /health</code>: Liveness & readiness probes for Docker container orchestration.</li>
+                </ul>
+                
+                
+            </div>
+            
+            <div class='card border-purple'>
+                <div class='card-title'>Downstream Synergy with C-DAC MD Simulation Lab</div>
+                
+                <div class='mentor-box'>
+                    <div class='mentor-header'>
+                        <span class='mentor-pill'>CDAC: MENTOR RESEARCH ALIGNMENT</span>
+                        <span class='mentor-name'>Dr. Vinod Jani (Mentor)</span>
+                    </div>
+                    <div class='mentor-citation'>📄 Microsecond Scale REMD Simulation, J. Biomol. Struct. Dyn. (2011)</div>
+                </div>
+                
+                
+                <p>As Vinod sir's work in microsecond Replica Exchange Molecular Dynamics (REMD) has shown, all-atom physical simulation is the ultimate ground truth for free-energy landscapes, but it cannot screen 10,000 candidates.</p>
+                <p style='margin-top:8px;'><strong>The Triage Funnel:</strong> HelixZero functions as the high-throughput computational funnel (filtering millions of sequences down to top leads), which can then be fed directly into Dr. Vinod Jani's microsecond REMD and free-energy perturbation (FEP) pipelines for atomistic validation.</p>
+                <p style='margin-top:8px;'><strong>Future Horizons:</strong> Active learning retraining on newly published clinical duplex assays and integrating Uni-Mol 1B structural embeddings.</p>
+                
+                
+            </div>
+            
+                </div>
+            </div>
+            <div class='slide-notes' style='display:none;'>Finally, Slide 18 presents our production deployment and future horizons. Our FastAPI service is packaged into a multi-stage Docker container with 7 automated CI/CD test suites. Looking forward, as Vinod sir's work in microsecond REMD has shown, all-atom simulation is the ultimate ground truth. HelixZero serves as the high-throughput computational funnel, delivering the top Pareto-optimal candidates directly to C-DAC's atomistic MD pipelines. Thank you very much, I am now open to your questions and feedback.</div>
+        </section>
+        
+</main>
+
+<footer>
+  <div class="footer-hint">Controls: [←/→] Navigate | [Space] Next | [O] Overview | [N] Notes | [F] Fullscreen</div>
+  <div class="progress-wrap">
+    <div class="progress-bar" id="progress-bar"></div>
+  </div>
+  <div class="footer-hint" style="color:var(--accent);">C-DAC HPC-M&BA PUNE</div>
+</footer>
+
+<div id="notes-drawer">
+  <div class="notes-header">📝 Presenter Talk Track (Say This)</div>
+  <div class="notes-body" id="notes-content"></div>
+</div>
+
+<div id="overview-modal">
+  <div class="overview-header">
+    <h3>SLIDE DECK OVERVIEW (18 SLIDES)</h3>
+    <button class="btn" onclick="toggleOverview()">✕ Close</button>
+  </div>
+  <div class="overview-grid">
+    
+        <div class='overview-card' onclick='goToSlide(1)'>
+            <div class='overview-num'>SLIDE 01</div>
+            <div class='overview-title'>HelixZero-CMS: Production siRNA and RNAi Design Platform</div>
+        </div>
+        
+        <div class='overview-card' onclick='goToSlide(2)'>
+            <div class='overview-num'>SLIDE 02</div>
+            <div class='overview-title'>The Biophysical and Computational Bottlenecks of siRNA Design</div>
+        </div>
+        
+        <div class='overview-card' onclick='goToSlide(3)'>
+            <div class='overview-num'>SLIDE 03</div>
+            <div class='overview-title'>System Topology: The 5-Tier Hierarchical Engineering Pipeline</div>
+        </div>
+        
+        <div class='overview-card' onclick='goToSlide(4)'>
+            <div class='overview-num'>SLIDE 04</div>
+            <div class='overview-title'>Tier 1 - Ingestion: Exhaustive 21-Mer Sliding Window and O(1) Translation</div>
+        </div>
+        
+        <div class='overview-card' onclick='goToSlide(5)'>
+            <div class='overview-num'>SLIDE 05</div>
+            <div class='overview-title'>Data Governance: 10-Resource Taxonomy and Zero-Leakage GroupKFold Protocol</div>
+        </div>
+        
+        <div class='overview-card' onclick='goToSlide(6)'>
+            <div class='overview-num'>SLIDE 06</div>
+            <div class='overview-title'>Data Schema: Multi-Slot Chemical Schema and Orthogonal NucSlot Dataclass</div>
+        </div>
+        
+        <div class='overview-card' onclick='goToSlide(7)'>
+            <div class='overview-num'>SLIDE 07</div>
+            <div class='overview-title'>Feature Engineering: The 577-Dimensional Multi-Modal Signature</div>
+        </div>
+        
+        <div class='overview-card' onclick='goToSlide(8)'>
+            <div class='overview-num'>SLIDE 08</div>
+            <div class='overview-title'>Feature Pipeline: Batch Vectorization and ViennaRNA Integration</div>
+        </div>
+        
+        <div class='overview-card' onclick='goToSlide(9)'>
+            <div class='overview-num'>SLIDE 09</div>
+            <div class='overview-title'>The 3-Card Framework: Model A (Naked), Model B v4 (Chemistry), and Card 3 (Biophysics)</div>
+        </div>
+        
+        <div class='overview-card' onclick='goToSlide(10)'>
+            <div class='overview-num'>SLIDE 10</div>
+            <div class='overview-title'>Algorithm Selection: Why LightGBM and CatBoost Dominate Tabular Biology</div>
+        </div>
+        
+        <div class='overview-card' onclick='goToSlide(11)'>
+            <div class='overview-num'>SLIDE 11</div>
+            <div class='overview-title'>Model Training: Audited Hyperparameter Configurations and Loss Objectives</div>
+        </div>
+        
+        <div class='overview-card' onclick='goToSlide(12)'>
+            <div class='overview-num'>SLIDE 12</div>
+            <div class='overview-title'>Flagship Engine: IEEE v5 Hierarchical Potency (pIC50) and Hill Modeling</div>
+        </div>
+        
+        <div class='overview-card' onclick='goToSlide(13)'>
+            <div class='overview-num'>SLIDE 13</div>
+            <div class='overview-title'>Optimization Engine: Combinatorial Chemical Search via Guided Beam Pruning</div>
+        </div>
+        
+        <div class='overview-card' onclick='goToSlide(14)'>
+            <div class='overview-num'>SLIDE 14</div>
+            <div class='overview-title'>Reality Filters: 7-Module Biophysical Guardrails and Calibrated 0.12 Scaling</div>
+        </div>
+        
+        <div class='overview-card' onclick='goToSlide(15)'>
+            <div class='overview-num'>SLIDE 15</div>
+            <div class='overview-title'>Transcriptome Safety: Sub-Microsecond 2-Bit Packed K-mer Index and Auditing</div>
+        </div>
+        
+        <div class='overview-card' onclick='goToSlide(16)'>
+            <div class='overview-num'>SLIDE 16</div>
+            <div class='overview-title'>Lead Selection: Multi-Objective Pareto-TOPSIS Ranking and Toxicity Veto</div>
+        </div>
+        
+        <div class='overview-card' onclick='goToSlide(17)'>
+            <div class='overview-num'>SLIDE 17</div>
+            <div class='overview-title'>Benchmark Audit: Single Source of Truth - 5-Model Empirical Evaluation Matrix</div>
+        </div>
+        
+        <div class='overview-card' onclick='goToSlide(18)'>
+            <div class='overview-num'>SLIDE 18</div>
+            <div class='overview-title'>Production and Roadmap: FastAPI Microservice, Docker, and Downstream Simulation</div>
+        </div>
+        
+  </div>
+</div>
+
+<script>
+  let currentSlide = 1;
+  const totalSlides = 18;
+
+  function updateSlide() {
+    document.querySelectorAll('.slide').forEach(s => s.classList.remove('active'));
+    const activeSlide = document.getElementById(`slide-${currentSlide}`);
+    if (activeSlide) activeSlide.classList.add('active');
+
+    document.getElementById('slide-indicator').innerText = `SLIDE ${currentSlide.toString().padStart(2, '0')} / ${totalSlides.toString().padStart(2, '0')}`;
+    document.getElementById('progress-bar').style.width = `${(currentSlide / totalSlides) * 100}%`;
+
+    const notesElem = activeSlide ? activeSlide.querySelector('.slide-notes') : null;
+    document.getElementById('notes-content').innerHTML = notesElem ? notesElem.innerHTML : 'No notes for this slide.';
+  }
+
+  function nextSlide() {
+    if (currentSlide < totalSlides) {
+      currentSlide++;
+      updateSlide();
+    }
+  }
+
+  function prevSlide() {
+    if (currentSlide > 1) {
+      currentSlide--;
+      updateSlide();
+    }
+  }
+
+  function goToSlide(num) {
+    currentSlide = num;
+    updateSlide();
+    document.getElementById('overview-modal').classList.remove('open');
+  }
+
+  function toggleOverview() {
+    document.getElementById('overview-modal').classList.toggle('open');
+  }
+
+  function toggleNotes() {
+    document.getElementById('notes-drawer').classList.toggle('open');
+  }
+
+  function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen();
+    } else {
+      if (document.exitFullscreen) document.exitFullscreen();
+    }
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === ' ') {
+      e.preventDefault();
+      nextSlide();
+    } else if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      prevSlide();
+    } else if (e.key === 'o' || e.key === 'O') {
+      toggleOverview();
+    } else if (e.key === 'n' || e.key === 'N') {
+      toggleNotes();
+    } else if (e.key === 'f' || e.key === 'F') {
+      toggleFullscreen();
+    } else if (e.key === 'Escape') {
+      document.getElementById('overview-modal').classList.remove('open');
+      document.getElementById('notes-drawer').classList.remove('open');
+    }
+  });
+
+  updateSlide();
+</script>
+
+</body>
+</html>

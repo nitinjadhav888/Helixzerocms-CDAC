@@ -64,3 +64,77 @@ def get_mod_property(code: str, prop: str, default: Any = None) -> Any:
     if c in MODIFICATION_ALPHABET:
         return MODIFICATION_ALPHABET[c].get(prop, default)
     return default
+
+
+def normalize_mod_code(mod_char: str) -> str:
+    """
+    Normalizes any modification code, symbol, or verbose chemical name 
+    to its canonical single-letter chemical alphabet symbol.
+    """
+    c = str(mod_char or '').strip().upper()
+    if not c:
+        return ""
+    if c in MODIFICATION_ALPHABET:
+        return c
+    if any(k in c for k in ('2OME', 'METHYL', "2'-OME", 'OMET')): return 'M'
+    if any(k in c for k in ('2F', 'FLUORO', "2'-F")): return 'F'
+    if any(k in c for k in ('PS', 'PHOSPHOROTHIOATE', 'THIO')): return 'S'
+    if any(k in c for k in ('MOE', 'METHOXYETHYL')): return 'E'
+    if any(k in c for k in ('LNA', 'LOCKED')): return 'L'
+    if any(k in c for k in ('DEOXY', 'DNA')): return 'D'
+    if any(k in c for k in ('UNA', 'UNLOCKED')): return '6'
+    if any(k in c for k in ('GNA', 'GLYCOL')): return '8'
+    if any(k in c for k in ('TNA', 'THREOSE')): return '9'
+    if any(k in c for k in ('ENA', 'ETHYLENE')): return 'Y'
+    if any(k in c for k in ('ABASIC',)): return 'Q'
+    if any(k in c for k in ('BENZYL',)): return 'B'
+    if any(k in c for k in ('FANA',)): return 'I'
+    if any(k in c for k in ('INOSINE',)): return 'J'
+    return c[0] if c else ""
+
+
+# Empirical thermodynamic perturbation increments (ΔΔG°37 in kcal/mol per modification)
+# Relative to unmodified ribonucleotide (Xia & Turner 1998, SantaLucia 1998, Egli & Manoharan 2023, Alnylam ESC/ESC+ data)
+# Negative values stabilize duplex hybridization (lower ΔG); positive values destabilize.
+MOD_DELTA_DG: Dict[str, float] = {
+    'F': -0.85,   # 2'-Fluoro: C3'-endo gauche effect, pre-organizes A-form, strongly stabilizing (~ +1.2°C Tm)
+    'M': -0.45,   # 2'-O-Methyl: C3'-endo preference, minor groove hydration, stabilizing (~ +0.7°C Tm)
+    'L': -3.50,   # LNA: Locked C3'-endo ribose, massive thermal stabilization (~ +4.5°C Tm)
+    'E': -0.75,   # 2'-MOE: 2'-O-methoxyethyl, stabilizes A-form duplex (~ +1.1°C Tm)
+    'Y': -2.50,   # ENA: Ethylene-bridged nucleic acid, high thermal stability (~ +3.0°C Tm)
+    'I': -0.30,   # 2'-F-ANA: Arabino-fluoro, moderate stabilization
+    'V': -0.40,   # 5-Methyl Cytidine: Enhanced base stacking (~ +0.5°C Tm)
+    'W': -0.50,   # Pseudouridine: Additional H-bonding via N1-H (~ +0.6°C Tm)
+    'K': -0.60,   # 2-thio Uridine: Enhanced stacking and C3'-endo preference
+    'Z': -0.20,   # 2'-OMe-4'-thio: Favorable duplex hybridization
+    '7': -0.40,   # ANA: Altritol nucleic acid, stabilizes A-form
+    
+    'S': +0.40,   # Phosphorothioate (PS): Chiral relaxation & sulfur radius destabilizes (~ -0.5°C Tm/linkage)
+    'D': +0.70,   # 2'-deoxy / DNA: C2'-endo B-form preference disrupts A-form helix (~ -1.2°C Tm)
+    '6': +4.00,   # UNA: Acyclic unlocked ribose, huge entropic penalty (~ -6.0°C Tm)
+    '8': +2.80,   # GNA: Acyclic glycol backbone, strong duplex destabilization (~ -4.0°C Tm)
+    'Q': +4.50,   # Abasic site: Missing nucleobase, loss of H-bonding & stacking (~ -8.0°C Tm)
+    'B': +1.80,   # 2'-O-Benzyl: Bulky aromatic steric clash in duplex minor groove
+    'X': +0.60,   # 2'-O-allyl: Bulky alkyl side chain
+    'J': +1.20,   # Inosine: Hypoxanthine pairs with C via 2 H-bonds instead of 3 (loss of 1 H-bond)
+    'O': +1.50,   # Dihydrouridine: Non-planar ring disrupts aromatic stacking
+    '9': +2.20,   # TNA: Threose backbone isomerism disrupts helical pitch
+    
+    'P': +0.30,   # Boranophosphate: Neutral backbone modification
+    'R': +0.50,   # Methylphosphonate: Non-ionic backbone
+    'H': +0.30,   # Phosphoramidate
+    '1':  0.00,   # 5'-Phosphate: Terminal anchor
+    '2':  0.00,   # 3'-Phosphate: Terminal
+    '3': -0.10,   # 5'-OMe cap: Terminal
+    '4': +0.20,   # GalNAc conjugate: Terminal ligand attachment
+    '5': +0.20,   # PEG conjugate: Terminal conjugate
+}
+
+
+def get_mod_delta_dg(mod_code_or_name: str) -> float:
+    """
+    Retrieves empirical thermodynamic ΔΔG°37 increment (kcal/mol) for any chemical modification.
+    """
+    norm = normalize_mod_code(mod_code_or_name)
+    return MOD_DELTA_DG.get(norm, 0.0)
+

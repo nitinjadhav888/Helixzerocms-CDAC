@@ -1545,6 +1545,9 @@ function renderSingleModResults(data) {
         ${scoreBar(kdPct)}
       </td>
       <td>${deltaStr}</td>
+      <td style="white-space:nowrap" title="Predicted Duplex Hybridization Free Energy (ΔG°37)">
+        ${r.duplex_mfe_kcal != null ? `<span style="font-weight:600;font-family:monospace">${r.duplex_mfe_kcal.toFixed(2)}</span> <span style="font-size:0.7rem;font-weight:600;color:${(r.delta_duplex_dg||0) <= 0 ? '#34d399' : '#f87171'}">(${r.delta_duplex_dg > 0 ? '+' : ''}${Number(r.delta_duplex_dg||0).toFixed(2)})</span>` : '—'}
+      </td>
       <td>${modToxDeltaCell(r.toxicity_score, r.toxicity_label ?? 'Unknown', r.toxicity_note ?? '', parentLabel)}</td>
       <td style="display:flex;gap:4px;white-space:nowrap" onclick="event.stopPropagation()">
         <button class="mini-btn" style="background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.4);color:#06b6d4;cursor:pointer" onclick="inspectVariant(this, '${s}', '${a}', '${modSym}', '${modPos}', '${modStrand}', '${sMod}', '${sPos}', '${aMod}', '${aPos}')" title="View 3D Double Helix & Biophysics">🔍 3D View</button>
@@ -1591,7 +1594,7 @@ function renderSingleModResults(data) {
       <div style="padding:10px 18px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:16px;flex-wrap:wrap;font-size:0.8rem">
         <span style="font-size:0.7rem;color:var(--accent);text-transform:uppercase;font-weight:700;letter-spacing:0.05em">🧬 2D Structure &amp; Biophysics</span>
         <span style="font-family:monospace;color:var(--text);background:var(--surface2);padding:2px 8px;border-radius:4px;border:1px solid var(--border)" title="ViennaRNA RNAcofold 2D secondary structure dot-bracket notation">${data.structural_properties.cofold_dotbracket}</span>
-        <span><strong style="color:var(--text)">Duplex ΔG:</strong> <span style="color:#34d399">${data.structural_properties.duplex_mfe_kcal} kcal/mol</span></span>
+        <span><strong style="color:var(--text)">Parent Duplex ΔG:</strong> <span style="color:#34d399;font-weight:700">${data.structural_properties.duplex_mfe_kcal} kcal/mol</span></span>
         <span><strong style="color:var(--text)">Sense MFE:</strong> ${data.structural_properties.sense_mfe_kcal} kcal/mol</span>
         <span><strong style="color:var(--text)">Antisense MFE:</strong> ${data.structural_properties.anti_mfe_kcal} kcal/mol</span>
         <span><strong style="color:var(--text)">GC Content:</strong> Sense ${data.structural_properties.gc_sense_pct}% / AS ${data.structural_properties.gc_anti_pct}%</span>
@@ -1608,6 +1611,7 @@ function renderSingleModResults(data) {
             <th>#</th><th>Modified Sense</th><th>Modified Antisense</th>
             <th>Strand</th><th>Pos</th><th>Mod</th>
             <th>Knockdown (%)</th><th>Δ Knockdown</th>
+            <th title="Predicted Duplex Hybridization Free Energy (ΔG°37 in kcal/mol)">Duplex ΔG</th>
             <th title="Per-row toxicity change vs parent seed">Tox Δ</th>
             <th>Actions</th>
           </tr></thead>
@@ -1788,7 +1792,7 @@ function renderMultiModResult(data) {
       <div style="margin-top:12px;padding:12px 16px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);display:flex;align-items:center;gap:16px;flex-wrap:wrap;font-size:0.82rem">
         <span style="font-size:0.72rem;color:var(--accent);text-transform:uppercase;font-weight:700;letter-spacing:0.05em">🧬 2D Structure &amp; Graph Properties</span>
         <span style="font-family:monospace;color:var(--text);background:var(--surface);padding:3px 10px;border-radius:4px;border:1px solid var(--border)" title="ViennaRNA RNAcofold 2D secondary structure dot-bracket notation">${data.structural_properties.cofold_dotbracket}</span>
-        <span><strong style="color:var(--text)">Duplex ΔG:</strong> <span style="color:#34d399;font-weight:700">${data.structural_properties.duplex_mfe_kcal} kcal/mol</span></span>
+        <span><strong style="color:var(--text)">Duplex ΔG:</strong> <span style="color:#34d399;font-weight:700">${data.structural_properties.duplex_mfe_kcal} kcal/mol</span> ${data.structural_properties.delta_duplex_dg !== undefined && data.structural_properties.delta_duplex_dg !== 0 ? `<span style="font-size:0.75rem;font-weight:600;color:${data.structural_properties.delta_duplex_dg <= 0 ? '#34d399' : '#f87171'}">(${data.structural_properties.delta_duplex_dg > 0 ? '+' : ''}${Number(data.structural_properties.delta_duplex_dg).toFixed(2)} kcal/mol vs naked)</span>` : ''}</span>
         <span><strong style="color:var(--text)">Sense MFE:</strong> ${data.structural_properties.sense_mfe_kcal} kcal/mol</span>
         <span><strong style="color:var(--text)">Antisense MFE:</strong> ${data.structural_properties.anti_mfe_kcal} kcal/mol</span>
         <span><strong style="color:var(--text)">GC Content:</strong> Sense ${data.structural_properties.gc_sense_pct}% / AS ${data.structural_properties.gc_anti_pct}%</span>
@@ -2692,7 +2696,7 @@ async function loadMods() {
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:8px;">
           <div style="background:rgba(255,255,255,0.03); padding:8px 12px; border-radius:6px; border:1px solid rgba(255,255,255,0.06)">
             <strong>Duplex Thermodynamics:</strong><br>
-            • Duplex Binding &Delta;G: <span style="color:#34d399;font-weight:700">${props.duplex_mfe_kcal ?? 0} kcal/mol</span><br>
+            • Duplex Binding &Delta;G: <span style="color:#34d399;font-weight:700">${props.duplex_mfe_kcal ?? 0} kcal/mol</span> ${props.delta_duplex_dg !== undefined && props.delta_duplex_dg !== 0 ? `<span style="font-size:0.75rem;font-weight:600;color:${props.delta_duplex_dg <= 0 ? '#34d399' : '#f87171'}">(${props.delta_duplex_dg > 0 ? '+' : ''}${Number(props.delta_duplex_dg).toFixed(2)} vs naked)</span>` : ''}<br>
             • Secondary Structure: <code style="font-size:0.7rem;color:#38bdf8">${props.cofold_dotbracket ?? '—'}</code>
           </div>
           <div style="background:rgba(255,255,255,0.03); padding:8px 12px; border-radius:6px; border:1px solid rgba(255,255,255,0.06)">
