@@ -1545,12 +1545,9 @@ function renderSingleModResults(data) {
         ${scoreBar(kdPct)}
       </td>
       <td>${deltaStr}</td>
-      <td style="white-space:nowrap" title="Predicted Duplex Hybridization Free Energy (ΔG°37)">
-        ${r.duplex_mfe_kcal != null ? `<span style="font-weight:600;font-family:monospace">${r.duplex_mfe_kcal.toFixed(2)}</span> <span style="font-size:0.7rem;font-weight:600;color:${(r.delta_duplex_dg||0) <= 0 ? '#34d399' : '#f87171'}">(${r.delta_duplex_dg > 0 ? '+' : ''}${Number(r.delta_duplex_dg||0).toFixed(2)})</span>` : '—'}
-      </td>
       <td>${modToxDeltaCell(r.toxicity_score, r.toxicity_label ?? 'Unknown', r.toxicity_note ?? '', parentLabel)}</td>
       <td style="display:flex;gap:4px;white-space:nowrap" onclick="event.stopPropagation()">
-        <button class="mini-btn" style="background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.4);color:#06b6d4;cursor:pointer" onclick="inspectVariant(this, '${s}', '${a}', '${modSym}', '${modPos}', '${modStrand}', '${sMod}', '${sPos}', '${aMod}', '${aPos}')" title="View 3D Double Helix & Biophysics">🔍 3D View</button>
+        <button class="mini-btn" style="background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.4);color:#06b6d4;cursor:pointer" onclick="inspectVariant(this, '${s}', '${a}', '${modSym}', '${modPos}', '${modStrand}', '${sMod}', '${sPos}', '${aMod}', '${aPos}', '', '${(data.parent_sense || '').replace(/'/g, "\\'")}', '${(data.parent_antisense || '').replace(/'/g, "\\'")}')" title="View 3D Double Helix & Biophysics">🔍 3D View</button>
         <button class="mini-btn" onclick="loadMultiModFromVariant(${i})" title="Initialize beam search from this single mod">⚡ Multi-Mod</button>
       </td>
     </tr>`;
@@ -1611,7 +1608,6 @@ function renderSingleModResults(data) {
             <th>#</th><th>Modified Sense</th><th>Modified Antisense</th>
             <th>Strand</th><th>Pos</th><th>Mod</th>
             <th>Knockdown (%)</th><th>Δ Knockdown</th>
-            <th title="Predicted Duplex Hybridization Free Energy (ΔG°37 in kcal/mol)">Duplex ΔG</th>
             <th title="Per-row toxicity change vs parent seed">Tox Δ</th>
             <th>Actions</th>
           </tr></thead>
@@ -2396,28 +2392,16 @@ async function loadMods() {
       <!-- Modal Body -->
       <div style="overflow-y:auto; padding:20px 24px; display:flex; flex-direction:column; gap:20px;">
         
-        <!-- Top Section: 3D Duplex Visualizer & Deep Structural Analysis Side-by-Side -->
-        <div style="display:grid; grid-template-columns: 1.05fr 0.95fr; gap:16px;">
-          <!-- 3Dmol.js Canvas Container -->
-          <div style="background:#020617; border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:14px; display:flex; flex-direction:column;">
-            <div style="font-size:0.75rem; font-weight:700; color:#38bdf8; text-transform:uppercase; margin-bottom:8px; display:flex; align-items:center; justify-content:space-between;">
-              <span>🔮 3D Molecular Duplex (A-Form Helix)</span>
-              <button onclick="downloadPDBFile()" style="padding:4px 10px; background:linear-gradient(135deg,#06b6d4,#3b82f6); color:#fff; border:none; border-radius:6px; font-size:0.7rem; font-weight:700; cursor:pointer;">
-                📥 Download PDB File
-              </button>
-            </div>
-            <div id="3dmol-canvas" style="width:100%; height:280px; position:relative; border-radius:8px; overflow:hidden; background:#000;"></div>
-            <div style="font-size:0.65rem; color:#64748b; margin-top:8px;">Drag to rotate 360° · Scroll to zoom · Green = 2'-OMe · Cyan = 2'-F · Orange = PS</div>
+        <!-- Top Section: 3D Duplex Visualizer (Full Width) -->
+        <div style="background:#020617; border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:14px; display:flex; flex-direction:column;">
+          <div style="font-size:0.75rem; font-weight:700; color:#38bdf8; text-transform:uppercase; margin-bottom:8px; display:flex; align-items:center; justify-content:space-between;">
+            <span>🔮 3D Molecular Duplex (A-Form Helix)</span>
+            <button onclick="downloadPDBFile()" style="padding:4px 10px; background:linear-gradient(135deg,#06b6d4,#3b82f6); color:#fff; border:none; border-radius:6px; font-size:0.7rem; font-weight:700; cursor:pointer;">
+              📥 Download PDB File
+            </button>
           </div>
-
-          <!-- GNN Graph Attention Map (All 21 Positions) -->
-          <div style="background:#020617; border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:14px; display:flex; flex-direction:column; overflow:hidden;">
-            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
-              <span style="font-size:0.75rem; font-weight:700; color:#f472b6; text-transform:uppercase;">🔥 GNN Graph Attention Matrix (&alpha;<sub>ij</sub>)</span>
-              <span style="font-size:0.65rem; color:var(--muted)">Antisense (21-nt)</span>
-            </div>
-            <div id="inspector-gnn-bars" style="display:flex; flex-direction:column; gap:4px; overflow-y:auto; max-height:270px; padding-right:4px;"></div>
-          </div>
+          <div id="3dmol-canvas" style="width:100%; height:320px; position:relative; border-radius:8px; overflow:hidden; background:#000;"></div>
+          <div style="font-size:0.65rem; color:#64748b; margin-top:8px;">Drag to rotate 360° · Scroll to zoom · Green = 2'-OMe · Cyan = 2'-F · Orange = PS · Amber = 2'-MOE · Purple = LNA</div>
         </div>
 
         <!-- Middle Section: Deep Structural Analysis & Modification Breakdown -->
@@ -2464,7 +2448,7 @@ async function loadMods() {
     document.body.removeChild(link);
   }
 
-  async function open3DInspectorModal(sense, antisense, title, modSymbol = '', modPos = '', modStrand = '', senseMods = '', sensePos = '', antiMods = '', antiPos = '', modPositions = '') {
+  async function open3DInspectorModal(sense, antisense, title, modSymbol = '', modPos = '', modStrand = '', senseMods = '', sensePos = '', antiMods = '', antiPos = '', modPositions = '', parentSense = '', parentAntisense = '') {
     const modal = document.getElementById('inspector3DModal');
     document.getElementById('inspectorModalTitle').innerText = title || '3D Molecular Structure & Biophysics Inspector';
     modal.style.display = 'flex';
@@ -2485,7 +2469,9 @@ async function loadMods() {
             sense_mods: senseMods,
             sense_positions: sensePos,
             antisense_mods: antiMods,
-            antisense_positions: antiPos
+            antisense_positions: antiPos,
+            parent_sense: parentSense || sense,
+            parent_antisense: parentAntisense || antisense
           })
         }),
         fetch(`${API}/offtarget-scan`, {
@@ -2727,7 +2713,7 @@ async function loadMods() {
     }
   }
 
-  function inspectVariant(btn, sense, antisense, modSymbol = '', modPos = '', modStrand = '', senseMods = '', sensePos = '', antiMods = '', antiPos = '', modPositions = '') {
+  function inspectVariant(btn, sense, antisense, modSymbol = '', modPos = '', modStrand = '', senseMods = '', sensePos = '', antiMods = '', antiPos = '', modPositions = '', parentSense = '', parentAntisense = '') {
     let title = '3D Molecular Duplex & Structural Analysis Inspector';
     if (modSymbol || senseMods || antiMods) {
       const isMulti = (senseMods || antiMods) || String(modSymbol).includes('+') || String(modSymbol).includes(',') || (modStrand && String(modStrand).includes('+'));
@@ -2738,7 +2724,7 @@ async function loadMods() {
         title = `Variant Inspector (${modSymbol} at ${strandLabel} pos ${modPos || '—'})`;
       }
     }
-    open3DInspectorModal(sense, antisense, title, modSymbol, modPos, modStrand, senseMods, sensePos, antiMods, antiPos, modPositions);
+    open3DInspectorModal(sense, antisense, title, modSymbol, modPos, modStrand, senseMods, sensePos, antiMods, antiPos, modPositions, parentSense, parentAntisense);
   }
 
   function close3DInspectorModal() {

@@ -743,6 +743,8 @@ def predict_modified(
     mod_position: str = "",
     mod_positions: str = "",
     mod_strand: str = "",
+    parent_sense: str = "",
+    parent_antisense: str = "",
 ) -> Dict[str, Any]:
     """
     Predicts the efficacy of chemically modified siRNA variants.
@@ -750,15 +752,18 @@ def predict_modified(
     """
     logger.info(f"Starting predict_modified workflow (mode: {mode}).")
 
+    actual_parent_s = parent_sense or sense
+    actual_parent_a = parent_antisense or antisense
+
     # 1. Establish parent baselines
-    parent_v4_matrix = extract_batch_v4([sense], [antisense])
+    parent_v4_matrix = extract_batch_v4([actual_parent_s], [actual_parent_a])
     raw_parent_score = float(_normalize_scores(_predict_naked(parent_v4_matrix), calibrator_key="normal")[0])
 
-    raw_model_b_score = float(_predict_model_b([sense], [antisense], [sense], [antisense], model_key=model_key)[0])
+    raw_model_b_score = float(_predict_model_b([actual_parent_s], [actual_parent_a], [actual_parent_s], [actual_parent_a], model_key=model_key)[0])
 
     # 2. Generate variants
     if mode in ("scan", "single"):
-        variants = single_mod_scan(sense, antisense)
+        variants = single_mod_scan(actual_parent_s, actual_parent_a)
     elif mode == "multimod":
         # Handle single modification parameters passed to multimod mode
         if mod_symbol and (mod_position or mod_positions) and not (sense_mods or antisense_mods):
@@ -772,7 +777,7 @@ def predict_modified(
                 antisense_positions = pos_val
 
         variants = [multimod_gen(
-            sense, antisense,
+            actual_parent_s, actual_parent_a,
             sense_mods=sense_mods,
             sense_positions=sense_positions,
             antisense_mods=antisense_mods,

@@ -120,6 +120,8 @@ class MultiModRequest(BaseModel):
     mod_position: Optional[Union[int, str]] = Field("", description="Single modification position")
     mod_positions: Optional[Union[int, str]] = Field("", description="Comma-separated modification positions")
     mod_strand: Optional[str] = Field("", description="Single modification strand ('sense' or 'antisense')")
+    parent_sense: Optional[str] = Field("", description="Unmodified parent sense strand")
+    parent_antisense: Optional[str] = Field("", description="Unmodified parent antisense strand")
     model: Literal["IEEE_v5", "Ensemble_v4", "GNN_v2", "B_v4"] = Field(DEFAULT_MODEL_B_KEY, description="Model key")
 
 class MultiModScanRequest(BaseModel):
@@ -329,6 +331,8 @@ def multi_mod_endpoint(req: MultiModRequest):
             mod_position=req.mod_position,
             mod_positions=req.mod_positions,
             mod_strand=req.mod_strand,
+            parent_sense=req.parent_sense or "",
+            parent_antisense=req.parent_antisense or "",
         )
         results = output["results"]
         if not results:
