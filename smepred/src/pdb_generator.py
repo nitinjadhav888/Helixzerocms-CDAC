@@ -102,16 +102,23 @@ def generate_sirna_pdb(
 
     # 3. Check explicit multi-mod parameters
     def apply_explicit_mods(mods_str, pos_str, target_b_arr):
-        if not mods_str or not pos_str: return
-        m_list = [m.strip() for m in str(mods_str).replace('+', ',').split(',') if m.strip()]
-        p_list = [p.strip() for p in str(pos_str).replace('+', ',').split(',') if p.strip()]
-        for m, p in zip(m_list, p_list):
-            try:
-                p_idx = int(p) - 1
-                if 0 <= p_idx < 21:
-                    target_b_arr[p_idx] = mod_to_bfactor(m)
-            except (ValueError, TypeError):
-                pass
+        if not mods_str: return
+        if pos_str:
+            m_list = [m.strip() for m in str(mods_str).replace('+', ',').split(',') if m.strip()]
+            p_list = [p.strip() for p in str(pos_str).replace('+', ',').split(',') if p.strip()]
+            for m, p in zip(m_list, p_list):
+                try:
+                    p_idx = int(p) - 1
+                    if 0 <= p_idx < 21:
+                        target_b_arr[p_idx] = mod_to_bfactor(m)
+                except (ValueError, TypeError):
+                    pass
+        else:
+            # Compact 1-char per position mask (e.g. MMMMMMMFFFMMMMMMMMMM)
+            clean_m = str(mods_str).strip()
+            for idx, c in enumerate(clean_m):
+                if idx < 21 and c.upper() not in 'ACGTU.':
+                    target_b_arr[idx] = mod_to_bfactor(c)
 
     apply_explicit_mods(sense_mods, sense_positions, s_bfactors)
     apply_explicit_mods(antisense_mods, antisense_positions, a_bfactors)

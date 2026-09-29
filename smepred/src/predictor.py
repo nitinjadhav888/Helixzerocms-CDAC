@@ -659,18 +659,28 @@ def extract_structural_properties(
                 add_mod(mod_symbol, int(p_str.strip()), st)
 
     # 2. From sense_mods / sense_positions
-    if sense_mods and sense_positions:
-        s_m = [m.strip() for m in str(sense_mods).replace('+', ',').split(',') if m.strip()]
-        s_p = [int(p.strip()) for p in str(sense_positions).replace('+', ',').split(',') if p.strip().isdigit()]
-        for m, p in zip(s_m, s_p):
-            add_mod(m, p, 'sense')
+    if sense_mods:
+        if sense_positions:
+            s_m = [m.strip() for m in str(sense_mods).replace('+', ',').split(',') if m.strip()]
+            s_p = [int(p.strip()) for p in str(sense_positions).replace('+', ',').split(',') if p.strip().isdigit()]
+            for m, p in zip(s_m, s_p):
+                add_mod(m, p, 'sense')
+        else:
+            for idx, c in enumerate(str(sense_mods).strip()):
+                if idx < len(s_seq) and c.upper() not in "ACGTU." and c.upper() in MODIFICATION_ALPHABET:
+                    add_mod(c, idx + 1, 'sense')
 
     # 3. From antisense_mods / antisense_positions
-    if antisense_mods and antisense_positions:
-        a_m = [m.strip() for m in str(antisense_mods).replace('+', ',').split(',') if m.strip()]
-        a_p = [int(p.strip()) for p in str(antisense_positions).replace('+', ',').split(',') if p.strip().isdigit()]
-        for m, p in zip(a_m, a_p):
-            add_mod(m, p, 'antisense')
+    if antisense_mods:
+        if antisense_positions:
+            a_m = [m.strip() for m in str(antisense_mods).replace('+', ',').split(',') if m.strip()]
+            a_p = [int(p.strip()) for p in str(antisense_positions).replace('+', ',').split(',') if p.strip().isdigit()]
+            for m, p in zip(a_m, a_p):
+                add_mod(m, p, 'antisense')
+        else:
+            for idx, c in enumerate(str(antisense_mods).strip()):
+                if idx < len(a_seq) and c.upper() not in "ACGTU." and c.upper() in MODIFICATION_ALPHABET:
+                    add_mod(c, idx + 1, 'antisense')
 
     # 4. From sequence characters (non-canonical single letter codes)
     for idx, c in enumerate(sense):

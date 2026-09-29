@@ -51,9 +51,9 @@
 * **Combinatorial Explosion:** A 21-mer duplex with 42 nucleotide slots and 30 chemistries represents **30^42 (approximately 10^62)** possible states, requiring intelligent guided search.
 
 #### Mentor Literature Touchpoint - Oligonucleotide Biophysics
-> **CDAC Mentor Research Alignment**: Dr. Uddhavesh Sonavane (HOD) & Mallikarjunachari V. N. Uppuladinne (Mentor)  
-> *Citation*: J. Biomol. Struct. Dyn. (2019) 37(18): 4739–4750  
-In their 2019 JBSD paper on antisense gapmer-RNA duplexes, Sonavane sir and Mallikarjunachari sir demonstrated that chemical substitutions (such as LNA, MOE, and phosphorothioate linkages) fundamentally remodel duplex hydration shells, backbone dihedral angles, and thermal stability (Tm), while requiring strict preservation of central catalytic cleavage geometry.
+> **CDAC Mentor Research Alignment**: Dr. Uddhavesh Sonavane & Mallikarjunachari V. N. Uppuladinne  
+> *Citation*: Structural insight into antisense gapmer-RNA oligomer duplexes through molecular dynamics simulations — J. Biomol. Struct. Dyn. (2019) 37(18): 4739–4750  
+In this foundational 2019 study on antisense gapmer-RNA duplexes, molecular dynamics simulations demonstrated that chemical substitutions (such as LNA, MOE, and phosphorothioate linkages) fundamentally remodel duplex hydration shells, backbone dihedral angles, and thermal stability (Tm), while requiring strict preservation of central catalytic cleavage geometry.
 <p style='margin-top:8px;'>**Engineering Translation to RNAi:** While single-stranded ASOs recruit RNase H and siRNAs recruit Argonaute-2, the underlying physical chemistry is shared: chemical modifications alter A-form helical geometry and steric clearance. A software model that treats RNA as a naive 4-letter alphabet cannot generalize to chemically engineered siRNA therapeutics.
 
 ### Spoken Talk Track (Presenter Notes)
@@ -179,13 +179,13 @@ raw_name: str = ""                # Preserves original IUPAC string
 ```
 
 #### Mentor Literature Touchpoint - Sugar Pucker & Conformation
-> **CDAC Mentor Research Alignment**: Mallikarjunachari V. N. Uppuladinne (Mentor)  
-> *Citation*: Quantum Chemical Studies of 2'-4' Conformationally Restricted Monomers  
-Mallikarjunachari sir's quantum chemical research proved that 2'-substituents (e.g., 2'-F vs. 2'-OMe) dictate whether the furanose adopts a rigid **C3'-endo (North)** or **C2'-endo (South)** conformation, altering A-form geometry and van der Waals envelopes independently from phosphate linkages.
+> **CDAC Mentor Research Alignment**: Mallikarjunachari V. N. Uppuladinne  
+> *Citation*: Quantum chemical studies of novel 2'-4' conformationally restricted antisense monomers — C-DAC Molecular Modeling Research  
+Quantum chemical and semi-empirical calculations established that 2'-substituents (e.g., 2'-F vs. 2'-OMe) dictate whether the furanose adopts a rigid **C3'-endo (North)** or **C2'-endo (South)** conformation, altering A-form geometry and van der Waals envelopes independently from phosphate linkages.
 <p style='margin-top:8px;'>**Engineering Translation:** Our NucSlot dataclass explicitly decouples sugar puckering from internucleotide phosphate linkages, allowing HelixZero to accurately model coexisting 2'-F sugars and phosphorothioate backbones.
 
 ### Spoken Talk Track (Presenter Notes)
-> "Slide 6 explains a major software refactoring. Historical databases stored modifications as a single string of letters like 'M' or 'F', making sugar and linkage mutually exclusive. As Mallikarjunachari sir's quantum chemical research demonstrated, sugar pucker and internucleotide linkages are independent physical variables. Our NucSlot dataclass decouples base, sugar, linkage, base modifications, terminal caps, and delivery conjugates into orthogonal attributes."
+> "Slide 6 explains a major software refactoring. Historical databases stored modifications as a single string of letters like 'M' or 'F', making sugar and linkage mutually exclusive. As established in quantum chemical research, sugar pucker and internucleotide linkages are independent physical variables. Our NucSlot dataclass decouples base, sugar, linkage, base modifications, terminal caps, and delivery conjugates into orthogonal attributes."
 
 ---
 
@@ -531,13 +531,13 @@ return val
 * <code>GET /health</code>: Liveness & readiness probes for Docker container orchestration.
 
 #### Downstream Synergy with C-DAC MD Simulation Lab
-> **CDAC Mentor Research Alignment**: Dr. Vinod Jani (Mentor)  
-> *Citation*: Microsecond Scale REMD Simulation, J. Biomol. Struct. Dyn. (2011)  
-As Vinod sir's work in microsecond Replica Exchange Molecular Dynamics (REMD) has shown, all-atom physical simulation is the ultimate ground truth for free-energy landscapes, but it cannot screen 10,000 candidates.
-<p style='margin-top:8px;'>**The Triage Funnel:** HelixZero functions as the high-throughput computational funnel (filtering millions of sequences down to top leads), which can then be fed directly into Dr. Vinod Jani's microsecond REMD and free-energy perturbation (FEP) pipelines for atomistic validation.
+> **CDAC Mentor Research Alignment**: Dr. Vinod Jani  
+> *Citation*: Microsecond scale replica exchange molecular dynamic simulation of villin headpiece: an insight into the folding landscape — J. Biomol. Struct. Dyn. (2011)  
+As microsecond-scale Replica Exchange Molecular Dynamics (REMD) simulations have shown, all-atom physical simulation is the ultimate ground truth for free-energy landscapes, but it cannot screen 10,000 candidates directly.
+<p style='margin-top:8px;'>**The Triage Funnel:** HelixZero functions as the high-throughput computational funnel (filtering millions of sequences down to top leads), which can then be fed directly into downstream microsecond REMD and free-energy perturbation (FEP) pipelines for atomistic validation.
 <p style='margin-top:8px;'>**Future Horizons:** Active learning retraining on newly published clinical duplex assays and integrating Uni-Mol 1B structural embeddings.
 
 ### Spoken Talk Track (Presenter Notes)
-> "Finally, Slide 18 presents our production deployment and future horizons. Our FastAPI service is packaged into a multi-stage Docker container with 7 automated CI/CD test suites. Looking forward, as Vinod sir's work in microsecond REMD has shown, all-atom simulation is the ultimate ground truth. HelixZero serves as the high-throughput computational funnel, delivering the top Pareto-optimal candidates directly to C-DAC's atomistic MD pipelines. Thank you very much, I am now open to your questions and feedback."
+> "Finally, Slide 18 presents our production deployment and future horizons. Our FastAPI service is packaged into a multi-stage Docker container with 7 automated CI/CD test suites. Looking forward, as microsecond REMD research has demonstrated, all-atom simulation is the ultimate ground truth. HelixZero serves as the high-throughput computational funnel, delivering the top Pareto-optimal candidates directly to downstream atomistic MD pipelines. Thank you very much, I am now open to your questions and feedback."
 
 ---

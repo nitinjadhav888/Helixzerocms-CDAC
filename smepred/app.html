@@ -1718,20 +1718,31 @@ function renderMultiModResult(data) {
                           'gnn_score','gbdt_score','parent_score','naked_baseline','model_b_baseline',
                           'estimated_pIC50','estimated_IC50_nM','predicted_knockdown_pct','pIC50_score','ic50_nM']);
   
+  r.parent_sense = r.parent_sense || data.parent_sense;
+  r.parent_antisense = r.parent_antisense || data.parent_antisense;
+
   const KEY_LABELS = {
-    sense: 'Sense Strand',
-    antisense: 'Antisense Strand',
+    parent_sense: 'Biological Sense (Parent)',
+    parent_antisense: 'Biological Antisense (Parent)',
+    sense: 'Modified Sense Strand',
+    antisense: 'Modified Antisense Strand',
     mod_symbol: 'Mod Symbol',
     mod_position: 'Mod Position',
     mod_strand: 'Mod Strand',
     mod_positions: 'Mod Positions',
-    sense_mods: 'Sense Mods',
-    antisense_mods: 'Antisense Mods',
+    sense_mods: 'Sense Chemistry Mask',
+    antisense_mods: 'Antisense Chemistry Mask',
     num_mods: 'Mod Count',
   };
 
+  // Prevent duplicate rendering if sense_mods is identical to sense
   const metas = Object.entries(r)
-    .filter(([k]) => !hidden.has(k))
+    .filter(([k, v]) => {
+      if (hidden.has(k)) return false;
+      if (k === 'sense_mods' && v === r.sense) return false;
+      if (k === 'antisense_mods' && v === r.antisense) return false;
+      return true;
+    })
     .map(([k, v]) => {
       const labelKey = KEY_LABELS[k] || k.replace(/_/g, ' ').toUpperCase();
       return `<div class="meta-item"><div class="key">${labelKey}</div><div class="val">${v ?? '—'}</div></div>`;
@@ -2620,14 +2631,29 @@ async function loadMods() {
 
       // 2. From explicit parameters (senseMods/sensePos, antiMods/antiPos)
       const parseExplicitModList = (mStr, pStr, targetArr, seenSet, isAnti) => {
-        if (!mStr || !pStr) return;
-        const mList = String(mStr).replace(/\+/g, ',').split(',').map(s => s.trim()).filter(Boolean);
-        const pList = String(pStr).replace(/\+/g, ',').split(',').map(s => s.trim()).filter(Boolean);
-        for (let i = 0; i < Math.min(mList.length, pList.length); i++) {
-          const p = parseInt(pList[i], 10);
-          if (p >= 1 && p <= 21 && !seenSet.has(p)) {
-            targetArr.push({ pos: p, char: mList[i], name: normalizeModName(mList[i]), domain: getDomainName(p - 1, isAnti) });
-            seenSet.add(p);
+        if (!mStr) return;
+        if (pStr) {
+          const mList = String(mStr).replace(/\+/g, ',').split(',').map(s => s.trim()).filter(Boolean);
+          const pList = String(pStr).replace(/\+/g, ',').split(',').map(s => s.trim()).filter(Boolean);
+          for (let i = 0; i < Math.min(mList.length, pList.length); i++) {
+            const p = parseInt(pList[i], 10);
+            if (p >= 1 && p <= 21 && !seenSet.has(p)) {
+              targetArr.push({ pos: p, char: mList[i], name: normalizeModName(mList[i]), domain: getDomainName(p - 1, isAnti) });
+              seenSet.add(p);
+            }
+          }
+        } else {
+          // Compact 1-char per position mask (e.g. MMMMMMMFFFMMMMMMMMMM)
+          const cleanM = String(mStr).trim();
+          for (let i = 0; i < cleanM.length; i++) {
+            const char = cleanM[i];
+            if (char in MOD_FULL_NAMES && !'ACGTU'.includes(char.toUpperCase())) {
+              const p = i + 1;
+              if (p >= 1 && p <= 21 && !seenSet.has(p)) {
+                targetArr.push({ pos: p, char: char, name: normalizeModName(char), domain: getDomainName(i, isAnti) });
+                seenSet.add(p);
+              }
+            }
           }
         }
       };
