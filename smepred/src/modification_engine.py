@@ -82,6 +82,7 @@ class CmSiRNA:
     estimated_pIC50: Optional[float] = None
     estimated_IC50_nM: Optional[float] = None
     predicted_knockdown_pct: Optional[float] = None
+    target_dose_nM: Optional[float] = None
     sense_mods: str = ""
     sense_positions: str = ""
     antisense_mods: str = ""
@@ -118,6 +119,8 @@ class CmSiRNA:
             result["estimated_IC50_nM"] = round(self.estimated_IC50_nM, 4)
         if self.predicted_knockdown_pct is not None:
             result["predicted_knockdown_pct"] = round(self.predicted_knockdown_pct, 2)
+        if self.target_dose_nM is not None:
+            result["target_dose_nM"] = round(self.target_dose_nM, 2)
         return result
 
 
@@ -404,11 +407,13 @@ def multi_mod_scan(
     calibrator_key: Optional[str] = None,
     normalize_mode: str = "clip",
     fda_core_only: bool = True,
+    conc_nM: float = 10.0,
 ) -> List[CmSiRNA]:
     """
     Heuristically explores the vast combinatoric space of multi-modified siRNAs.
     Uses an iterative beam search to stack highly effective modifications while 
     pruning sub-optimal branches to avoid computational explosion.
+    Dose-response is evaluated at conc_nM.
     """
     # Lazy imports required to prevent circular dependency with predictor.py
     from .predictor import predict_modified, _get_model, _normalize_scores, _predict_model_b
@@ -416,11 +421,11 @@ def multi_mod_scan(
     from .biophysics import calculate_adjusted_efficacy
     from collections import defaultdict
 
-    logger.info(f"Starting combinatorial beam search (FDA Core Only: {fda_core_only}).")
+    logger.info(f"Starting combinatorial beam search (FDA Core Only: {fda_core_only}, Dose: {conc_nM} nM).")
 
     if single_results is None:
         prediction_output = predict_modified(
-            sense, antisense, mode="scan", model_key=model_key, full_scan=full_scan
+            sense, antisense, mode="scan", model_key=model_key, full_scan=full_scan, conc_nM=conc_nM
         )
         parent_score = prediction_output.get("parent_score", 0.0)
         single_results = prediction_output["results"]
@@ -660,12 +665,13 @@ def multi_mod_scan(
                     sense_mods_list=s_mods, anti_mods_list=a_mods,
                     sense_pos_list=s_pos, anti_pos_list=a_pos,
                     parent_sense_seqs=p_s_seqs, parent_anti_seqs=p_a_seqs,
-                    conc_nM=10.0
+                    conc_nM=conc_nM
                 )
                 for variant, v5_res in zip(top_candidates, v5_batch_res):
                     variant.estimated_pIC50 = v5_res["estimated_pIC50"]
                     variant.estimated_IC50_nM = v5_res["estimated_IC50_nM"]
                     variant.predicted_knockdown_pct = v5_res["predicted_knockdown_pct"]
+                    variant.target_dose_nM = conc_nM
                     adj_score, penalties, _ = calculate_adjusted_efficacy(
                         v5_res["predicted_knockdown_pct"], variant.sense, variant.antisense,
                         variant.parent_sense, variant.parent_antisense,

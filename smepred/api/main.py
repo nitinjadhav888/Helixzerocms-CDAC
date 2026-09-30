@@ -100,6 +100,7 @@ class RankRequest(BaseModel):
     sequence: str = Field(..., description="Target gene sequence (raw text or FASTA)")
     top_n: int = Field(20, ge=0, description="Limit results to Top-N (0 = return all)")
     input_type: str = Field("gene", description="Mode: 'gene' (sliding window) or 'dsirna' (Dicer)")
+    conc_nM: float = Field(10.0, ge=0.001, le=10000.0, description="Assay concentration in nM (default: 10.0)")
 
 class SingleModRequest(BaseModel):
     sense: str = Field(..., description="21-nt sense strand")
@@ -108,6 +109,7 @@ class SingleModRequest(BaseModel):
     top_n: int = Field(50, ge=0, description="Limit returned variants")
     full_scan: bool = Field(False, description="True=1260 variants, False=40-variant targeted scan")
     fda_core_only: bool = Field(True, description="True=FDA-approved core 5 mods, False=All 30 chemistries")
+    conc_nM: float = Field(10.0, ge=0.001, le=10000.0, description="Assay concentration in nM (default: 10.0)")
 
 class MultiModRequest(BaseModel):
     sense: str = Field(..., description="21-nt sense strand")
@@ -123,6 +125,7 @@ class MultiModRequest(BaseModel):
     parent_sense: Optional[str] = Field("", description="Unmodified parent sense strand")
     parent_antisense: Optional[str] = Field("", description="Unmodified parent antisense strand")
     model: Literal["IEEE_v5", "Ensemble_v4", "GNN_v2", "B_v4"] = Field(DEFAULT_MODEL_B_KEY, description="Model key")
+    conc_nM: float = Field(10.0, ge=0.001, le=10000.0, description="Assay concentration in nM (default: 10.0)")
 
 class MultiModScanRequest(BaseModel):
     sense: str
@@ -132,6 +135,7 @@ class MultiModScanRequest(BaseModel):
     beam_width: int = Field(20, ge=5, le=100)
     full_scan: bool = False
     fda_core_only: bool = True
+    conc_nM: float = Field(10.0, ge=0.001, le=10000.0, description="Assay concentration in nM (default: 10.0)")
 
 class MultiModFromSingleRequest(BaseModel):
     sense: str
@@ -146,6 +150,7 @@ class MultiModFromSingleRequest(BaseModel):
     seed_variant: Optional[Dict[str, Any]] = None
     calibrator_key: Optional[str] = None
     normalize_mode: str = "rescale"
+    conc_nM: float = Field(10.0, ge=0.001, le=10000.0, description="Assay concentration in nM (default: 10.0)")
 
 class OffTargetRequest(BaseModel):
     sense: str = Field(..., description="21-nt sense strand")
@@ -274,7 +279,8 @@ def single_mod_endpoint(req: SingleModRequest):
             req.sense, req.antisense,
             mode="scan",
             full_scan=req.full_scan,
-            model_key=req.model
+            model_key=req.model,
+            conc_nM=req.conc_nM,
         )
         
         results = output["results"]
@@ -297,6 +303,7 @@ def single_mod_endpoint(req: SingleModRequest):
             "model_b_baseline": output.get("model_b_baseline", parent_score),
             "naked_baseline": output.get("naked_baseline", parent_score),
             "model": req.model,
+            "target_dose_nM": req.conc_nM,
             "total_variants": len(results),
             "full_scan": req.full_scan,
             "parent_toxicity": {
@@ -333,6 +340,7 @@ def multi_mod_endpoint(req: MultiModRequest):
             mod_strand=req.mod_strand,
             parent_sense=req.parent_sense or "",
             parent_antisense=req.parent_antisense or "",
+            conc_nM=req.conc_nM,
         )
         results = output["results"]
         if not results:
@@ -356,6 +364,7 @@ def multi_mod_endpoint(req: MultiModRequest):
             "model_b_baseline": output.get("model_b_baseline", output["parent_score"]),
             "naked_baseline": output.get("naked_baseline", output["parent_score"]),
             "model": req.model,
+            "target_dose_nM": req.conc_nM,
             "structural_properties": output.get("structural_properties"),
             "result": variant_dict,
         }
@@ -448,6 +457,7 @@ def multi_mod_scan_endpoint(req: MultiModScanRequest):
                 mod_position=req.mod_position or "",
                 mod_positions=req.mod_positions or "",
                 mod_strand=req.mod_strand or "",
+                conc_nM=req.conc_nM,
             )
 
         variants = multi_mod_scan(
@@ -457,6 +467,7 @@ def multi_mod_scan_endpoint(req: MultiModScanRequest):
             model_key=req.model,
             full_scan=req.full_scan,
             fda_core_only=req.fda_core_only,
+            conc_nM=req.conc_nM,
         )
 
         # Truncate to top 100 to prevent massive payload sizes and frontend crashing
@@ -552,7 +563,7 @@ def multi_mod_from_single_endpoint(req: MultiModFromSingleRequest):
         if req.model == "IEEE_v5":
             try:
                 from helixzero_ieee_v5.predict_ieee_v5 import predict_sirna_potency
-                v5_anchor = predict_sirna_potency(req.sense, req.antisense, "", "", 10.0)
+                v5_anchor = predict_sirna_potency(req.sense, req.antisense, "", "", conc_nM=req.conc_nM)
                 model_b_baseline = round(v5_anchor["predicted_knockdown_pct"], 2)
                 if parent_baseline is None:
                     parent_baseline = model_b_baseline
@@ -588,6 +599,7 @@ def multi_mod_from_single_endpoint(req: MultiModFromSingleRequest):
             calibrator_key=req.calibrator_key,
             normalize_mode=req.normalize_mode,
             fda_core_only=req.fda_core_only,
+            conc_nM=req.conc_nM,
         )
 
         # Truncate to top 100 to prevent evaluating safety heuristics on 15,000+ variants
@@ -649,6 +661,7 @@ def multi_mod_from_single_endpoint(req: MultiModFromSingleRequest):
             "model_b_baseline": model_b_baseline,
             "naked_baseline": parent_baseline,
             "model": req.model,
+            "target_dose_nM": req.conc_nM,
             "total_variants": len(formatted_results),
             "results": formatted_results,
         }

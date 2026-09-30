@@ -660,6 +660,13 @@
       </div>
       <div class="hint" id="input-type-hint">Sliding window across transcript → all 21-mer candidates</div>
     </div>
+    <div class="field" style="max-width:220px">
+      <label>Assay Dose Reference</label>
+      <div style="padding:9px 14px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);font-size:0.82rem;font-weight:600;color:var(--accent)">
+        10.0 nM (Standard Baseline)
+      </div>
+      <div class="hint">Naked candidate screening reference dose.</div>
+    </div>
   </div>
   <button class="run" id="btn-rank" onclick="runRank()">
     <span class="spinner"></span> Run Prediction
@@ -716,7 +723,7 @@
       <input id="sm-antisense" type="text" placeholder="e.g. AUAUUCACUAAACGACUGCTT" maxlength="25">
     </div>
   </div>
-  <div class="row cols2">
+  <div class="row cols3">
     <div class="field">
       <label>Prediction Model</label>
       <select id="sm-model" onchange="updateModelHint(); document.getElementById('mm-model').value = this.value;">
@@ -726,6 +733,18 @@
         <option value="B_v4">CatBoost Model B v4 (522-dim joint features)</option>
       </select>
       <div class="hint" id="sm-model-hint"></div>
+    </div>
+    <div class="field">
+      <label>Assay Dose (Concentration)</label>
+      <select id="sm-conc" onchange="document.getElementById('mm-conc').value = this.value;">
+        <option value="1.0">1.0 nM (Low In Vitro / In Vivo Range)</option>
+        <option value="5.0">5.0 nM (Moderate Screening)</option>
+        <option value="10.0" selected>10.0 nM (Standard Clinical Reference)</option>
+        <option value="25.0">25.0 nM (Elevated In Vitro Screen)</option>
+        <option value="50.0">50.0 nM (Patent Screening High Dose)</option>
+        <option value="100.0">100.0 nM (High Saturation Screening)</option>
+      </select>
+      <div class="hint">Controls dose-dependent Hill kinetics &amp; assay response.</div>
     </div>
     <div class="field">
       <label>Top N variants to display</label>
@@ -818,7 +837,7 @@
       <input id="mm-apos" type="text" placeholder="">
     </div>
   </div>
-  <div class="row cols2">
+  <div class="row cols3">
     <div class="field">
       <label>Prediction Model</label>
       <select id="mm-model" onchange="document.getElementById('sm-model').value = this.value;">
@@ -828,6 +847,18 @@
         <option value="B_v4">CatBoost Model B v4 (522-dim joint features)</option>
       </select>
       <div class="hint">Synced with the Single-Mod tab's model selector.</div>
+    </div>
+    <div class="field">
+      <label>Assay Dose (Concentration)</label>
+      <select id="mm-conc" onchange="document.getElementById('sm-conc').value = this.value;">
+        <option value="1.0">1.0 nM (Low In Vitro / In Vivo Range)</option>
+        <option value="5.0">5.0 nM (Moderate Screening)</option>
+        <option value="10.0" selected>10.0 nM (Standard Clinical Reference)</option>
+        <option value="25.0">25.0 nM (Elevated In Vitro Screen)</option>
+        <option value="50.0">50.0 nM (Patent Screening High Dose)</option>
+        <option value="100.0">100.0 nM (High Saturation Screening)</option>
+      </select>
+      <div class="hint">Controls dose-dependent Hill kinetics &amp; assay response.</div>
     </div>
     <div class="field">
       <label>Top N variants to display (0 = all)</label>
@@ -1041,6 +1072,7 @@ async function runMultiModFromRank(sense, antisense) {
   switchTab('multimod', mmTabBtn);
   window.scrollTo({ top: 0, behavior: 'smooth' });
 
+  const concVal = parseFloat(document.getElementById('mm-conc')?.value || document.getElementById('sm-conc')?.value || '10.0') || 10.0;
   try {
     const res = await fetch(`${API}/multi-mod-from-single`, {
       method: 'POST',
@@ -1051,12 +1083,13 @@ async function runMultiModFromRank(sense, antisense) {
         max_mods: mm,
         beam_width: 100,
         full_scan: true,
+        conc_nM: concVal,
       })
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || 'Multi-mod scan failed');
     renderAutoMultiModResults(data);
-    showError('mm-error', `<div class="info-box">✓ Multi-mod scan complete. <strong>${data.total_variants}</strong> candidates, showing top 100. Top score: <span style="color:var(--accent)">${data.results[0]?.efficacy_score?.toFixed(1) || '—'}</span></div>`);
+    showError('mm-error', `<div class="info-box">✓ Multi-mod scan complete. <strong>${data.total_variants}</strong> candidates, showing top 100 @ ${data.target_dose_nM || concVal} nM. Top score: <span style="color:var(--accent)">${data.results[0]?.efficacy_score?.toFixed(1) || '—'}</span></div>`);
   } catch(e) {
     showError('mm-error', e.message);
   }
@@ -1372,6 +1405,7 @@ async function runSingleMod() {
 
   const fullScan = true; // Always full scan for Single-Mod
   const fdaCore = document.getElementById('sm-fda-core').checked;
+  const concVal = parseFloat(document.getElementById('sm-conc')?.value || '10.0') || 10.0;
   try {
     const res = await fetch(`${API}/single-mod`, {
       method: 'POST',
@@ -1382,6 +1416,7 @@ async function runSingleMod() {
         top_n: parseInt(document.getElementById('sm-topn').value) || 50,
         full_scan: fullScan,
         fda_core_only: fdaCore,
+        conc_nM: concVal,
       })
     });
     const data = await parseApiResponse(res);
@@ -1450,6 +1485,7 @@ async function loadMultiModFromSingleModBatch() {
   document.getElementById('mm-results').innerHTML = `<div class="mm-loading"><div class="bar"></div><div class="label">Multi-mod beam search starting from top single mods…</div><div class="hint">Evaluating combinations across top candidates — please wait</div></div>`;
   showError('mm-error', '');
 
+  const concVal = parseFloat(document.getElementById('sm-conc')?.value || document.getElementById('mm-conc')?.value || '10.0') || 10.0;
   try {
     const res = await fetch(`${API}/multi-mod-from-single`, {
       method: 'POST',
@@ -1461,12 +1497,13 @@ async function loadMultiModFromSingleModBatch() {
         full_scan: true,
         fda_core_only: document.getElementById('sm-fda-core')?.checked ?? true,
         single_results: data.results,
-        parent_score: parentScore
+        parent_score: parentScore,
+        conc_nM: concVal,
       })
     });
     const rdata = await parseApiResponse(res);
     renderAutoMultiModResults(rdata);
-    showError('mm-error', `<div class="info-box">✓ Multi-mod beam search complete. <strong>${rdata.total_variants}</strong> candidates generated. Top delta: <span style="color:var(--accent)">+${rdata.results[0]?.delta_score?.toFixed(2) || '—'}</span></div>`);
+    showError('mm-error', `<div class="info-box">✓ Multi-mod beam search complete. <strong>${rdata.total_variants}</strong> candidates generated @ ${rdata.target_dose_nM || concVal} nM. Top delta: <span style="color:var(--accent)">+${rdata.results[0]?.delta_score?.toFixed(2) || '—'}</span></div>`);
   } catch(e) {
     showError('mm-error', e.message);
   }
@@ -1541,7 +1578,7 @@ function renderSingleModResults(data) {
       <td>${r.mod_strand ?? '—'}</td>
       <td>${r.mod_position ?? '—'}</td>
       <td>${modSym}</td>
-      <td title="HelixZero IEEE v5: ${kdPct.toFixed(1)}% Knockdown | pIC50: ${pic50Str} | IC50: ${ic50Str}">
+      <td title="HelixZero IEEE v5: ${kdPct.toFixed(1)}% Knockdown @ ${data.target_dose_nM || 10} nM | pIC50: ${pic50Str} | IC50: ${ic50Str}">
         ${scoreBar(kdPct)}
       </td>
       <td>${deltaStr}</td>
@@ -1561,8 +1598,8 @@ function renderSingleModResults(data) {
   const parentBanner = `
     <div style="display:flex;align-items:center;gap:14px;padding:10px 18px;background:var(--surface2);border-bottom:1px solid var(--border);flex-wrap:wrap">
       <span style="font-size:0.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;font-weight:600">Baseline</span>
-      <div style="display:flex;align-items:center;gap:6px" title="HelixZero IEEE v5 0-modification anchor">
-        <span style="font-size:0.65rem;color:var(--accent);font-weight:600">HelixZero IEEE v5 Anchor</span>
+      <div style="display:flex;align-items:center;gap:6px" title="HelixZero IEEE v5 0-modification anchor at ${data.target_dose_nM || 10} nM">
+        <span style="font-size:0.65rem;color:var(--accent);font-weight:600">HelixZero IEEE v5 Anchor (${data.target_dose_nM || 10} nM)</span>
         ${scoreBarSmall(modelBBase)}
       </div>
       <span style="width:1px;height:20px;background:var(--border)"></span>
@@ -1581,7 +1618,7 @@ function renderSingleModResults(data) {
   document.getElementById('sm-results').innerHTML = `
     <div class="results-box">
       <div class="results-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-        <div>Top <strong>${data.results.length}</strong> of <strong>${data.total_variants}</strong> variants — Model ${modelLabel(data.model)} ${scanModeLabel}</div>
+        <div>Top <strong>${data.results.length}</strong> of <strong>${data.total_variants}</strong> variants — Model ${modelLabel(data.model)} @ <strong>${data.target_dose_nM || 10} nM</strong> ${scanModeLabel}</div>
         <button type="button" class="mini-btn" style="background:linear-gradient(135deg, rgba(34,211,196,0.18), rgba(139,127,214,0.18));color:var(--accent);border:1px solid var(--accent);padding:6px 14px;border-radius:6px;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:6px;" onclick="triggerTop5Analysis()" title="Synthesize Top 5 clinical leads with AI dossier">
           <span>🧬</span> AI Lead Progression (Top 5)
         </button>
@@ -1631,6 +1668,7 @@ async function runMultiMod(forceBeamSearch = false) {
   const fdaCore = document.getElementById('mm-fda-core').checked;
   const model = document.getElementById('mm-model').value;
 
+  const concVal = parseFloat(document.getElementById('mm-conc')?.value || document.getElementById('sm-conc')?.value || '10.0') || 10.0;
   try {
     if (!forceBeamSearch) {
       // Manual targeted modification evaluation (Predict Specific Variant)
@@ -1650,13 +1688,14 @@ async function runMultiMod(forceBeamSearch = false) {
           antisense_mods: amods,
           antisense_positions: document.getElementById('mm-apos').value.trim(),
           model: model,
+          conc_nM: concVal,
         })
       });
       const data = await parseApiResponse(res);
       renderMultiModResult(data);
     } else {
       // Full unconstrained combinatorial beam search scan (up to 21 modifications)
-      document.getElementById('mm-results').innerHTML = `<div class="mm-loading"><div class="bar"></div><div class="label">Running combinatorial beam search scan (FDA Core: ${fdaCore ? 'YES' : 'NO (All 30 Chemistries)'})…</div><div class="hint">Evaluating multi-position variants — please wait a moment</div></div>`;
+      document.getElementById('mm-results').innerHTML = `<div class="mm-loading"><div class="bar"></div><div class="label">Running combinatorial beam search scan (FDA Core: ${fdaCore ? 'YES' : 'NO (All 30 Chemistries)'}, Dose: ${concVal} nM)…</div><div class="hint">Evaluating multi-position variants — please wait a moment</div></div>`;
       
       const res = await fetch(`${API}/multi-mod-from-single`, {
         method: 'POST',
@@ -1666,7 +1705,8 @@ async function runMultiMod(forceBeamSearch = false) {
           max_mods: 21,
           beam_width: 25,
           full_scan: true,
-          fda_core_only: fdaCore
+          fda_core_only: fdaCore,
+          conc_nM: concVal,
         })
       });
       const data = await parseApiResponse(res);
@@ -1759,9 +1799,9 @@ function renderMultiModResult(data) {
 
   const parentHtml = parentScore != null
     ? `<div style="margin-right:24px;display:flex;gap:16px;align-items:flex-end">
-        <div title="HelixZero IEEE v5 0-modification anchor baseline before applying chemical modifications">
+        <div title="HelixZero IEEE v5 0-modification anchor baseline before applying chemical modifications at ${data.target_dose_nM || 10} nM">
           <div class="big-score" style="color:var(--accent);font-size:1.4rem">${modelBBase.toFixed(1)}</div>
-          <div class="score-label" style="font-size:0.65rem;color:var(--accent);font-weight:600">HelixZero IEEE v5 Anchor</div>
+          <div class="score-label" style="font-size:0.65rem;color:var(--accent);font-weight:600">HelixZero IEEE v5 Anchor (${data.target_dose_nM || 10} nM)</div>
         </div>
       </div>`
     : '';
@@ -1775,7 +1815,7 @@ function renderMultiModResult(data) {
         ${parentHtml}
         <div>
           <div class="big-score" style="color:${scoreColor(score)}">${score.toFixed(1)}</div>
-          <div class="score-label">Predicted Knockdown % (10 nM)</div>
+          <div class="score-label">Predicted Knockdown % (${data.target_dose_nM || 10} nM)</div>
           ${r.confidence_interval ? `<div style="font-size:0.75rem;color:var(--accent);font-weight:600;margin-top:2px" title="IEEE v5 Model Confidence Interval (±1σ model uncertainty)">Conf: ${r.confidence_interval}</div>` : ''}
         </div>
         <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:6px">
@@ -2076,8 +2116,8 @@ function renderAutoMultiModResults(data) {
   const diffColor = modelBBase >= nakedBase ? '#34d399' : '#f87171';
   const parentBadge = `<div style="display:flex;align-items:center;gap:14px;padding:10px 18px;background:var(--surface2);border-bottom:1px solid var(--border);margin-bottom:12px;flex-wrap:wrap">
     <span style="font-size:0.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;font-weight:600">Baseline</span>
-    <div style="display:flex;align-items:center;gap:6px" title="Predicted knockdown percentage for unmodified (naked) RNA at clinical 10.0 nM dose. Chemical modifications below provide efficacy lift over this anchor.">
-      <span style="font-size:0.65rem;color:var(--accent);font-weight:600">HelixZero IEEE v5 (0-mod Anchor at 10 nM)</span>
+    <div style="display:flex;align-items:center;gap:6px" title="Predicted knockdown percentage for unmodified (naked) RNA at clinical ${data.target_dose_nM || 10} nM dose. Chemical modifications below provide efficacy lift over this anchor.">
+      <span style="font-size:0.65rem;color:var(--accent);font-weight:600">HelixZero IEEE v5 (0-mod Anchor at ${data.target_dose_nM || 10} nM)</span>
       ${scoreBarSmall(modelBBase)}
     </div>
     <span style="font-size:0.7rem;color:${diffColor};font-weight:600">${modelBBase >= nakedBase ? '+' : ''}${baseDiff}</span>
@@ -2140,7 +2180,7 @@ function renderAutoMultiModResults(data) {
           <thead><tr>
             <th>#</th><th>Modified Sense</th><th>Modified Antisense</th>
             <th>Mod(s)</th><th>Chemistry</th>
-            <th>Knockdown (%)</th><th>Δ Knockdown</th>
+            <th>Knockdown (%) @ ${data.target_dose_nM || 10} nM</th><th>Δ Knockdown</th>
             <th>Actions</th>
           </tr></thead>
           <tbody>${rows}</tbody>
@@ -2465,6 +2505,7 @@ async function loadMods() {
     modal.style.display = 'flex';
 
     // Fetch structural properties & 3D PDB coordinates AND Transcriptome Off-Target Safety concurrently
+    const concVal = parseFloat(document.getElementById('mm-conc')?.value || document.getElementById('sm-conc')?.value || '10.0') || 10.0;
     try {
       const [res, offtargetRes] = await Promise.all([
         fetch(`${API}/multi-mod`, {
@@ -2482,7 +2523,8 @@ async function loadMods() {
             antisense_mods: antiMods,
             antisense_positions: antiPos,
             parent_sense: parentSense || sense,
-            parent_antisense: parentAntisense || antisense
+            parent_antisense: parentAntisense || antisense,
+            conc_nM: concVal,
           })
         }),
         fetch(`${API}/offtarget-scan`, {
@@ -2757,10 +2799,6 @@ async function loadMods() {
     document.getElementById('inspector3DModal').style.display = 'none';
   }
 
-  function loadMultiModFromSingleModBatch() {
-    if (!_lastSingleModData?.results?.length) return alert("Please run a Single-Mod scan first.");
-    loadMultiModFromVariant(0);
-  }
   </script>
 
   <style>

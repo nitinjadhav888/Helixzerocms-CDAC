@@ -353,6 +353,7 @@ class RankedCmSiRNA:
     antisense_positions: str = ""
     duplex_mfe_kcal: Optional[float] = None
     delta_duplex_dg: Optional[float] = None
+    target_dose_nM: Optional[float] = None
 
     def to_dict(self) -> Dict[str, Any]:
         result = {
@@ -369,6 +370,7 @@ class RankedCmSiRNA:
             "estimated_pIC50": round(self.estimated_pIC50, 4) if self.estimated_pIC50 is not None else None,
             "estimated_IC50_nM": round(self.estimated_IC50_nM, 4) if self.estimated_IC50_nM is not None else None,
             "predicted_knockdown_pct": round(self.predicted_knockdown_pct, 2) if self.predicted_knockdown_pct is not None else None,
+            "target_dose_nM": round(self.target_dose_nM, 2) if self.target_dose_nM is not None else None,
             "delta_score": round(self.delta_score, 2),
             "efficacy_label": self.efficacy_label,
             "toxicity_score": self.toxicity_score,
@@ -755,12 +757,14 @@ def predict_modified(
     mod_strand: str = "",
     parent_sense: str = "",
     parent_antisense: str = "",
+    conc_nM: float = 10.0,
 ) -> Dict[str, Any]:
     """
     Predicts the efficacy of chemically modified siRNA variants.
     Single-mod scan evaluates raw intrinsic ML effect; multi-mod design applies full biophysical constraints.
+    Dose-response is conditioned on conc_nM via IEEE v5 pharmacodynamic engine.
     """
-    logger.info(f"Starting predict_modified workflow (mode: {mode}).")
+    logger.info(f"Starting predict_modified workflow (mode: {mode}, dose: {conc_nM} nM).")
 
     actual_parent_s = parent_sense or sense
     actual_parent_a = parent_antisense or antisense
@@ -797,7 +801,7 @@ def predict_modified(
         raise ValueError(f"Invalid mode provided: {mode}")
 
     if not variants:
-        return {"results": [], "parent_score": 0.0, "parent_score_raw": 0.0, "model_b_baseline": 0.0, "naked_baseline": 0.0}
+        return {"results": [], "parent_score": 0.0, "parent_score_raw": 0.0, "model_b_baseline": 0.0, "naked_baseline": 0.0, "target_dose_nM": conc_nM}
 
     # 3. Extract features for variants
     s_list = [v.sense for v in variants]
@@ -838,7 +842,7 @@ def predict_modified(
     parent_v5_res = None
     try:
         from helixzero_ieee_v5.predict_ieee_v5 import predict_sirna_potency
-        parent_v5_res = predict_sirna_potency(sense, antisense, "", "", 10.0)
+        parent_v5_res = predict_sirna_potency(sense, antisense, "", "", conc_nM=conc_nM)
     except Exception:
         pass
     parent_ieee_kd = parent_v5_res["predicted_knockdown_pct"] if parent_v5_res else parent_adjusted_score
@@ -902,7 +906,7 @@ def predict_modified(
             anti_pos_list=a_pos,
             parent_sense_seqs=p_s_seqs,
             parent_anti_seqs=p_a_seqs,
-            conc_nM=10.0
+            conc_nM=conc_nM
         )
         for orig_idx, res in zip(top_eval_indices, sub_batch_res):
             v5_results[orig_idx] = res
@@ -930,31 +934,41 @@ def predict_modified(
     unranked_results = []
     for idx, (variant, score, gbdt_s, gnn_s) in enumerate(zip(variants, normalized_scores, gbdt_scores, gnn_scores)):
         v5_res = v5_results[idx] if idx < len(v5_results) else None
+        # Correctly respect user's chosen model_key:
+        if model_key == "IEEE_v5" and v5_res is not None:
+            base_score = v5_res["predicted_knockdown_pct"]
+            pred_kd_pct = v5_res["predicted_knockdown_pct"]
+        elif model_key == "Ensemble_v4":
+            base_score = float(score)
+            pred_kd_pct = base_score
+        elif model_key == "GNN_v2":
+            base_score = float(gnn_s)
+            pred_kd_pct = base_score
+        elif model_key == "B_v4":
+            base_score = float(gbdt_s)
+            pred_kd_pct = base_score
+        else:
+            base_score = float(score)
+            pred_kd_pct = base_score
+
         if v5_res is not None:
             est_pIC50 = v5_res["estimated_pIC50"]
             est_IC50_nM = v5_res["estimated_IC50_nM"]
-            pred_kd_pct = v5_res["predicted_knockdown_pct"]
-            base_score = pred_kd_pct
         else:
-            base_score = float(score)
-            pred_kd_pct = None
+            safe_kd = max(5.0, min(95.0, float(base_score)))
+            derived_ic50 = conc_nM * (100.0 - safe_kd) / safe_kd
+            est_IC50_nM = round(derived_ic50, 2)
+            est_pIC50 = round(9.0 - np.log10(max(1e-3, derived_ic50)), 2)
 
         adj_score, penalties, _ = calculate_adjusted_efficacy(
             base_score, variant.sense, variant.antisense, variant.parent_sense, variant.parent_antisense,
             mode="targeted" if mode == "multimod" else "mod_ranking"
         )
         viability, tox_label, tox_note = toxicity_for_modified(variant.antisense, variant.parent_antisense)
-        
-        if v5_res is None:
-            pred_kd_pct = adj_score
-            safe_kd = max(5.0, min(95.0, float(adj_score)))
-            derived_ic50 = 10.0 * (100.0 - safe_kd) / safe_kd
-            est_IC50_nM = round(derived_ic50, 2)
-            est_pIC50 = round(9.0 - np.log10(max(1e-3, derived_ic50)), 2)
 
         # Unified biophysically-adjusted efficacy score and delta across all modes
         final_score = adj_score
-        baseline_ref = parent_ieee_kd if v5_res is not None else parent_adjusted_score
+        baseline_ref = parent_ieee_kd if (model_key == "IEEE_v5" and parent_v5_res) else parent_adjusted_score
         final_delta = round(final_score - baseline_ref, 2)
 
         # Calculate variant-specific thermodynamic duplex perturbation
@@ -994,6 +1008,7 @@ def predict_modified(
             estimated_pIC50=est_pIC50,
             estimated_IC50_nM=est_IC50_nM,
             predicted_knockdown_pct=pred_kd_pct,
+            target_dose_nM=conc_nM,
             delta_score=final_delta,
             efficacy_label=_get_efficacy_label(final_score),
             toxicity_score=viability,
@@ -1020,11 +1035,12 @@ def predict_modified(
     logger.info(f"Successfully evaluated {len(ranked_results)} modified siRNA variants.")
     return {
         "results": ranked_results,
-        "parent_score": round(parent_ieee_kd if parent_v5_res else parent_adjusted_score, 2),
+        "parent_score": round(parent_ieee_kd if (model_key == "IEEE_v5" and parent_v5_res) else parent_adjusted_score, 2),
         "parent_score_raw": round(raw_parent_score, 2),
-        "model_b_baseline": round(parent_ieee_kd if parent_v5_res else parent_adjusted_score, 2),
+        "model_b_baseline": round(parent_ieee_kd if (model_key == "IEEE_v5" and parent_v5_res) else parent_adjusted_score, 2),
         "naked_baseline": round(raw_parent_adjusted_score, 2),
         "structural_properties": struct_props,
+        "target_dose_nM": conc_nM,
     }
 
 
