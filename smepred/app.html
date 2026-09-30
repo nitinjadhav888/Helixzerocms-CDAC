@@ -728,9 +728,7 @@
       <label>Prediction Model</label>
       <select id="sm-model" onchange="updateModelHint(); document.getElementById('mm-model').value = this.value;">
         <option value="IEEE_v5" selected>HelixZero IEEE v5 Hierarchical Model (pIC50 + Knockdown %, Zero Leakage r = 0.8358, default)</option>
-        <option value="Ensemble_v4">Hybrid GBDT-GNN Ensemble (v4 Legacy)</option>
-        <option value="GNN_v2">Fine-Tuned MEG-mod GNN (PyTorch finetuned_v2.pt)</option>
-        <option value="B_v4">CatBoost Model B v4 (522-dim joint features)</option>
+        <option value="B_v4">CatBoost Model B v4 (522-dim joint features, fast combinatorial search)</option>
       </select>
       <div class="hint" id="sm-model-hint"></div>
     </div>
@@ -842,9 +840,7 @@
       <label>Prediction Model</label>
       <select id="mm-model" onchange="document.getElementById('sm-model').value = this.value;">
         <option value="IEEE_v5" selected>HelixZero IEEE v5 Hierarchical Model (pIC50 + Knockdown %, Zero Leakage r = 0.8358, default)</option>
-        <option value="Ensemble_v4">Hybrid GBDT-GNN Ensemble (v4 Legacy)</option>
-        <option value="GNN_v2">Fine-Tuned MEG-mod GNN (PyTorch finetuned_v2.pt)</option>
-        <option value="B_v4">CatBoost Model B v4 (522-dim joint features)</option>
+        <option value="B_v4">CatBoost Model B v4 (522-dim joint features, fast combinatorial search)</option>
       </select>
       <div class="hint">Synced with the Single-Mod tab's model selector.</div>
     </div>
@@ -1562,7 +1558,8 @@ function renderSingleModResults(data) {
     const a = (r.antisense ?? data.parent_antisense ?? '').replace(/'/g, "\\'");
     const pic50Str = r.estimated_pIC50 != null ? Number(r.estimated_pIC50).toFixed(2) : '—';
     const ic50Str = r.estimated_IC50_nM != null ? Number(r.estimated_IC50_nM).toFixed(2) + ' nM' : '—';
-    const kdPct = r.predicted_knockdown_pct != null ? r.predicted_knockdown_pct : (r.efficacy_score ?? 0);
+    const rawKdPct = r.predicted_knockdown_pct != null ? r.predicted_knockdown_pct : (r.raw_efficacy_score ?? r.efficacy_score ?? 0);
+    const adjKdPct = r.efficacy_score != null ? r.efficacy_score : rawKdPct;
 
     const modStrand = (r.mod_strand || '').toLowerCase();
     const modPos = r.mod_position || '';
@@ -1578,8 +1575,8 @@ function renderSingleModResults(data) {
       <td>${r.mod_strand ?? '—'}</td>
       <td>${r.mod_position ?? '—'}</td>
       <td>${modSym}</td>
-      <td title="HelixZero IEEE v5: ${kdPct.toFixed(1)}% Knockdown @ ${data.target_dose_nM || 10} nM | pIC50: ${pic50Str} | IC50: ${ic50Str}">
-        ${scoreBar(kdPct)}
+      <td title="HelixZero IEEE v5: ${adjKdPct.toFixed(1)}% Knockdown @ ${data.target_dose_nM || 10} nM | Raw KD: ${rawKdPct.toFixed(1)}% | pIC50: ${pic50Str} | IC50: ${ic50Str}">
+        ${scoreBar(adjKdPct)}
       </td>
       <td>${deltaStr}</td>
       <td>${modToxDeltaCell(r.toxicity_score, r.toxicity_label ?? 'Unknown', r.toxicity_note ?? '', parentLabel)}</td>
@@ -1913,8 +1910,8 @@ function confidenceBadge(symbol) {
 // modelKey: the model_key ("B" or "B_v2") that actually produced `r.raw_efficacy_score`,
 // passed by the caller (which has data.model in scope) so the label is never wrong.
 function scoreBreakdownPopup(r, modelKey) {
-  const raw = r.raw_efficacy_score || r.efficacy_score;
-  const adj = r.efficacy_score;
+  const raw = r.raw_efficacy_score || r.predicted_knockdown_pct || r.efficacy_score;
+  const adj = r.efficacy_score != null ? r.efficacy_score : raw;
   const p = r.biophysics || r.penalties || {};
   // Sum from the same 7-category registry used for the rows below, so the
   // displayed total always matches the displayed rows (previously fell back
@@ -1925,19 +1922,19 @@ function scoreBreakdownPopup(r, modelKey) {
     const val = penaltyTotal(p, c.key);
     return `<div class="penalty-row">
       <span class="penalty-name">${c.label}</span>
-      <span class="penalty-val" style="color:${penaltyColor(val, c.thresholds)}">-${val.toFixed(1)}</span>
+      <span class="penalty-val" style="color:${penaltyColor(val, c.thresholds)}">-${val.toFixed(1)}%</span>
     </div>`;
   }).join('');
 
   return `<div class="score-popup">
-    <div class="raw-line">Raw Predicted Efficacy (Model ${modelLabel(modelKey)}): <span style="color:var(--accent)">${raw.toFixed(1)}</span></div>
+    <div class="raw-line">Raw Model Knockdown (${modelLabel(modelKey)}): <span style="color:var(--accent)">${raw.toFixed(1)}%</span></div>
     ${pRows}
     <div class="penalty-row">
-      <span class="penalty-name" style="font-weight:700">Total Penalty</span>
-      <span class="penalty-val" style="color:#f87171">-${totalPen.toFixed(1)}</span>
+      <span class="penalty-name" style="font-weight:700">Total Biophysical Penalty</span>
+      <span class="penalty-val" style="color:#f87171">-${totalPen.toFixed(1)}%</span>
     </div>
     <div class="calc-line">
-      <span class="formula">${raw.toFixed(1)} − ${totalPen.toFixed(1)} = <strong style="color:${adj >= 70 ? '#34d399' : adj >= 55 ? '#fbbf24' : '#f87171'}">${adj.toFixed(1)}</strong></span>
+      <span class="formula">${raw.toFixed(1)}% − ${totalPen.toFixed(1)}% = <strong style="color:${adj >= 70 ? '#34d399' : adj >= 55 ? '#fbbf24' : '#f87171'}">${adj.toFixed(1)}% Adjusted</strong></span>
     </div>
   </div>`;
 }
@@ -2133,10 +2130,11 @@ function renderAutoMultiModResults(data) {
 
     const pic50Str = r.estimated_pIC50 != null ? Number(r.estimated_pIC50).toFixed(2) : '—';
     const ic50Str = r.estimated_IC50_nM != null ? Number(r.estimated_IC50_nM).toFixed(2) + ' nM' : '—';
-    const kdPct = r.predicted_knockdown_pct != null ? r.predicted_knockdown_pct : (r.efficacy_score ?? 0);
+    const rawKdPct = r.predicted_knockdown_pct != null ? r.predicted_knockdown_pct : (r.raw_efficacy_score ?? r.efficacy_score ?? 0);
+    const adjKdPct = r.efficacy_score != null ? r.efficacy_score : rawKdPct;
 
-    // Score column with breakdown popup
-    const scoreHtml = `<div class="score-cell">${scoreBar(kdPct)}${scoreBreakdownPopup(r, data.model)}</div>`;
+    // Score column with breakdown popup (shows adjusted efficacy in progress bar, with raw model KD breakdown on hover)
+    const scoreHtml = `<div class="score-cell">${scoreBar(adjKdPct)}${scoreBreakdownPopup(r, data.model)}</div>`;
 
     // Confidence badge
     const confHtml = confidenceBadge(r.mod_symbol);
@@ -2150,7 +2148,7 @@ function renderAutoMultiModResults(data) {
       <td style="letter-spacing:0.05em">${r.antisense}</td>
       <td>${formatOrderedMods(r, data.parent_sense, data.parent_antisense)}</td>
       <td>${confHtml}</td>
-      <td title="HelixZero IEEE v5: ${kdPct.toFixed(1)}% Knockdown | pIC50: ${pic50Str} | IC50: ${ic50Str}">${scoreHtml}</td>
+      <td title="HelixZero IEEE v5: ${adjKdPct.toFixed(1)}% Knockdown @ ${data.target_dose_nM || 10} nM (Raw KD: ${rawKdPct.toFixed(1)}%, Penalty: -${totalPen.toFixed(1)}%) | pIC50: ${pic50Str} | IC50: ${ic50Str}">${scoreHtml}</td>
       <td>${deltaStr}</td>
       <td style="display:flex;gap:4px;white-space:nowrap" onclick="event.stopPropagation()">
         <button class="mini-btn" style="background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.4);color:#06b6d4;cursor:pointer" onclick="inspectVariant(this, '${r.sense}', '${r.antisense}', '${r.mod_symbol || ''}', '${r.mod_position || 0}', '${r.mod_strand || ''}', '${r.sense_mods || ''}', '${r.sense_positions || ''}', '${r.antisense_mods || ''}', '${r.antisense_positions || ''}', '${r.mod_positions || ''}')" title="View 3D Double Helix & Biophysics">🔍 3D View</button>
