@@ -23,8 +23,12 @@ jobs:
         run: |
           echo "Hydrating model binary assets from prebuilt container..."
           docker create --name temp_assets nitinjadhav888/helixzerocms:latest
-          mkdir -p smepred/models MEG-mod-main/Saved_Best_Models data_pre
-          docker cp temp_assets:/app/smepred/models/. smepred/models/
+          mkdir -p temp_hydrated
+          docker cp temp_assets:/app/smepred/models/. temp_hydrated/
+          # Copy only missing assets, preserving newly checked-out CBM models from repository
+          cp -n temp_hydrated/* smepred/models/ 2>/dev/null || true
+          rm -rf temp_hydrated
+          mkdir -p MEG-mod-main/Saved_Best_Models data_pre
           docker cp temp_assets:/app/MEG-mod-main/Saved_Best_Models/. MEG-mod-main/Saved_Best_Models/ || true
           docker cp temp_assets:/app/data_pre/. data_pre/ || true
           docker rm temp_assets
