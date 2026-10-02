@@ -37,9 +37,11 @@ from helixzero_ieee_v5.predict_ieee_v5 import predict_sirna_potency, predict_sir
 # ─── 1. Checkpoint Integrity & Loading ────────────────────────────────────────
 
 def test_gold_checkpoint_presence_and_loading():
-    """Verify retrained Gold pIC50 model checkpoint exists and loads valid CatBoost trees."""
-    gold_model_path = IEEE_DIR / "models" / "module2_potency_pIC50_retrained_gold.cbm"
-    assert gold_model_path.exists(), f"Retrained Gold model checkpoint missing at: {gold_model_path}"
+    """Verify retrained Single Unified Dose CatBoost model checkpoint exists and loads valid CatBoost trees."""
+    gold_model_path = SMEPRED_DIR / "models" / "unified_dose_catboost.cbm"
+    if not gold_model_path.exists():
+        gold_model_path = SMEPRED_DIR / "models" / "model_b_v4.cbm"
+    assert gold_model_path.exists(), f"Retrained model checkpoint missing at: {gold_model_path}"
     
     cb = CatBoostRegressor()
     cb.load_model(str(gold_model_path))

@@ -1,7 +1,7 @@
 """
 predict_ieee_v5.py
 ===================
-HelixZero IEEE v5 Multi-Module Inference Engine.
+HelixZero IEEE v5 Single Unified Dose-Aware & Cell-Aware Inference Engine.
 
 Takes any siRNA molecule (Sense + Antisense + Chemical Modifications) and target Dose (nM)
 and returns:
@@ -16,46 +16,19 @@ import sys
 import argparse
 import numpy as np
 from pathlib import Path
-from catboost import CatBoostRegressor
 
 THIS_FILE = Path(__file__).resolve()
 IEEE_DIR = THIS_FILE.parent
 ROOT_DIR = IEEE_DIR.parent
-MODELS_DIR = IEEE_DIR / "models"
 
 sys.path.insert(0, str(ROOT_DIR))
 
-from smepred.src import features_v4
+from smepred.src import model_b_v4
 from helixzero_ieee_v5.src.chem_ontology import parse_canonical_sequence
 
-# Load pre-trained IEEE v5 model checkpoints
-print("Loading HelixZero IEEE v5 Model Checkpoints...")
-mod2_path = MODELS_DIR / "module2_potency_pIC50.cbm"
-mod3_path = MODELS_DIR / "module3_assay_response.cbm"
-
-if not mod2_path.exists() or not mod3_path.exists():
-    raise FileNotFoundError(f"Model checkpoints missing in {MODELS_DIR}")
-
-mod2_engine = CatBoostRegressor()
-mod2_engine.load_model(str(mod2_path))
-
-mod3_engine = CatBoostRegressor()
-mod3_engine.load_model(str(mod3_path))
-
-print("✅ HelixZero IEEE v5 Inference Engine Ready!\n")
-
-def _hill_scale_efficacy(e10, conc_nM: float, e_max: float = 98.0):
-    """
-    Pharmacodynamic Hill-equation scaling anchored at reference dose 10.0 nM.
-    Eliminates observational selection bias present in high-dose assay datasets
-    while ensuring exact bit-level reproduction of 10.0 nM benchmarks.
-    """
-    if abs(conc_nM - 10.0) < 1e-4:
-        return e10
-    e_safe = np.clip(e10, 1.0, e_max - 0.5)
-    odds_10 = e_safe / (e_max - e_safe)
-    odds_c = odds_10 * (conc_nM / 10.0)
-    return np.clip(e_max * (odds_c / (1.0 + odds_c)), 0.0, 100.0)
+print("Loading HelixZero Unified Dose-Aware Model Checkpoint...")
+_ = model_b_v4._load()
+print("✅ HelixZero Unified Dose-Aware CatBoost Engine Ready!\n")
 
 
 def predict_sirna_potency(sense_seq: str, anti_seq: str, 
@@ -64,25 +37,17 @@ def predict_sirna_potency(sense_seq: str, anti_seq: str,
                           parent_sense: str = None, parent_anti: str = None,
                           conc_nM: float = 10.0) -> dict:
     """
-    Runs end-to-end 2-stage prediction for a chemically modified siRNA candidate.
+    Runs end-to-end unified dose-aware prediction for a chemically modified siRNA candidate.
     """
-    # 1. Parse Canonical NucSlot Chemical Ontology
     s_slots = parse_canonical_sequence(sense_seq, sense_mods, sense_positions, parent_sense)
     as_slots = parse_canonical_sequence(anti_seq, anti_mods, anti_positions, parent_anti)
     
-    # 2. Extract 577-dimensional Multi-Modal Feature Vector
-    X_base = features_v4.batch_features_v4([s_slots], [as_slots])
+    pred_knockdown = float(model_b_v4.predict_from_slots([s_slots], [as_slots], conc_nM=conc_nM)[0])
     
-    # 3. Stage 1: Predict Intrinsic Potency (pIC50 Engine)
-    pred_pIC50 = float(mod2_engine.predict(X_base)[0])
-    ic50_nM = float(10**(-pred_pIC50) * 1e9)
-    
-    # 4. Stage 2: Predict Dose-Aware Assay Knockdown Percentage
-    log_conc_ref = np.full((1, 1), 1.0)  # Reference dose log10(10 nM) = 1.0
-    X_mod3 = np.hstack([np.array([[pred_pIC50]]), log_conc_ref, X_base])
-    
-    pred_kd_10 = float(np.clip(mod3_engine.predict(X_mod3)[0], 0.0, 100.0))
-    pred_knockdown = float(_hill_scale_efficacy(pred_kd_10, conc_nM))
+    # Intrinsic potency directly derived from concentration-response relationship
+    safe_kd = max(1.0, min(99.0, pred_knockdown))
+    ic50_nM = float(conc_nM * (100.0 - safe_kd) / safe_kd)
+    pred_pIC50 = float(9.0 - np.log10(max(1e-4, ic50_nM)))
     
     return {
         "sense_sequence": sense_seq,
@@ -102,7 +67,7 @@ def predict_sirna_potency_batch(
     conc_nM: float = 10.0
 ) -> list:
     """
-    Vectorized batch inference for IEEE v5 engine (6000x faster than single-item loops).
+    Vectorized batch inference for unified dose-aware engine.
     """
     N = len(sense_seqs)
     if N == 0:
@@ -117,32 +82,27 @@ def predict_sirna_potency_batch(
     s_slots_list = [parse_canonical_sequence(s, sm, sp, ps) for s, sm, sp, ps in zip(sense_seqs, sense_mods_list, sense_pos_list, parent_sense_seqs)]
     as_slots_list = [parse_canonical_sequence(a, am, ap, pa) for a, am, ap, pa in zip(anti_seqs, anti_mods_list, anti_pos_list, parent_anti_seqs)]
 
-    X_base = features_v4.batch_features_v4(s_slots_list, as_slots_list)
-
-    preds_pIC50 = mod2_engine.predict(X_base)
-    ic50s_nM = (10.0 ** (-preds_pIC50)) * 1e9
-
-    log_conc_ref = np.full((N, 1), 1.0)  # Reference dose log10(10 nM) = 1.0
-    X_mod3 = np.hstack([preds_pIC50.reshape(-1, 1), log_conc_ref, X_base])
-
-    preds_kd_10 = np.clip(mod3_engine.predict(X_mod3), 0.0, 100.0)
-    preds_knockdown = _hill_scale_efficacy(preds_kd_10, conc_nM)
+    preds_kd = model_b_v4.predict_from_slots(s_slots_list, as_slots_list, conc_nM=conc_nM)
 
     results = []
     for i in range(N):
+        pred_kd = float(preds_kd[i])
+        safe_kd = max(1.0, min(99.0, pred_kd))
+        ic50_nM = float(conc_nM * (100.0 - safe_kd) / safe_kd)
+        pred_pIC50 = float(9.0 - np.log10(max(1e-4, ic50_nM)))
         results.append({
             "sense_sequence": sense_seqs[i],
             "antisense_sequence": anti_seqs[i],
             "target_dose_nM": conc_nM,
-            "estimated_pIC50": round(float(preds_pIC50[i]), 4),
-            "estimated_IC50_nM": round(float(ic50s_nM[i]), 4),
-            "predicted_knockdown_pct": round(float(preds_knockdown[i]), 2)
+            "estimated_pIC50": round(pred_pIC50, 4),
+            "estimated_IC50_nM": round(ic50_nM, 4),
+            "predicted_knockdown_pct": round(pred_kd, 2)
         })
     return results
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="HelixZero IEEE v5 siRNA Potency & Knockdown Predictor")
+    parser = argparse.ArgumentParser(description="HelixZero Unified siRNA Potency & Knockdown Predictor")
     parser.add_argument("--sense", type=str, required=True, help="Sense sequence (5' to 3')")
     parser.add_argument("--anti", type=str, required=True, help="Antisense sequence (5' to 3')")
     parser.add_argument("--smods", type=str, default="", help="Sense modification mask string")
@@ -151,10 +111,10 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
     
-    res = predict_sirna_potency(args.sense, args.anti, args.smods, args.amods, args.conc)
+    res = predict_sirna_potency(args.sense, args.anti, args.smods, args.amods, conc_nM=args.conc)
     
     print("=" * 65)
-    print("🧬 HELIXZERO IEEE v5 PREDICTION RESULT")
+    print("🧬 HELIXZERO UNIFIED DOSE-AWARE PREDICTION RESULT")
     print("=" * 65)
     print(f"  Sense Sequence           : {res['sense_sequence']}")
     print(f"  Antisense Sequence       : {res['antisense_sequence']}")

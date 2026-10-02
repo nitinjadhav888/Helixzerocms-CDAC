@@ -7,6 +7,8 @@ __pycache__/
 
 # Large binaries / PDFs
 *.pdf
+!final_benchmarks/*.pdf
+!Paper/HZ.pdf
 *.docx
 *.pkl
 !smepred/models/*.pkl
@@ -20,6 +22,7 @@ __pycache__/
 /smepred/data/processed/*.tsv
 /smepred/data/processed/*.parquet
 /smepred/data/processed/*.npz
+/smepred/data/processed/*.npy
 /MEG-mod-main/Saved_Best_Models/
 
 # Raw patent data (large, IP-sensitive)

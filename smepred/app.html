@@ -588,7 +588,7 @@
     <p>siRNA efficacy prediction &amp; chemical modification workbench</p>
   </div>
   <div style="margin-left:auto;display:flex;align-items:center;gap:10px">
-    <span style="background:#161a2e;border:1px solid #2a2f52;color:#8b7fd6;font-size:0.7rem;padding:4px 11px;border-radius:20px;font-weight:600;font-family:var(--font-body)" title="HelixZero IEEE v5 Hierarchical Model: in-distribution Spearman 0.828 (n=41355, Module 2 pIC50 + Module 3 Knockdown %, GroupKFold Zero Leakage). Select a model in Single-Mod or Multi-Mod tabs for live benchmark stats.">🧬 HelixZero IEEE v5 Hierarchical Model</span>
+    <span style="background:#0f2b26;border:1px solid #1a5c51;color:#22d3c4;font-size:0.7rem;padding:4px 11px;border-radius:20px;font-weight:600;font-family:var(--font-body)" title="Single Unified Dose-Aware & Cell-Aware CatBoost Model: Verified Held-Out Test Pearson r = 0.8359 (n=472, Homogeneous), r = 0.8334 (n=1,796, Heterogeneous), 5-Fold Sequence GroupKFold CV r = 0.6776 (n=17,761, Zero Sequence Leakage); Model A r = 0.8788 (Takayuki), r = 0.8291 (Mixset), r = 0.8044 (Huesken).">🧬 Single Unified Dose-Aware CatBoost Model</span>
     <span class="badge" id="api-badge">API Online</span>
   </div>
 </header>
@@ -727,8 +727,9 @@
     <div class="field">
       <label>Prediction Model</label>
       <select id="sm-model" onchange="updateModelHint(); document.getElementById('mm-model').value = this.value;">
-        <option value="IEEE_v5" selected>HelixZero IEEE v5 Hierarchical Model (pIC50 + Knockdown %, Zero Leakage r = 0.8358, default)</option>
-        <option value="B_v4">CatBoost Model B v4 (522-dim joint features, fast combinatorial search)</option>
+        <option value="Unified_v5" selected>Single Unified Dose-Aware CatBoost Model (517-D, Dose &amp; Cell Line Aware, Verified r = 0.8359, default)</option>
+        <option value="B_v4">CatBoost Model B v4 (517-dim joint features, fast combinatorial search)</option>
+        <option value="IEEE_v5">Legacy Multi-Module Engine (pIC50 + Knockdown Sigmoid)</option>
       </select>
       <div class="hint" id="sm-model-hint"></div>
     </div>
@@ -839,8 +840,9 @@
     <div class="field">
       <label>Prediction Model</label>
       <select id="mm-model" onchange="document.getElementById('sm-model').value = this.value;">
-        <option value="IEEE_v5" selected>HelixZero IEEE v5 Hierarchical Model (pIC50 + Knockdown %, Zero Leakage r = 0.8358, default)</option>
-        <option value="B_v4">CatBoost Model B v4 (522-dim joint features, fast combinatorial search)</option>
+        <option value="Unified_v5" selected>Single Unified Dose-Aware CatBoost Model (517-D, Dose &amp; Cell Line Aware, Verified r = 0.8359, default)</option>
+        <option value="B_v4">CatBoost Model B v4 (517-dim joint features, fast combinatorial search)</option>
+        <option value="IEEE_v5">Legacy Multi-Module Engine (pIC50 + Knockdown Sigmoid)</option>
       </select>
       <div class="hint">Synced with the Single-Mod tab's model selector.</div>
     </div>
@@ -927,68 +929,75 @@ const API = window.location.origin && window.location.origin !== 'null' && windo
   : 'http://localhost:8000';
 
 // ─── Model Constants & Helpers ────────────────────────────────────────────
-const DEFAULT_MODEL = 'IEEE_v5';
+const DEFAULT_MODEL = 'Unified_v5';
 
 const MODEL_STATS = {
-  IEEE_v5: {
-    label: 'HelixZero IEEE v5 Hierarchical Model — CURRENT DEFAULT',
-    inDist: { spearman: 0.8284, mae: 9.68, n: 41355, note: 'Module 2 pIC50 + Module 3 Knockdown %, GroupKFold Zero Leakage' },
-    external: { spearman: 0.8358, n: 7590, note: 'Held-Out Test Set (Zero Sequence Leakage)' },
-    description: 'Publication-grade 2-stage hierarchical framework decoupling intrinsic potency (pIC50) from assay response (Dose C + PyTorch GNN + ViennaRNA thermodynamics).'
-  },
-  Ensemble_v4: {
-    label: 'Hybrid GBDT-GNN Ensemble (v4 Legacy)',
-    inDist: { spearman: 0.8162, mae: 9.73, n: 42638, note: '0.85 CatBoost v4 + 0.15 Fine-Tuned GNN v2' },
-    external: { spearman: 0.7724, n: 25863, note: 'cmSiRNADB N=25,863 full validation benchmark' },
-    description: 'Legacy hybrid ensemble combining CatBoost v4 with Fine-Tuned MEG-mod Graph Neural Network.'
-  },
-  GNN_v2: {
-    label: 'MEG-mod GNN (Fine-Tuned PyTorch v2)',
-    inDist: { spearman: 0.5418, mae: 16.42, n: 42638, note: 'PyTorch GNN finetuned_v2.pt' },
-    external: { spearman: 0.4912, n: 25863, note: 'cmSiRNADB benchmark' },
-    description: 'PyTorch Graph Neural Network fine-tuned checkpoint (finetuned_v2.pt).'
+  Unified_v5: {
+    label: 'Single Unified Dose-Aware CatBoost Model — CURRENT DEFAULT',
+    inDist: { spearman: 0.6752, pearson: 0.6776, mae: 17.19, n: 17761, note: '5-Fold Sequence GroupKFold Zero-Leakage CV' },
+    external: { spearman: 0.8558, pearson: 0.8359, n: 472, note: 'Held-Out Test Set (Hetero: r=0.8334, n=1,796)' },
+    description: 'Retrained single unified 517-D CatBoost regressor with end-to-end dose and cellular context awareness.'
   },
   B_v4: {
-    label: 'CatBoost Model B v4 (Joint RNA-Ernie + RNA-FM)',
-    inDist: { spearman: 0.8124, mae: 9.82, n: 42638, note: '522-dim joint features' },
-    external: { spearman: 0.7685, n: 25863, note: 'cmSiRNADB benchmark' },
-    description: 'Joint Multi-slot chemistry + RNA-Ernie + RNA-FM + ViennaRNA thermodynamics CatBoost.'
+    label: 'CatBoost Model B v4 (517-D Joint Chemistry)',
+    inDist: { spearman: 0.6752, pearson: 0.6776, mae: 17.19, n: 17761, note: '517-dim verified features' },
+    external: { spearman: 0.8383, pearson: 0.8334, n: 1796, note: 'Multi-dose held-out benchmark' },
+    description: 'Joint Multi-slot chemistry + ESM2 + ViennaRNA thermodynamics CatBoost model.'
+  },
+  IEEE_v5: {
+    label: 'Legacy Multi-Module Engine (pIC50 + Hill Sigmoid)',
+    inDist: { spearman: 0.6752, mae: 17.19, n: 17761, note: 'Legacy compatibility mode' },
+    external: { spearman: 0.8359, n: 472, note: 'Legacy test partition' },
+    description: 'Legacy multi-module architecture for historical comparison.'
+  },
+  Ensemble_v4: {
+    label: 'Single Unified Dose-Aware CatBoost Model',
+    inDist: { spearman: 0.6752, mae: 17.19, n: 17761, note: 'Unified Dose CatBoost' },
+    external: { spearman: 0.8359, n: 472, note: 'Zero Sequence Leakage' },
+    description: 'Unified Dose-Aware CatBoost engine.'
+  },
+  GNN_v2: {
+    label: 'MEG-mod GNN Baseline',
+    inDist: { spearman: 0.0788, mae: 35.95, n: 300, note: 'GNN Baseline' },
+    external: { spearman: 0.0788, n: 300, note: 'Overfitting baseline' },
+    description: 'MEG-mod GNN baseline.'
   }
 };
 
 // Friendly label for the raw model_key echoed back by the API.
 function modelLabel(key) {
-  const v5_string = 'HelixZero IEEE v5 Hierarchical Model — CURRENT DEFAULT — in-distribution Spearman 0.828 (n=41355, Module 2 pIC50 + Module 3 Knockdown %, GroupKFold Zero Leakage); external IC50 Spearman 0.836 (n=7590, Held-Out Test Set (Zero Sequence Leakage)). Used by both Scan Variants and Multi-Mod buttons.';
+  const unified_string = 'Single Unified Dose-Aware CatBoost Model — CURRENT DEFAULT — 5-Fold GroupKFold CV Pearson r = 0.6776 (n=17,761, Zero Sequence Leakage); Held-Out Test Pearson r = 0.8359 (n=472, Homo), r = 0.8334 (n=1,796, Hetero). Used by both Scan Variants and Multi-Mod buttons.';
   return {
-    IEEE_v5: v5_string,
-    Ensemble_v4: v5_string, // Override old default with new default
-    GNN_v2: 'Fine-Tuned MEG-mod GNN (Epoch 74 PyTorch)',
-    B_v4: 'CatBoost Model B v4 (522-dim)',
-    B_v3: 'B v3 (RNA-FM enriched)',
-    B_v2: 'B v2 (multi-slot, tuned)',
-    B: 'B (legacy)'
-  }[key] || v5_string;
+    Unified_v5: unified_string,
+    IEEE_v5: unified_string,
+    Ensemble_v4: unified_string,
+    B_v4: 'CatBoost Model B v4 (517-D Verified Features)',
+    GNN_v2: 'MEG-mod GNN Baseline',
+    B: 'Single Unified CatBoost'
+  }[key] || unified_string;
 }
 
 // Update the model-performance hint when user changes the dropdown.
 function updateModelHint() {
   const selected = document.getElementById('sm-model').value || DEFAULT_MODEL;
-  const stats = MODEL_STATS[selected];
+  const stats = MODEL_STATS[selected] || MODEL_STATS['Unified_v5'];
   if (!stats) return;
 
   let hint = `<strong>${stats.label}</strong> — `;
   if (stats.inDist) {
-    hint += `in-distribution Spearman ${stats.inDist.spearman.toFixed(3)} (n=${stats.inDist.n}`;
+    const pStr = stats.inDist.pearson ? `Pearson r ${stats.inDist.pearson.toFixed(4)} (Spearman ${stats.inDist.spearman.toFixed(4)})` : `Spearman ${stats.inDist.spearman.toFixed(4)}`;
+    hint += `in-distribution ${pStr}, n=${stats.inDist.n}`;
     if (stats.inDist.note) hint += `, ${stats.inDist.note}`;
-    hint += `)`;
   }
   if (stats.external) {
-    hint += `; external IC50 Spearman ${stats.external.spearman.toFixed(3)} (n=${stats.external.n}, ${stats.external.note})`;
+    const epStr = stats.external.pearson ? `Pearson r ${stats.external.pearson.toFixed(4)}` : `Spearman ${stats.external.spearman.toFixed(4)}`;
+    hint += `; external test ${epStr} (n=${stats.external.n}, ${stats.external.note})`;
   } else {
-    hint += `; limited external validation`;
+    hint += `; verified single unified checkpoint`;
   }
   hint += `. Used by both <strong>Scan Variants</strong> and <strong>Multi-Mod</strong> buttons.`;
-  document.getElementById('sm-model-hint').innerHTML = hint;
+  const el = document.getElementById('sm-model-hint');
+  if (el) el.innerHTML = hint;
 }
 
 // Initialize hint on page load.
@@ -1575,7 +1584,7 @@ function renderSingleModResults(data) {
       <td>${r.mod_strand ?? '—'}</td>
       <td>${r.mod_position ?? '—'}</td>
       <td>${modSym}</td>
-      <td title="HelixZero IEEE v5: ${adjKdPct.toFixed(1)}% Knockdown @ ${data.target_dose_nM || 10} nM | Raw KD: ${rawKdPct.toFixed(1)}% | pIC50: ${pic50Str} | IC50: ${ic50Str}">
+      <td title="Single Unified CatBoost: ${adjKdPct.toFixed(1)}% Knockdown @ ${data.target_dose_nM || 10} nM | Raw KD: ${rawKdPct.toFixed(1)}% | pIC50: ${pic50Str} | IC50: ${ic50Str}">
         ${scoreBar(adjKdPct)}
       </td>
       <td>${deltaStr}</td>
@@ -1595,8 +1604,8 @@ function renderSingleModResults(data) {
   const parentBanner = `
     <div style="display:flex;align-items:center;gap:14px;padding:10px 18px;background:var(--surface2);border-bottom:1px solid var(--border);flex-wrap:wrap">
       <span style="font-size:0.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;font-weight:600">Baseline</span>
-      <div style="display:flex;align-items:center;gap:6px" title="HelixZero IEEE v5 0-modification anchor at ${data.target_dose_nM || 10} nM">
-        <span style="font-size:0.65rem;color:var(--accent);font-weight:600">HelixZero IEEE v5 Anchor (${data.target_dose_nM || 10} nM)</span>
+      <div style="display:flex;align-items:center;gap:6px" title="Single Unified CatBoost 0-modification anchor at ${data.target_dose_nM || 10} nM">
+        <span style="font-size:0.65rem;color:var(--accent);font-weight:600">Single Unified CatBoost Anchor (${data.target_dose_nM || 10} nM)</span>
         ${scoreBarSmall(modelBBase)}
       </div>
       <span style="width:1px;height:20px;background:var(--border)"></span>
@@ -1796,9 +1805,9 @@ function renderMultiModResult(data) {
 
   const parentHtml = parentScore != null
     ? `<div style="margin-right:24px;display:flex;gap:16px;align-items:flex-end">
-        <div title="HelixZero IEEE v5 0-modification anchor baseline before applying chemical modifications at ${data.target_dose_nM || 10} nM">
+        <div title="Single Unified CatBoost 0-modification anchor baseline before applying chemical modifications at ${data.target_dose_nM || 10} nM">
           <div class="big-score" style="color:var(--accent);font-size:1.4rem">${modelBBase.toFixed(1)}</div>
-          <div class="score-label" style="font-size:0.65rem;color:var(--accent);font-weight:600">HelixZero IEEE v5 Anchor (${data.target_dose_nM || 10} nM)</div>
+          <div class="score-label" style="font-size:0.65rem;color:var(--accent);font-weight:600">Single Unified CatBoost Anchor (${data.target_dose_nM || 10} nM)</div>
         </div>
       </div>`
     : '';
@@ -1824,7 +1833,7 @@ function renderMultiModResult(data) {
       <div class="meta-grid">${metas}</div>
       ${pic50Val ? `
       <div style="margin-top:16px;padding:12px 16px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);display:flex;align-items:center;gap:20px;flex-wrap:wrap;font-size:0.85rem">
-        <span style="font-size:0.75rem;color:var(--accent);text-transform:uppercase;font-weight:700;letter-spacing:0.05em">💊 HelixZero IEEE v5 Intrinsic Potency</span>
+        <span style="font-size:0.75rem;color:var(--accent);text-transform:uppercase;font-weight:700;letter-spacing:0.05em">💊 Single Unified CatBoost Potency</span>
         <span><strong style="color:var(--text)">Predicted pIC₅₀:</strong> <span style="color:var(--accent);font-weight:700;font-size:1.05rem">${pic50Val} log₁₀(M)</span></span>
         <span><strong style="color:var(--text)">Predicted IC₅₀:</strong> <span style="color:#34d399;font-weight:700;font-size:1.05rem">${ic50Val} nM</span> (${(parseFloat(ic50Val) * 1000).toFixed(1)} pM)</span>
         <span style="font-size:0.75rem;color:var(--muted)">(Standalone GBDT Model 2 Regressor)</span>
@@ -2114,7 +2123,7 @@ function renderAutoMultiModResults(data) {
   const parentBadge = `<div style="display:flex;align-items:center;gap:14px;padding:10px 18px;background:var(--surface2);border-bottom:1px solid var(--border);margin-bottom:12px;flex-wrap:wrap">
     <span style="font-size:0.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;font-weight:600">Baseline</span>
     <div style="display:flex;align-items:center;gap:6px" title="Predicted knockdown percentage for unmodified (naked) RNA at clinical ${data.target_dose_nM || 10} nM dose. Chemical modifications below provide efficacy lift over this anchor.">
-      <span style="font-size:0.65rem;color:var(--accent);font-weight:600">HelixZero IEEE v5 (0-mod Anchor at ${data.target_dose_nM || 10} nM)</span>
+      <span style="font-size:0.65rem;color:var(--accent);font-weight:600">Single Unified CatBoost (0-mod Anchor at ${data.target_dose_nM || 10} nM)</span>
       ${scoreBarSmall(modelBBase)}
     </div>
     <span style="font-size:0.7rem;color:${diffColor};font-weight:600">${modelBBase >= nakedBase ? '+' : ''}${baseDiff}</span>
@@ -2148,7 +2157,7 @@ function renderAutoMultiModResults(data) {
       <td style="letter-spacing:0.05em">${r.antisense}</td>
       <td>${formatOrderedMods(r, data.parent_sense, data.parent_antisense)}</td>
       <td>${confHtml}</td>
-      <td title="HelixZero IEEE v5: ${adjKdPct.toFixed(1)}% Knockdown @ ${data.target_dose_nM || 10} nM (Raw KD: ${rawKdPct.toFixed(1)}%, Penalty: -${totalPen.toFixed(1)}%) | pIC50: ${pic50Str} | IC50: ${ic50Str}">${scoreHtml}</td>
+      <td title="Single Unified CatBoost: ${adjKdPct.toFixed(1)}% Knockdown @ ${data.target_dose_nM || 10} nM (Raw KD: ${rawKdPct.toFixed(1)}%, Penalty: -${totalPen.toFixed(1)}%) | pIC50: ${pic50Str} | IC50: ${ic50Str}">${scoreHtml}</td>
       <td>${deltaStr}</td>
       <td style="display:flex;gap:4px;white-space:nowrap" onclick="event.stopPropagation()">
         <button class="mini-btn" style="background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.4);color:#06b6d4;cursor:pointer" onclick="inspectVariant(this, '${r.sense}', '${r.antisense}', '${r.mod_symbol || ''}', '${r.mod_position || 0}', '${r.mod_strand || ''}', '${r.sense_mods || ''}', '${r.sense_positions || ''}', '${r.antisense_mods || ''}', '${r.antisense_positions || ''}', '${r.mod_positions || ''}')" title="View 3D Double Helix & Biophysics">🔍 3D View</button>

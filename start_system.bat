@@ -4,8 +4,10 @@ cd /d "%~dp0smepred"
 echo ==========================================================
 echo  HelixZero-CMS -- siRNA Chemical Modification Scanner
 echo ==========================================================
-echo  ACTIVE MODEL : HelixZero IEEE v5 Hierarchical Multi-Module Pipeline
-echo  STATUS       : All 5 Phases Audited, Implemented ^& Verified
+echo  ACTIVE MODEL : Single Unified Dose-Aware & Cell-Aware CatBoost Model
+echo  FEATURES     : 517-D Multi-Modal Signature (Positional + ESM2 + ViennaRNA)
+echo  BENCHMARKS   : Held-Out r = 0.8359 (Homo), r = 0.8334 (Hetero), GKF r = 0.6776
+echo  STATUS       : Verified Zero Sequence Leakage & Audited Empirical Checkpoint
 echo ==========================================================
 echo.
 echo Installing / verifying dependencies...

@@ -239,8 +239,51 @@ def _vienna_features(sense_slots: List[NucSlot], anti_slots: List[NucSlot]) -> n
     return out
 
 
+def build_base_513(sense_slots: List[NucSlot], anti_slots: List[NucSlot]) -> np.ndarray:
+    """Build the clean 513-dim base feature vector (v2: 444, RNA-FM: 64, ViennaRNA: 5)."""
+    v2 = build_features_v2(sense_slots, anti_slots)
+    fm = _rnafm_features(sense_slots, anti_slots)
+    vr = _vienna_features(sense_slots, anti_slots)
+    return np.concatenate([v2, fm, vr])
+
+
+def batch_base_513(sense_slots_list, anti_slots_list) -> np.ndarray:
+    return np.stack([
+        build_base_513(ss, as_)
+        for ss, as_ in zip(sense_slots_list, anti_slots_list)
+    ])
+
+
+def build_unified_features(
+    sense_slots: List[NucSlot], anti_slots: List[NucSlot],
+    conc_nM: float = 10.0, is_hepatic: float = 1.0, time_h: float = 24.0
+) -> np.ndarray:
+    """Builds the 517-dim feature vector (513 base + 4 dose/cell features)."""
+    base = build_base_513(sense_slots, anti_slots)
+    log_c = np.log10(max(1e-4, float(conc_nM)))
+    log_c_rel = log_c - 1.0
+    t_norm = float(time_h) / 24.0
+    hep = float(is_hepatic)
+    dose_covars = np.array([log_c, log_c_rel, t_norm, hep], dtype=np.float32)
+    return np.concatenate([base, dose_covars])
+
+
+def batch_unified_features(
+    sense_slots_list, anti_slots_list,
+    conc_nM: float = 10.0, is_hepatic: float = 1.0, time_h: float = 24.0
+) -> np.ndarray:
+    """Batch builds 517-dim feature matrix for the unified CatBoost model."""
+    X_base = batch_base_513(sense_slots_list, anti_slots_list)
+    N = len(sense_slots_list)
+    log_c = np.full((N, 1), np.log10(max(1e-4, float(conc_nM))), dtype=np.float32)
+    log_c_rel = log_c - 1.0
+    t_norm = np.full((N, 1), float(time_h) / 24.0, dtype=np.float32)
+    hep = np.full((N, 1), float(is_hepatic), dtype=np.float32)
+    return np.hstack([X_base, log_c, log_c_rel, t_norm, hep])
+
+
 def build_features_v4(sense_slots: List[NucSlot], anti_slots: List[NucSlot]) -> np.ndarray:
-    """Build the full 577-dim feature vector."""
+    """Legacy 577-dim feature vector maintained for backwards compatibility."""
     v2 = build_features_v2(sense_slots, anti_slots)
     fm = _rnafm_features(sense_slots, anti_slots)
     ernie = _rnaernie_features(sense_slots, anti_slots)
@@ -253,3 +296,4 @@ def batch_features_v4(sense_slots_list, anti_slots_list) -> np.ndarray:
         build_features_v4(ss, as_)
         for ss, as_ in zip(sense_slots_list, anti_slots_list)
     ])
+

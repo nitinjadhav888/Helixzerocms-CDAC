@@ -105,7 +105,7 @@ class RankRequest(BaseModel):
 class SingleModRequest(BaseModel):
     sense: str = Field(..., description="21-nt sense strand")
     antisense: str = Field(..., description="21-nt antisense strand")
-    model: Literal["IEEE_v5", "Ensemble_v4", "GNN_v2", "B_v4"] = Field(DEFAULT_MODEL_B_KEY, description="Model key")
+    model: Literal["Unified_v5", "IEEE_v5", "Ensemble_v4", "GNN_v2", "B_v4"] = Field(DEFAULT_MODEL_B_KEY, description="Model key")
     top_n: int = Field(50, ge=0, description="Limit returned variants")
     full_scan: bool = Field(False, description="True=1260 variants, False=40-variant targeted scan")
     fda_core_only: bool = Field(True, description="True=FDA-approved core 5 mods, False=All 30 chemistries")
@@ -124,13 +124,13 @@ class MultiModRequest(BaseModel):
     mod_strand: Optional[str] = Field("", description="Single modification strand ('sense' or 'antisense')")
     parent_sense: Optional[str] = Field("", description="Unmodified parent sense strand")
     parent_antisense: Optional[str] = Field("", description="Unmodified parent antisense strand")
-    model: Literal["IEEE_v5", "Ensemble_v4", "GNN_v2", "B_v4"] = Field(DEFAULT_MODEL_B_KEY, description="Model key")
+    model: Literal["Unified_v5", "IEEE_v5", "Ensemble_v4", "GNN_v2", "B_v4"] = Field(DEFAULT_MODEL_B_KEY, description="Model key")
     conc_nM: float = Field(10.0, ge=0.001, le=10000.0, description="Assay concentration in nM (default: 10.0)")
 
 class MultiModScanRequest(BaseModel):
     sense: str
     antisense: str
-    model: Literal["IEEE_v5", "Ensemble_v4", "GNN_v2", "B_v4"] = DEFAULT_MODEL_B_KEY
+    model: Literal["Unified_v5", "IEEE_v5", "Ensemble_v4", "GNN_v2", "B_v4"] = DEFAULT_MODEL_B_KEY
     max_mods: int = Field(21, ge=2, le=21)
     beam_width: int = Field(20, ge=5, le=100)
     full_scan: bool = False
@@ -140,7 +140,7 @@ class MultiModScanRequest(BaseModel):
 class MultiModFromSingleRequest(BaseModel):
     sense: str
     antisense: str
-    model: Literal["IEEE_v5", "Ensemble_v4", "GNN_v2", "B_v4"] = DEFAULT_MODEL_B_KEY
+    model: Literal["Unified_v5", "IEEE_v5", "Ensemble_v4", "GNN_v2", "B_v4"] = DEFAULT_MODEL_B_KEY
     max_mods: int = Field(21, ge=2, le=21)
     beam_width: int = Field(25, ge=5, le=100)
     full_scan: bool = True
@@ -179,8 +179,7 @@ def startup_warmup():
     logger.info("Initializing and pre-warming core HelixZero models...")
     try:
         _get_model("normal")
-        from helixzero_ieee_v5.predict_ieee_v5 import predict_sirna_potency_batch
-        predict_sirna_potency_batch(["GUAACCAAGAGUAUUCCAUUU"], ["AUGGAAUACUCUUGGUUACUU"])
+        _get_model("Unified_v5")
         logger.info("✅ Core HelixZero prediction models pre-warmed successfully!")
     except Exception as e:
         logger.warning(f"Startup warmup encountered an issue (non-fatal): {e}")
@@ -350,10 +349,14 @@ def multi_mod_endpoint(req: MultiModRequest):
         variant_dict = variant.to_dict()
         
         # Phase 1 Uncertainty Quantifier
-        eff = variant_dict.get("efficacy_score", 0.0)
-        gbdt_s = variant_dict.get("gbdt_score", eff)
-        gnn_s = variant_dict.get("gnn_score", eff)
-        unc_std = round(float(np.clip(2.5 + 0.25 * abs(gbdt_s - gnn_s), 1.5, 12.0)), 2)
+        eff = variant_dict.get("efficacy_score", 0.0) or 0.0
+        gbdt_s = variant_dict.get("gbdt_score")
+        if gbdt_s is None:
+            gbdt_s = eff
+        gnn_s = variant_dict.get("gnn_score")
+        if gnn_s is None:
+            gnn_s = eff
+        unc_std = round(float(np.clip(2.5 + 0.25 * abs(float(gbdt_s) - float(gnn_s)), 1.5, 12.0)), 2)
         variant_dict["uncertainty_std"] = unc_std
         variant_dict["confidence_interval"] = f"{eff:.1f}% ± {unc_std:.1f}%"
 
@@ -475,16 +478,15 @@ def multi_mod_scan_endpoint(req: MultiModScanRequest):
 
         # Extract component scores for the top 100 variants
         try:
-            from src import gnn_serving, model_b_v4
+            from src import model_b_v4
             v_s = [v.sense for v in variants]
             v_a = [v.antisense for v in variants]
             p_s = [v.parent_sense for v in variants]
             p_a = [v.parent_antisense for v in variants]
-            gnn_ckpt = "finetuned_v2"
-            batch_gnn = gnn_serving.predict_gnn(p_s, p_a, v_s, v_a, ckpt_key=gnn_ckpt)
-            batch_gbdt = model_b_v4.predict(v_s, v_a, p_s, p_a)
+            batch_gbdt = model_b_v4.predict(v_s, v_a, p_s, p_a, conc_nM=req.conc_nM)
+            batch_gnn = [None] * len(variants)
         except Exception:
-            batch_gnn = [0.0] * len(variants)
+            batch_gnn = [None] * len(variants)
             batch_gbdt = [0.0] * len(variants)
 
         formatted_results = []
@@ -507,8 +509,8 @@ def multi_mod_scan_endpoint(req: MultiModScanRequest):
                 "antisense_positions": getattr(variant, 'antisense_positions', ''),
                 "raw_efficacy_score": raw_efficacy,
                 "efficacy_score": round(variant.efficacy_score, 2),
-                "gnn_score": round(float(batch_gnn[idx]), 2),
-                "gbdt_score": round(float(batch_gbdt[idx]), 2),
+                "gnn_score": round(float(batch_gnn[idx]), 2) if batch_gnn[idx] is not None else None,
+                "gbdt_score": round(float(batch_gbdt[idx]), 2) if batch_gbdt[idx] is not None else None,
                 "estimated_pIC50": getattr(variant, 'estimated_pIC50', None),
                 "estimated_IC50_nM": getattr(variant, 'estimated_IC50_nM', None),
                 "predicted_knockdown_pct": getattr(variant, 'predicted_knockdown_pct', None),
@@ -560,15 +562,18 @@ def multi_mod_from_single_endpoint(req: MultiModFromSingleRequest):
         # Reconstruct Baseline
         parent_baseline = req.parent_score
         model_b_baseline = None
-        if req.model == "IEEE_v5":
+        if req.model in ["Unified_v5", "B_v4", "IEEE_v5"]:
             try:
-                from helixzero_ieee_v5.predict_ieee_v5 import predict_sirna_potency
-                v5_anchor = predict_sirna_potency(req.sense, req.antisense, "", "", conc_nM=req.conc_nM)
-                model_b_baseline = round(v5_anchor["predicted_knockdown_pct"], 2)
+                raw_b = float(_predict_model_b(
+                    [req.sense], [req.antisense], [req.sense], [req.antisense],
+                    model_key=req.model, conc_nM=req.conc_nM
+                )[0])
+                mb_adj, _, _ = calculate_adjusted_efficacy(raw_b, req.sense, req.antisense, req.sense, req.antisense)
+                model_b_baseline = round(mb_adj, 2)
                 if parent_baseline is None:
                     parent_baseline = model_b_baseline
             except Exception as e:
-                logger.warning(f"IEEE v5 baseline calculation fallback: {e}")
+                logger.warning(f"Unified model baseline calculation fallback: {e}")
 
         if parent_baseline is None:
             features = extract_batch_v4([req.sense], [req.antisense])
@@ -607,16 +612,15 @@ def multi_mod_from_single_endpoint(req: MultiModFromSingleRequest):
 
         # Extract component scores for the top 100 variants
         try:
-            from src import gnn_serving, model_b_v4
+            from src import model_b_v4
             v_s = [v.sense for v in variants]
             v_a = [v.antisense for v in variants]
             p_s = [v.parent_sense for v in variants]
             p_a = [v.parent_antisense for v in variants]
-            gnn_ckpt = "finetuned_v2"
-            batch_gnn = gnn_serving.predict_gnn(p_s, p_a, v_s, v_a, ckpt_key=gnn_ckpt)
             batch_gbdt = model_b_v4.predict(v_s, v_a, p_s, p_a)
+            batch_gnn = [None] * len(variants)
         except Exception:
-            batch_gnn = [0.0] * len(variants)
+            batch_gnn = [None] * len(variants)
             batch_gbdt = [0.0] * len(variants)
 
         formatted_results = []

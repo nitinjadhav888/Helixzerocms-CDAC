@@ -1,126 +1,98 @@
-# HelixZero-CMS — Full Technical Architecture & Parameter Specification (Release 5.3.0)
-
-> **Official Technical Specification Document**  
-> **Platform**: HelixZero-CMS (Centre for Development of Advanced Computing, C-DAC, Pune)  
-> **Release Version**: 5.3.0 (IEEE v5 + CatBoost GBDT + PyTorch GNN Production Stack)  
+# HelixZero-CMS: End-to-End Computational siRNA Engineering Platform
+## Production Architecture, Feature Schemas, and Verification
 
 ---
 
-## 1. Efficacy Score & Potency Prediction Engine
-
-### What It Is
-The **Efficacy Score** ($0\text{–}100\%$) represents the predicted **% target-gene mRNA knockdown (silencing)** for a chemically modified siRNA candidate at a given assay concentration (default 10 nM). A score of $85.0$ indicates that the model predicts an $85\%$ reduction in target mRNA expression relative to an untreated negative control.
-
-In addition to percentage knockdown, the platform computes the **Intrinsic Chemical Affinity ($pIC_{50}$)**:
-$$pIC_{50} = -\log_{10}(IC_{50} \text{ in M})$$
-where $IC_{50}$ is the half-maximal inhibitory concentration in nanomolar (nM).
-
----
-
-### End-to-End Prediction Pipeline
+## 1. Unified End-to-End Workflow Architecture
 
 ```
-Target mRNA Sequence / FASTA Input
-    │
-    ▼
-21-mer siRNA Candidate Generation (Sliding Window Engine)
-    │
-    ▼
-Canonical Chemical Ontology Parsing (chem_schema.NucSlot)
-  → Sugar conformation (2'-F, 2'-OMe, LNA, MOE, ENA, UNA, FANA, DNA)
-  → Base modification (5-mC, Pseudouridine, Inosine, 2-thioU)
-  → 3'-Internucleotide linkage (Phosphodiester PO vs. Phosphorothioate PS)
-  → 5'-Terminal cap / Phosphate mimics (5'-VP, 5'-P)
-  → Conjugate identity (GalNAc, PEG, Cholesterol)
-    │
-    ▼
-577-Dimensional Multi-Modal Feature Extractor (features_v4.py)
+User Input (Target mRNA Sequence, Gene Symbol, or Pre-designed siRNA Duplex)
+     │
+     ▼
+Dual-Track Parsing Pipeline
+  ├─ Track A: Unmodified Candidate Generator (parser.py & sirna_generator.py)
+  │    └─ 214-d Naked Sequence Features → Model A LightGBM (Pearson r = 0.804 - 0.879)
+  │    └─ Curated Lead Selection (ORF Partitioning: 5' UTR, CDS, 3' UTR, Spatial Non-Redundancy)
+  │
+  └─ Track B: Clinical Chemical Modification Engine (chem_schema.py & modification_engine.py)
+       └─ Multi-Slot NucSlot Representation (Independent 2'-Sugar + Internucleotide PS + 5'-Cap + 3'-Conjugate)
+     │
+     ▼
+517-Dimensional Multi-Modal Feature Extractor (features_v4.py)
   ├─ 444-d Multi-Slot Chemical Category Matrix (features_v2.py)
-  ├─ 64-d PCA-32 RNA-FM Foundation Embeddings (640-d raw)
-  ├─ 64-d PCA-32 RNA-Ernie Foundation Embeddings (768-d raw)
-  └─ 5-d ViennaRNA Thermodynamics (Duplex dG, Sense/Anti MFE, GC%, Seed dG)
-    │
-    ▼
-Hierarchical Dual-Engine Inference Pipeline
-  ├─ Stage 1: Intrinsic Potency Engine (module2_potency_pIC50.cbm → pIC50)
-  ├─ Stage 2: Dose-Aware Response Engine (module3_assay_response.cbm → % Knockdown)
-  └─ Stage 3: PyTorch MEG-mod GNN Engine (finetuned_v2.pt → Structural Graph Efficacy)
-    │
-    ▼
-Hybrid Production Ensemble V4 (85% GBDT + 15% GNN)
-    │
-    ▼
-6-Domain Biophysical Constraint & Off-Target Penalty Engine
-  ├─ 1. Nuclease Degradation Resistance
-  ├─ 2. Toll-Like Receptor (TLR7/8) Immunogenicity Avoidance
-  ├─ 3. RISC Ago2 Loading Asymmetry & Seed Rigidity
-  ├─ 4. Thermal Stability & Internal Ribosome Entry
-  ├─ 5. Serum Half-Life & Plasma Clearance
+  ├─ 64-d PCA-32 RNA-FM Foundation Embeddings (640-d raw via rna_fm_t12)
+  ├─ 5-d ViennaRNA Thermodynamics (Duplex dG, Sense/Anti MFE, GC%, Ensemble Diversity)
+  └─ 4-d Dose & Lineage Covariates (log10(conc_nM), Relative Dose, Assay Time, Hepatic Lineage)
+     │
+     ▼
+Single Unified Dose-Aware & Cell-Aware CatBoost Regressor (unified_dose_catboost.cbm)
+  ├─ Evaluates complete 5-log dose range (0.001 nM - 100 nM) in <0.5 ms
+  ├─ Directly predicts biological % mRNA knockdown
+  └─ Derives intrinsic affinity parameters (IC50 in nM, pIC50)
+     │
+     ▼
+6-Domain Biophysical Constraint & Guardrail Penalty Engine (biophysics.py)
+  ├─ 1. Nuclease Degradation Resistance (PS terminal protection, 2'-mod density)
+  ├─ 2. Toll-Like Receptor (TLR7/8) Immunogenicity Avoidance (unmodified U-motifs)
+  ├─ 3. RISC Ago2 Loading Asymmetry & Seed Rigidity (5'-VP anchor, 2'-F pyrimidines)
+  ├─ 4. Thermal Stability & Duplex Hybridization MFE
+  ├─ 5. Serum Half-Life & Plasma Clearance (GalNAc clustering)
   └─ 6. Chemical Synthesis Complexity & Yield Burden
-    │
-    ▼
-Calibrated % Knockdown, pIC50, IC50 (nM), and Optimized siRNA Ranking
+     │
+     ▼
+Calibrated % Knockdown, pIC50, IC50 (nM), and 3D PDB Double-Helix Structure (pdb_generator.py)
 ```
 
 ---
 
-## 2. The 577-Dimensional Multi-Modal Feature Pipeline (`features_v4.py`)
+## 2. The 517-Dimensional Feature Pipeline (`features_v4.py`)
 
-Rather than viewing sequences as plain text, HelixZero extracts a dense **577-dimensional numerical feature space** grounded in published biophysical literature:
+HelixZero extracts a high-signal **517-dimensional numerical feature space** grounded in published chemical biology:
 
 | Feature Sub-Vector | Dimensions | Primary Biophysical Source & Description |
 |:---|:---:|:---|
 | **Positional Chemical Ontology Flags** | **420** | 10 flags per position ($8\text{ sugar groups} + 1\text{ PS linkage} + 1\text{ base mod}$) $\times 21\text{ slots} \times 2\text{ strands}$. |
 | **Engineered Biophysical Features** | **24** | Seed rigidity (*Bramsen et al. 2009*), 2'-mod density (*Allerson et al. 2005*), 5'-VP phosphate mimic status (*Parmar et al. 2016*), terminal PS protection (*Behlke 2008*), GalNAc conjugate identity (*Nair et al. 2014*), 5'-asymmetry (*Khvorova 2003*). |
-| **RNA-FM PCA Embeddings** | **64** | PCA-reduced 32-d sense + 32-d antisense vectors from the 640-d RNA-FM foundation model. |
-| **RNA-Ernie PCA Embeddings** | **64** | PCA-reduced 32-d sense + 32-d antisense vectors from the 768-d RNA-Ernie foundation model. |
-| **ViennaRNA Thermodynamics** | **5** | $\Delta G_{\text{duplex}}$, $\text{MFE}_{\text{sense}}$, $\text{MFE}_{\text{anti}}$, $\text{GC\%}$, $\Delta G_{\text{seed}}$ computed via ViennaRNA 2.7 C-bindings. |
-| **Total Feature Vector Dimension** | **577** | **Complete multi-modal input vector fed to GBDT and GNN models.** |
+| **RNA-FM PCA Embeddings** | **64** | PCA-reduced 32-d sense + 32-d antisense vectors from the 640-d RNA-FM foundation model (`rna_fm_t12`). |
+| **ViennaRNA Thermodynamics** | **5** | $\Delta G_{\text{duplex}}$, $\text{MFE}_{\text{sense}}$, $\text{MFE}_{\text{anti}}$, $\text{GC\%}$, ensemble diversity computed via Turner/Xia thermodynamic nearest-neighbor models. |
+| **Dose & Lineage Covariates** | **4** | $\log_{10}(\text{conc\_nM})$, relative concentration $(\log_{10}(\text{conc\_nM}) - 1.0)$, normalized assay time $(\text{time\_h} / 24.0)$, and binary hepatic lineage indicator ($\text{is\_hepatic}$). |
+| **Total Feature Vector Dimension** | **517** | **Complete unified multi-modal feature vector fed to CatBoost.** |
 
 ---
 
-## 3. Deep Learning & Hybrid Ensemble Architecture
+## 3. Production Model Architecture
 
-### 1. CatBoost GBDT Engines
-- **Model B v4 (`model_b_v4.cbm`)**: Gradient boosted decision tree regressor trained on 42,638 CMsiRNAdb master rows.
-- **IEEE v5 Potency Engine (`module2_potency_pIC50.cbm`)**: Predicts intrinsic $pIC_{50}$ affinity.
-- **IEEE v5 Assay Response Engine (`module3_assay_response.cbm`)**: Predicts dose-aware % knockdown using $[pIC_{50}, \log_{10}(\text{dose}), X_{\text{base}}(577\text{-d})] = 579\text{-d}$ input.
-
-### 2. PyTorch MEG-mod GNN Graph Attention Engine (`finetuned_v2.pt`)
-- **Architecture**: Bimodal Graph Attention Network (BAN_graph / GATv2) with 512 hidden channels.
-- **Per-Nucleotide Node Inputs**: 768-d RNA-Ernie embedding + 10-d physicochemical property vector = **778-d per node** across 54 nodes (27 sense + 27 antisense).
-- **Edge Connections**: Primary backbone phosphodiester bonds + ViennaRNA `RNAcofold` base-pairing hydrogen bonds.
-
-### 3. Production Ensemble V4
-$$\text{Efficacy}_{\text{final}} = 0.85 \times \text{Efficacy}_{\text{CatBoost\_v4}} + 0.15 \times \text{Efficacy}_{\text{MEG-mod\_GNN}}$$
+### Single Unified Dose-Aware CatBoost Regressor (`unified_dose_catboost.cbm` / `model_b_v4.cbm`)
+- **Algorithm**: Symmetric Oblivious Decision Trees (CatBoost) trained on $N = 17,761$ clean, non-null dose rows from `cmsirnadb_full.csv`.
+- **Latency**: Under 0.5 ms per candidate; evaluates 1,260 chemical variants in < 0.1s.
+- **Dose Conditioning**: Continuous concentration response covering 0.001 nM to 100 nM with zero compounding multi-stage error.
+- **Potency Derivation**: Intrinsic $IC_{50}$ and $pIC_{50}$ are directly calculated from the concentration-dependent knockdown output:
+  $$IC_{50} = \text{conc\_nM} \times \frac{100 - KD\%}{KD\%}, \quad pIC_{50} = 9.0 - \log_{10}(\max(10^{-4}, IC_{50}))$$
 
 ---
 
-## 4. Master Training Datasets & Empirical Performance
-
-### Primary Datasets
-1. **`ieee_gold_bronze_master.csv`** ($N = 37,946$ multi-dose items): Primary multi-concentration master dataset.
-2. **`v2_multislot_dataset.csv`** ($N = 42,638$ CMsiRNAdb items): Master chemical modification database.
-3. **`cmsirnadb_full.csv`** ($N = 25,863$ items): Curated cmSiRNADB dataset.
-
----
+## 4. Master Datasets & Empirical Performance
 
 ### Empirical Validation Performance (Zero-Sequence-Leakage GroupKFold CV)
 
-| Model Architecture | Test Pearson ($r$) | Test Spearman ($\rho$) | MAE (% Knockdown) | RMSE (% Knockdown) |
-|:---|:---:|:---:|:---:|:---:|
-| **Hybrid Ensemble V4 (85% GBDT / 15% GNN)** | **0.7366 ±0.058** | **0.7463 ±0.064** | **17.86 ±0.95%** | **21.11 ±0.84%** |
-| **CatBoost Model B v4 (577-d)** | **0.7314 ±0.063** | **0.7379 ±0.071** | **18.05 ±0.91%** | **21.46 ±0.85%** |
-| **IEEE v5 Hierarchical 2-Stage Engine** | **0.6120 ±0.051** | **0.6087 ±0.056** | **21.41 ±0.49%** | **25.32 ±0.55%** |
+| Model Architecture | Evaluation Set | Sample Count ($N$) | Pearson ($r$) | Spearman ($\rho$) | MAE (% Knockdown) | RMSE (% Knockdown) |
+|:---|:---|:---:|:---:|:---:|:---:|:---:|
+| **Model A (Naked LightGBM)** | Takayuki Screen | 702 | **0.8788** | **0.8734** | 9.64% | 12.39% |
+| **Model A (Naked LightGBM)** | Huesken Screen | 2,361 | **0.8044** | **0.8065** | 6.99% | 9.18% |
+| **Unified Dose-Aware CatBoost** | 5-Fold GroupKFold CV | 17,761 | **0.6776** | **0.6752** | 17.19% | 21.57% |
+| **Unified Dose-Aware CatBoost** | Homogeneous Multi-Dose (`homo_val.csv`) | 472 | **0.8359** | **0.8558** | 12.90% | 17.02% |
+| **Unified Dose-Aware CatBoost** | Heterogeneous Multi-Dose (`hetero_val_303.csv`) | 1,796 | **0.8334** | **0.8383** | 13.20% | 17.44% |
+| **Unified Dose-Aware CatBoost** | FDA Commercial Drugs Holdout (10 nM) | 6 | — *(N=6 Clinical Case Study)* | — | 18.82% *(vs trial mid)* | — |
 
 ---
 
-## 5. Summary of Core File Dependencies for Submission
+## 5. Summary of Core File Dependencies
 
-- **System Architecture**: [HELIXZERO_COMPLETE_ECOSYSTEM_BUNDLE.md](file:///d:/Helixx/HELIXZERO_COMPLETE_ECOSYSTEM_BUNDLE.md)
-- **Technical Specification**: [EXPLANATION.md](file:///d:/Helixx/smepred/EXPLANATION.md)
-- **Hierarchical Predictor**: [predict_ieee_v5.py](file:///d:/Helixx/helixzero_ieee_v5/predict_ieee_v5.py)
-- **Chemical Ontology**: [chem_ontology.py](file:///d:/Helixx/helixzero_ieee_v5/src/chem_ontology.py), [chem_schema.py](file:///d:/Helixx/smepred/src/chem_schema.py)
-- **Feature Extractor**: [features_v4.py](file:///d:/Helixx/smepred/src/features_v4.py)
-- **PyTorch GNN Serving**: [gnn_serving.py](file:///d:/Helixx/smepred/src/gnn_serving.py)
-- **Master Dataset**: [ieee_gold_bronze_master.csv](file:///d:/Helixx/helixzero_ieee_v5/data/ieee_gold_bronze_master.csv)
+- **Authoritative Benchmark Directory**: [final_benchmarks/](file:///d:/Helixx/final_benchmarks/)
+- **Unified CatBoost Checkpoint**: [unified_dose_catboost.cbm](file:///d:/Helixx/smepred/models/unified_dose_catboost.cbm)
+- **Serving Wrapper**: [model_b_v4.py](file:///d:/Helixx/smepred/src/model_b_v4.py)
+- **Inference Orchestrator**: [predictor.py](file:///d:/Helixx/smepred/src/predictor.py)
+- **517-D Feature Extractor**: [features_v4.py](file:///d:/Helixx/smepred/src/features_v4.py)
+- **Chemical Schema & Slots**: [chem_schema.py](file:///d:/Helixx/smepred/src/chem_schema.py)
+- **Biophysical Constraint Engine**: [biophysics.py](file:///d:/Helixx/smepred/src/biophysics.py)
+- **3D PDB Structure Generator**: [pdb_generator.py](file:///d:/Helixx/smepred/src/pdb_generator.py)

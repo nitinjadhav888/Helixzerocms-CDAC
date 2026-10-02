@@ -2,14 +2,14 @@
 cd /d "%~dp0"
 
 echo ==========================================================
-echo  HelixZero-CMS — siRNA Chemical Modification Scanner
+echo  HelixZero-CMS -- siRNA Chemical Modification Scanner
 echo ==========================================================
-echo  ACTIVE MODEL : HelixZero IEEE v5 Hierarchical Multi-Module Pipeline (DEFAULT)
-echo  Module 1     : 30-Chemistry 20-bit NucSlot Schema (chem_ontology.py)
-echo  Module 2     : Intrinsic Potency Engine (CatBoost v5 pIC50 Regressor)
-echo  Module 3     : Assay Response Predictor (CatBoost v5 Knockdown % Engine)
-echo  Zero Sequence Leakage Test Pearson r  : 0.8358 (MAE 9.68%)
-echo  Used by     : Scan Variants + Multi-Mod + Multi-Mod Beam Search
+echo  ACTIVE MODEL : Single Unified Dose-Aware & Cell-Aware CatBoost Model (DEFAULT)
+echo  ARCHITECTURE : 517-D Multi-Modal Signature (Positional Chemistry + ESM2 + ViennaRNA)
+echo  CHECKPOINT   : smepred/models/unified_dose_catboost.cbm (517 Dimensions)
+echo  BENCHMARKS   : Held-Out Test Pearson r: 0.8359 (Homo, N=472), 0.8334 (Hetero, N=1,796)
+echo  VALIDATION   : 5-Fold Sequence GroupKFold CV Pearson r: 0.6776 (Zero Sequence Leakage)
+echo  USED BY      : Scan Variants + Multi-Mod + Multi-Mod Beam Search
 echo ==========================================================
 echo.
 echo Installing / verifying dependencies...

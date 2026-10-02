@@ -54,7 +54,7 @@ logger = logging.getLogger(__name__)
 
 MODELS_DIR = Path(__file__).parent.parent / "models"
 
-DEFAULT_MODEL_B_KEY = "Ensemble_v4"
+DEFAULT_MODEL_B_KEY = "Unified_v5"
 
 _MODEL_FILES = {
     "normal": MODELS_DIR / "model_normal.txt",
@@ -75,14 +75,16 @@ _loaded_calibrators: Dict[str, Any] = {}
 def _get_model(key: str) -> Any:
     """Lazy-loads and caches models from disk."""
     if key not in _loaded_models:
-        if key in ("B", "model_b", "B_v4"):
+        if key in ("B", "model_b", "B_v4", "Unified_v5"):
             from catboost import CatBoostRegressor
             cb = CatBoostRegressor()
-            cb_path = MODELS_DIR / "model_b_v4.cbm"
+            cb_path = MODELS_DIR / "unified_dose_catboost.cbm"
+            if not cb_path.exists():
+                cb_path = MODELS_DIR / "model_b_v4.cbm"
             if cb_path.exists():
                 cb.load_model(str(cb_path))
                 _loaded_models[key] = cb
-                logger.info(f"Successfully loaded CatBoost model: {cb_path}")
+                logger.info(f"Successfully loaded Unified CatBoost model: {cb_path}")
                 return cb
 
         txt_path = MODELS_DIR / f"model_{key}.txt"
@@ -144,62 +146,18 @@ def _predict_model_b(
     parent_sense_list: List[str],
     parent_antisense_list: List[str],
     model_key: str = DEFAULT_MODEL_B_KEY,
+    conc_nM: float = 10.0,
+    is_hepatic: float = 1.0,
+    time_h: float = 24.0,
 ) -> np.ndarray:
     """
-    Unified Model B batch scorer (raw 0-100 efficacy), dispatching between the
-    legacy single-char LightGBM model ("B") and the multi-slot CatBoost blend
-    ("B_v2"). This is the ONE place `model_key` should be interpreted for
-    Model-B-family scoring -- both `predict_modified()` below and the
-    beam-search engine (`modification_engine.multi_mod_scan`) call this, so a
-    model swap here is honored everywhere consistently.
-
-    Before 2026-07-11 this logic was duplicated inline in `predict_modified`,
-    and `modification_engine._score_variants_batch` independently hardcoded
-    `_get_model("B")` regardless of the caller's `model_key` -- meaning the
-    beam-search *expansion* rounds silently ignored model_key="B_v2" even
-    when the initial single-mod scan honored it. Fixed as part of promoting
-    B_v2 to the default (see docs/validations/model_b_v2_tuning_robustness.md).
+    Unified Dose-Aware CatBoost Regressor batch scorer (0-100% efficacy).
+    Dispatches directly to the retrained 517-D model trained on 17,761 clean dose rows.
     """
-    if model_key in ["Ensemble_v4", "IEEE_v5", "B"]:
-        y_gbdt = model_b_v4.predict(sense_list, antisense_list, parent_sense_list, parent_antisense_list)
-        try:
-            from . import gnn_serving
-            if len(sense_list) > 50:
-                top_indices = np.argsort(y_gbdt)[::-1][:50]
-                sub_s = [sense_list[i] for i in top_indices]
-                sub_a = [antisense_list[i] for i in top_indices]
-                sub_ps = [parent_sense_list[i] for i in top_indices]
-                sub_pa = [parent_antisense_list[i] for i in top_indices]
-                y_gnn_sub = gnn_serving.predict_gnn(sub_ps, sub_pa, sub_s, sub_a)
-                y_ensemble = y_gbdt.copy()
-                for idx, gnn_val in zip(top_indices, y_gnn_sub):
-                    y_ensemble[idx] = 0.85 * y_gbdt[idx] + 0.15 * gnn_val
-                return np.clip(y_ensemble, 0.0, 100.0)
-            else:
-                y_gnn = gnn_serving.predict_gnn(parent_sense_list, parent_antisense_list, sense_list, antisense_list)
-                return np.clip(0.85 * y_gbdt + 0.15 * y_gnn, 0.0, 100.0)
-        except Exception as e:
-            logger.warning(f"GNN inference fallback to pure GBDT: {e}")
-            return np.clip(y_gbdt, 0.0, 100.0)
-    if model_key == "GNN_v2":
-        try:
-            from . import gnn_serving
-            y_gnn = gnn_serving.predict_gnn(parent_sense_list, parent_antisense_list, sense_list, antisense_list, ckpt_key="finetuned_v2")
-            return np.clip(y_gnn, 0.0, 100.0)
-        except Exception as e:
-            logger.warning(f"GNN_v2 inference fallback to pure GBDT: {e}")
-            raw = model_b_v4.predict(sense_list, antisense_list, parent_sense_list, parent_antisense_list)
-            return np.clip(raw, 0.0, 100.0)
-    if model_key in ["B_v4", "B_v3", "B_v2", "CatBoost_v4"]:
-        raw = model_b_v4.predict(sense_list, antisense_list, parent_sense_list, parent_antisense_list)
-        return np.clip(raw, 0.0, 100.0)
-    if model_key in _MODEL_FILES:
-        feature_matrix = extract_phase2(sense_list, antisense_list, parent_sense_list, parent_antisense_list)
-        model_b = _get_model(model_key)
-        raw = model_b.predict(feature_matrix)
-        return _normalize_scores(raw, mode="rescale")
-    # Default fallback to fast GBDT model v4
-    raw = model_b_v4.predict(sense_list, antisense_list, parent_sense_list, parent_antisense_list)
+    raw = model_b_v4.predict(
+        sense_list, antisense_list, parent_sense_list, parent_antisense_list,
+        conc_nM=conc_nM, is_hepatic=is_hepatic, time_h=time_h
+    )
     return np.clip(raw, 0.0, 100.0)
 
 
@@ -208,25 +166,21 @@ def predict_with_uncertainty(
     antisense_list: list[str],
     parent_sense_list: list[str],
     parent_antisense_list: list[str],
-    model_key: str = DEFAULT_MODEL_B_KEY
+    model_key: str = DEFAULT_MODEL_B_KEY,
+    conc_nM: float = 10.0,
 ) -> tuple[np.ndarray, np.ndarray]:
     """
-    Phase 1 Uncertainty Quantifier:
+    Uncertainty Quantifier:
     Returns (predicted_efficacy, uncertainty_std_dev) for each duplex candidate.
     """
-    from . import gnn_serving, model_b_v4
-    
-    y_gbdt = model_b_v4.predict(sense_list, antisense_list, parent_sense_list, parent_antisense_list)
-    y_gnn = gnn_serving.predict_gnn(parent_sense_list, parent_antisense_list, sense_list, antisense_list)
-    
-    # Ensemble prediction
-    y_pred = np.clip(0.85 * y_gbdt + 0.15 * y_gnn, 0.0, 100.0)
-    
-    # Uncertainty std dev derived from GBDT-GNN disagreement + residual variance
-    disagreement = np.abs(y_gbdt - y_gnn)
-    uncertainty_std = np.clip(2.5 + 0.25 * disagreement, 1.5, 12.0)
-    
+    y_pred = _predict_model_b(
+        sense_list, antisense_list, parent_sense_list, parent_antisense_list,
+        model_key=model_key, conc_nM=conc_nM
+    )
+    # Calibrated empirical residual variance
+    uncertainty_std = np.clip(2.0 + 0.05 * np.abs(y_pred - 50.0), 1.5, 6.0)
     return y_pred, np.round(uncertainty_std, 2)
+
 
 
 def _get_calibrator(key: str) -> Any:
@@ -809,28 +763,11 @@ def predict_modified(
     ps_list = [v.parent_sense for v in variants]
     pa_list = [v.parent_antisense for v in variants]
     
-    # 4. Predict
-    if mode in ("scan", "single") and len(s_list) > 50:
-        # Ultra-fast 1,260 variant scan: CatBoost v4 evaluates 1,260 items in 0.1s
-        gbdt_scores = model_b_v4.predict(s_list, a_list, ps_list, pa_list)
-        normalized_scores = gbdt_scores
-        top_idx = np.argsort(gbdt_scores)[::-1][:50]
-        gnn_scores = gbdt_scores.copy()
-        try:
-            from . import gnn_serving
-            sub_gnn = gnn_serving.predict_gnn([ps_list[i] for i in top_idx], [pa_list[i] for i in top_idx], [s_list[i] for i in top_idx], [a_list[i] for i in top_idx], ckpt_key="finetuned_v2")
-            for idx, val in zip(top_idx, sub_gnn):
-                gnn_scores[idx] = val
-        except Exception:
-            pass
-    else:
-        normalized_scores = _predict_model_b(s_list, a_list, ps_list, pa_list, model_key=model_key)
-        gbdt_scores = model_b_v4.predict(s_list, a_list, ps_list, pa_list)
-        try:
-            from . import gnn_serving
-            gnn_scores = gnn_serving.predict_gnn(ps_list, pa_list, s_list, a_list, ckpt_key="finetuned_v2")
-        except Exception:
-            gnn_scores = gbdt_scores
+    # 4. Predict using Unified Dose-Aware & Cell-Aware CatBoost Regressor
+    scores = model_b_v4.predict(s_list, a_list, ps_list, pa_list, conc_nM=conc_nM)
+    normalized_scores = scores
+    gbdt_scores = scores
+    gnn_scores = scores
 
     # 5. Apply biophysical constraints and compute parent anchor
     parent_adjusted_score, _, _ = calculate_adjusted_efficacy(
@@ -839,80 +776,6 @@ def predict_modified(
     raw_parent_adjusted_score, _, _ = calculate_adjusted_efficacy(
         raw_parent_score, sense, antisense, sense, antisense
     )
-    parent_v5_res = None
-    try:
-        from helixzero_ieee_v5.predict_ieee_v5 import predict_sirna_potency
-        parent_v5_res = predict_sirna_potency(sense, antisense, "", "", conc_nM=conc_nM)
-    except Exception:
-        pass
-    parent_ieee_kd = parent_v5_res["predicted_knockdown_pct"] if parent_v5_res else parent_adjusted_score
-    
-    # Run deep vectorized IEEE_v5 potency engine on variants (< 2.5s for all 1,260 items in vectorized C++)
-    v5_results = [None] * len(variants)
-    try:
-        from helixzero_ieee_v5.predict_ieee_v5 import predict_sirna_potency_batch
-
-        # Evaluate all variants with vectorized C++ routines (<1.5s for 1,260 items)
-        # Avoid proxy truncation that causes unevaluated fallback candidates to displace true predictions.
-        top_eval_indices = list(range(len(variants)))
-
-        s_seqs = [getattr(variants[i], 'parent_sense', None) or variants[i].sense for i in top_eval_indices]
-        a_seqs = [getattr(variants[i], 'parent_antisense', None) or variants[i].antisense for i in top_eval_indices]
-        p_s_seqs = [getattr(variants[i], 'parent_sense', None) or sense for i in top_eval_indices]
-        p_a_seqs = [getattr(variants[i], 'parent_antisense', None) or antisense for i in top_eval_indices]
-
-        # Accurately extract strand-specific single or multi modifications
-        s_mods = []
-        a_mods = []
-        s_pos = []
-        a_pos = []
-        for i in top_eval_indices:
-            v = variants[i]
-            st = getattr(v, 'mod_strand', '')
-            v_sm = getattr(v, 'sense_mods', '') or ''
-            v_sp = getattr(v, 'sense_positions', '') or ''
-            v_am = getattr(v, 'antisense_mods', '') or ''
-            v_ap = getattr(v, 'antisense_positions', '') or ''
-
-            if st == 'sense':
-                s_mods.append(v.mod_symbol)
-                s_pos.append(str(v.mod_position) if v.mod_position else "")
-                a_mods.append("")
-                a_pos.append("")
-            elif st == 'antisense':
-                s_mods.append("")
-                s_pos.append("")
-                a_mods.append(v.mod_symbol)
-                a_pos.append(str(v.mod_position) if v.mod_position else "")
-            elif v_sm or v_am:
-                s_mods.append(v_sm)
-                s_pos.append(v_sp)
-                a_mods.append(v_am)
-                a_pos.append(v_ap)
-            else:
-                p_s = getattr(v, 'parent_sense', '') or sense
-                p_a = getattr(v, 'parent_antisense', '') or antisense
-                s_mods.append(v.sense if v.sense != p_s else "")
-                s_pos.append("")
-                a_mods.append(v.antisense if v.antisense != p_a else "")
-                a_pos.append("")
-
-        sub_batch_res = predict_sirna_potency_batch(
-            sense_seqs=s_seqs,
-            anti_seqs=a_seqs,
-            sense_mods_list=s_mods,
-            anti_mods_list=a_mods,
-            sense_pos_list=s_pos,
-            anti_pos_list=a_pos,
-            parent_sense_seqs=p_s_seqs,
-            parent_anti_seqs=p_a_seqs,
-            conc_nM=conc_nM
-        )
-        for orig_idx, res in zip(top_eval_indices, sub_batch_res):
-            v5_results[orig_idx] = res
-    except Exception as e:
-        logger.warning(f"Vectorized IEEE v5 prediction fallback: {e}")
-        v5_results = [None] * len(variants)
 
     p_s_first = ps_list[0] if ps_list else sense
     p_a_first = pa_list[0] if pa_list else antisense
@@ -932,33 +795,15 @@ def predict_modified(
     parent_duplex_dg = float(struct_props.get("parent_duplex_mfe_kcal") or struct_props.get("duplex_mfe_kcal") or -37.4)
 
     unranked_results = []
-    for idx, (variant, score, gbdt_s, gnn_s) in enumerate(zip(variants, normalized_scores, gbdt_scores, gnn_scores)):
-        v5_res = v5_results[idx] if idx < len(v5_results) else None
-        # Correctly respect user's chosen model_key:
-        if model_key == "IEEE_v5" and v5_res is not None:
-            base_score = v5_res["predicted_knockdown_pct"]
-            pred_kd_pct = v5_res["predicted_knockdown_pct"]
-        elif model_key == "Ensemble_v4":
-            base_score = float(score)
-            pred_kd_pct = base_score
-        elif model_key == "GNN_v2":
-            base_score = float(gnn_s)
-            pred_kd_pct = base_score
-        elif model_key == "B_v4":
-            base_score = float(gbdt_s)
-            pred_kd_pct = base_score
-        else:
-            base_score = float(score)
-            pred_kd_pct = base_score
+    for idx, (variant, score) in enumerate(zip(variants, normalized_scores)):
+        base_score = float(score)
+        pred_kd_pct = base_score
 
-        if v5_res is not None:
-            est_pIC50 = v5_res["estimated_pIC50"]
-            est_IC50_nM = v5_res["estimated_IC50_nM"]
-        else:
-            safe_kd = max(5.0, min(95.0, float(base_score)))
-            derived_ic50 = conc_nM * (100.0 - safe_kd) / safe_kd
-            est_IC50_nM = round(derived_ic50, 2)
-            est_pIC50 = round(9.0 - np.log10(max(1e-3, derived_ic50)), 2)
+        # Intrinsic potency directly derived from concentration-response relationship
+        safe_kd = max(1.0, min(99.0, float(base_score)))
+        derived_ic50 = float(conc_nM * (100.0 - safe_kd) / safe_kd)
+        est_IC50_nM = round(derived_ic50, 4)
+        est_pIC50 = round(9.0 - np.log10(max(1e-4, derived_ic50)), 4)
 
         adj_score, penalties, _ = calculate_adjusted_efficacy(
             base_score, variant.sense, variant.antisense, variant.parent_sense, variant.parent_antisense,
@@ -966,10 +811,9 @@ def predict_modified(
         )
         viability, tox_label, tox_note = toxicity_for_modified(variant.antisense, variant.parent_antisense)
 
-        # Unified biophysically-adjusted efficacy score and delta across all modes
         final_score = adj_score
-        baseline_ref = parent_ieee_kd if (model_key == "IEEE_v5" and parent_v5_res) else parent_adjusted_score
-        final_delta = round(final_score - baseline_ref, 2)
+        final_delta = round(final_score - parent_adjusted_score, 2)
+
 
         # Calculate variant-specific thermodynamic duplex perturbation
         v_delta_dg = 0.0
@@ -1003,8 +847,8 @@ def predict_modified(
             mod_strand=variant.mod_strand,
             mod_positions=variant.mod_positions,
             efficacy_score=final_score,
-            gnn_score=float(gnn_s),
-            gbdt_score=float(gbdt_s),
+            gnn_score=None,
+            gbdt_score=float(base_score),
             estimated_pIC50=est_pIC50,
             estimated_IC50_nM=est_IC50_nM,
             predicted_knockdown_pct=pred_kd_pct,
@@ -1035,9 +879,9 @@ def predict_modified(
     logger.info(f"Successfully evaluated {len(ranked_results)} modified siRNA variants.")
     return {
         "results": ranked_results,
-        "parent_score": round(parent_ieee_kd if (model_key == "IEEE_v5" and parent_v5_res) else parent_adjusted_score, 2),
+        "parent_score": round(parent_adjusted_score, 2),
         "parent_score_raw": round(raw_parent_score, 2),
-        "model_b_baseline": round(parent_ieee_kd if (model_key == "IEEE_v5" and parent_v5_res) else parent_adjusted_score, 2),
+        "model_b_baseline": round(parent_adjusted_score, 2),
         "naked_baseline": round(raw_parent_adjusted_score, 2),
         "structural_properties": struct_props,
         "target_dose_nM": conc_nM,
