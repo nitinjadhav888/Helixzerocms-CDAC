@@ -213,4 +213,44 @@ def test_multi_mod_from_single_endpoint():
     assert "penalties" in top
 
 
+def test_dose_dependent_response_and_score_differentiation():
+    """Regression test: Ensure multi-mod search exhibits dose-dependent response across concentrations
+    and distinguishes distinct candidate chemical architectures without score degeneracy."""
+    payload_10nm = {
+        "sense": TEST_SENSE,
+        "antisense": TEST_ANTISENSE,
+        "model": "B_v4",
+        "max_mods": 3,
+        "beam_width": 5,
+        "full_scan": False,
+        "conc_nM": 10.0,
+    }
+    payload_25nm = {
+        "sense": TEST_SENSE,
+        "antisense": TEST_ANTISENSE,
+        "model": "B_v4",
+        "max_mods": 3,
+        "beam_width": 5,
+        "full_scan": False,
+        "conc_nM": 25.0,
+    }
+    res_10 = client.post("/multi-mod-from-single", json=payload_10nm)
+    res_25 = client.post("/multi-mod-from-single", json=payload_25nm)
+
+    assert res_10.status_code == 200
+    assert res_25.status_code == 200
+    data_10 = res_10.json()
+    data_25 = res_25.json()
+
+    # 1. Dose dependency: baseline scores must vary with concentration
+    assert data_10["model_b_baseline"] != data_25["model_b_baseline"], (
+        f"Baseline score remained frozen ({data_10['model_b_baseline']}) across 10 nM and 25 nM."
+    )
+
+    # 2. Score differentiation: top candidates must not all collapse into identical scores
+    top_scores_10 = [r["efficacy_score"] for r in data_10["results"][:5]]
+    assert len(set(top_scores_10)) > 1, f"Top scores degenerated into identical values: {top_scores_10}"
+
+
+
 

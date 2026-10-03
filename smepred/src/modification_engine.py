@@ -474,16 +474,23 @@ def multi_mod_scan(
             ps_list = [v.parent_sense for v in chunk]
             pa_list = [v.parent_antisense for v in chunk]
 
-            normalized_scores = _predict_model_b(s_list, a_list, ps_list, pa_list, model_key=eval_model_key)
+            normalized_scores = _predict_model_b(s_list, a_list, ps_list, pa_list, model_key=eval_model_key, conc_nM=conc_nM)
 
             for variant, raw_score in zip(chunk, normalized_scores):
                 adj_score, penalties, _ = calculate_adjusted_efficacy(
                     float(raw_score), variant.sense, variant.antisense,
                     variant.parent_sense, variant.parent_antisense
                 )
+                raw_val = float(raw_score)
+                safe_kd = max(1.0, min(99.0, raw_val))
+                derived_ic50 = float(conc_nM * (100.0 - safe_kd) / safe_kd)
                 variant.efficacy_score = round(adj_score, 2)
                 variant.delta_score = round(adj_score - parent_adjusted_score, 2)
                 variant.penalties = penalties
+                variant.predicted_knockdown_pct = round(raw_val, 2)
+                variant.estimated_IC50_nM = round(derived_ic50, 4)
+                variant.estimated_pIC50 = round(9.0 - np.log10(max(1e-4, derived_ic50)), 4)
+                variant.target_dose_nM = conc_nM
                 scored_variants.append(variant)
 
         return scored_variants
@@ -629,7 +636,14 @@ def multi_mod_scan(
                 ))
 
         scored_candidates = _score_variants_batch(round_candidates)
-        scored_candidates.sort(key=lambda v: v.efficacy_score, reverse=True)
+        scored_candidates.sort(
+            key=lambda v: (
+                v.efficacy_score,
+                getattr(v, 'predicted_knockdown_pct', 0.0) or 0.0,
+                -sum(p["total"] if isinstance(p, dict) and "total" in p else (float(p) if isinstance(p, (int, float)) else 0.0) for p in (getattr(v, 'penalties', {}) or {}).values())
+            ),
+            reverse=True
+        )
         
         current_beam = scored_candidates[:beam_width]
         all_evaluated_variants.extend(scored_candidates)
@@ -643,7 +657,14 @@ def multi_mod_scan(
             unique_variants[seq_key] = v
             
     final_variants = list(unique_variants.values())
-    final_variants.sort(key=lambda v: v.efficacy_score, reverse=True)
+    final_variants.sort(
+        key=lambda v: (
+            v.efficacy_score,
+            getattr(v, 'predicted_knockdown_pct', 0.0) or 0.0,
+            -sum(p["total"] if isinstance(p, dict) and "total" in p else (float(p) if isinstance(p, (int, float)) else 0.0) for p in (getattr(v, 'penalties', {}) or {}).values())
+        ),
+        reverse=True
+    )
     
     # If model_key is IEEE_v5, Ensemble_v4, or GNN_v2, score the final top 100 variants using that model
     if model_key in ["IEEE_v5", "Ensemble_v4", "GNN_v2"] and final_variants:
@@ -680,7 +701,14 @@ def multi_mod_scan(
                     variant.penalties = penalties
                     variant.efficacy_score = round(adj_score, 2)
                     variant.delta_score = round(adj_score - parent_adjusted_score, 2)
-                top_candidates.sort(key=lambda x: x.efficacy_score, reverse=True)
+                top_candidates.sort(
+                    key=lambda x: (
+                        x.efficacy_score,
+                        getattr(x, 'predicted_knockdown_pct', 0.0) or 0.0,
+                        -sum(p["total"] if isinstance(p, dict) and "total" in p else (float(p) if isinstance(p, (int, float)) else 0.0) for p in (getattr(x, 'penalties', {}) or {}).values())
+                    ),
+                    reverse=True
+                )
                 final_variants = top_candidates
             except Exception as e:
                 logger.error(f"IEEE v5 candidate batch scoring failed: {e}")
@@ -690,16 +718,30 @@ def multi_mod_scan(
             ps_list = [v.parent_sense for v in top_candidates]
             pa_list = [v.parent_antisense for v in top_candidates]
             
-            target_scores = _predict_model_b(s_list, a_list, ps_list, pa_list, model_key=model_key)
+            target_scores = _predict_model_b(s_list, a_list, ps_list, pa_list, model_key=model_key, conc_nM=conc_nM)
             for variant, raw_score in zip(top_candidates, target_scores):
                 adj_score, penalties, _ = calculate_adjusted_efficacy(
                     float(raw_score), variant.sense, variant.antisense,
                     variant.parent_sense, variant.parent_antisense
                 )
+                raw_val = float(raw_score)
+                safe_kd = max(1.0, min(99.0, raw_val))
+                derived_ic50 = float(conc_nM * (100.0 - safe_kd) / safe_kd)
                 variant.efficacy_score = round(adj_score, 2)
                 variant.delta_score = round(adj_score - parent_adjusted_score, 2)
                 variant.penalties = penalties
-            top_candidates.sort(key=lambda x: x.efficacy_score, reverse=True)
+                variant.predicted_knockdown_pct = round(raw_val, 2)
+                variant.estimated_IC50_nM = round(derived_ic50, 4)
+                variant.estimated_pIC50 = round(9.0 - np.log10(max(1e-4, derived_ic50)), 4)
+                variant.target_dose_nM = conc_nM
+            top_candidates.sort(
+                key=lambda x: (
+                    x.efficacy_score,
+                    getattr(x, 'predicted_knockdown_pct', 0.0) or 0.0,
+                    -sum(p["total"] if isinstance(p, dict) and "total" in p else (float(p) if isinstance(p, (int, float)) else 0.0) for p in (getattr(x, 'penalties', {}) or {}).values())
+                ),
+                reverse=True
+            )
             final_variants = top_candidates
     
     logger.info(f"Beam search complete. Evaluated {len(all_evaluated_variants)} total permutations in fast mode. Returning {len(final_variants)} unique sequences.")

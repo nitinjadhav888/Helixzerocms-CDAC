@@ -439,7 +439,7 @@ def multi_mod_scan_endpoint(req: MultiModScanRequest):
         # previously called _get_model(req.model) directly, which only knew
         # about the legacy LightGBM registry and would 404/crash on "B_v2").
         raw_b_score = float(_predict_model_b(
-            [req.sense], [req.antisense], [req.sense], [req.antisense], model_key=req.model
+            [req.sense], [req.antisense], [req.sense], [req.antisense], model_key=req.model, conc_nM=req.conc_nM
         )[0])
         model_b_adj, _, _ = calculate_adjusted_efficacy(
             raw_b_score, req.sense, req.antisense, req.sense, req.antisense
@@ -487,16 +487,29 @@ def multi_mod_scan_endpoint(req: MultiModScanRequest):
             batch_gnn = [None] * len(variants)
         except Exception:
             batch_gnn = [None] * len(variants)
-            batch_gbdt = [0.0] * len(variants)
+            batch_gbdt = [v.efficacy_score for v in variants]
 
         formatted_results = []
         for idx, variant in enumerate(variants):
-            penalties = getattr(variant, 'penalties', None) or {}
-            total_penalty = sum(p["total"] for p in penalties.values())
-            raw_efficacy = round(variant.efficacy_score + total_penalty, 2)
-            
+            raw_kd = float(batch_gbdt[idx]) if (idx < len(batch_gbdt) and batch_gbdt[idx] is not None) else float(variant.efficacy_score)
+            adj_score, penalties, total_penalty = calculate_adjusted_efficacy(
+                raw_kd, variant.sense, variant.antisense, variant.parent_sense, variant.parent_antisense,
+                mode="mod_ranking"
+            )
+            raw_score = round(raw_kd, 2)
+            adjusted_score = round(adj_score, 2)
+
+            safe_kd = max(1.0, min(99.0, raw_kd))
+            derived_ic50 = float(req.conc_nM * (100.0 - safe_kd) / safe_kd)
+            est_ic50 = round(derived_ic50, 4)
+            est_pic50 = round(9.0 - np.log10(max(1e-4, derived_ic50)), 4)
+
+            gnn_val = round(float(batch_gnn[idx]), 2) if (idx < len(batch_gnn) and batch_gnn[idx] is not None) else None
+            gbdt_val = round(raw_kd, 2)
+            delta_val = round(adjusted_score - model_b_adj, 2)
+
             formatted_results.append({
-                "rank": idx + 1,
+                "rank": 0,
                 "sense": variant.sense,
                 "antisense": variant.antisense,
                 "mod_symbol": variant.mod_symbol,
@@ -507,18 +520,32 @@ def multi_mod_scan_endpoint(req: MultiModScanRequest):
                 "sense_positions": getattr(variant, 'sense_positions', ''),
                 "antisense_mods": getattr(variant, 'antisense_mods', ''),
                 "antisense_positions": getattr(variant, 'antisense_positions', ''),
-                "raw_efficacy_score": raw_efficacy,
-                "efficacy_score": round(variant.efficacy_score, 2),
-                "gnn_score": round(float(batch_gnn[idx]), 2) if batch_gnn[idx] is not None else None,
-                "gbdt_score": round(float(batch_gbdt[idx]), 2) if batch_gbdt[idx] is not None else None,
-                "estimated_pIC50": getattr(variant, 'estimated_pIC50', None),
-                "estimated_IC50_nM": getattr(variant, 'estimated_IC50_nM', None),
-                "predicted_knockdown_pct": getattr(variant, 'predicted_knockdown_pct', None),
-                "total_penalty": round(total_penalty, 1),
-                "delta_score": round(variant.delta_score, 2),
-                "efficacy_label": _get_efficacy_label(variant.efficacy_score),
-                "penalties": {k: {"total": round(v.get("total", 0.0) if isinstance(v, dict) else v, 1), "details": v.get("details", {}) if isinstance(v, dict) else {}} for k, v in penalties.items()},
+                "raw_efficacy_score": raw_score,
+                "efficacy_score": adjusted_score,
+                "gnn_score": gnn_val,
+                "gbdt_score": gbdt_val,
+                "estimated_pIC50": est_pic50,
+                "estimated_IC50_nM": est_ic50,
+                "predicted_knockdown_pct": raw_score,
+                "total_penalty": round(total_penalty, 2),
+                "delta_score": delta_val,
+                "efficacy_label": _get_efficacy_label(adjusted_score),
+                "penalties": {
+                    k: {
+                        "total": round(v.get("total", 0.0) if isinstance(v, dict) else (float(v) if isinstance(v, (int, float)) else 0.0), 2),
+                        "details": v.get("details", {}) if isinstance(v, dict) else {}
+                    }
+                    for k, v in penalties.items()
+                },
             })
+
+        # Sort with rigorous tie-breaking: adjusted score -> raw score -> lowest penalty
+        formatted_results.sort(
+            key=lambda x: (x["efficacy_score"], x["raw_efficacy_score"], -x["total_penalty"]),
+            reverse=True
+        )
+        for idx, res in enumerate(formatted_results):
+            res["rank"] = idx + 1
 
         return {
             "parent_sense": req.sense,
@@ -583,7 +610,7 @@ def multi_mod_from_single_endpoint(req: MultiModFromSingleRequest):
 
         if model_b_baseline is None:
             raw_b = float(_predict_model_b(
-                [req.sense], [req.antisense], [req.sense], [req.antisense], model_key=req.model
+                [req.sense], [req.antisense], [req.sense], [req.antisense], model_key=req.model, conc_nM=req.conc_nM
             )[0])
             mb_adj, _, _ = calculate_adjusted_efficacy(raw_b, req.sense, req.antisense, req.sense, req.antisense)
             model_b_baseline = round(mb_adj, 2)
@@ -621,23 +648,27 @@ def multi_mod_from_single_endpoint(req: MultiModFromSingleRequest):
             batch_gnn = [None] * len(variants)
         except Exception:
             batch_gnn = [None] * len(variants)
-            batch_gbdt = [0.0] * len(variants)
+            batch_gbdt = [v.efficacy_score for v in variants]
 
         formatted_results = []
         base_for_delta = model_b_baseline if model_b_baseline is not None else parent_baseline
         
         for idx, var in enumerate(variants):
-            penalties = getattr(var, 'penalties', None) or {}
-            total_penalty = sum(
-                (p["total"] if isinstance(p, dict) and "total" in p else (float(p) if isinstance(p, (int, float)) else 0.0))
-                for p in penalties.values()
+            raw_kd = float(batch_gbdt[idx]) if (idx < len(batch_gbdt) and batch_gbdt[idx] is not None) else float(var.efficacy_score)
+            adj_score, penalties, total_penalty = calculate_adjusted_efficacy(
+                raw_kd, var.sense, var.antisense, var.parent_sense, var.parent_antisense,
+                mode="mod_ranking"
             )
-            
-            raw_score = round(var.efficacy_score + total_penalty, 2)
-            adjusted_score = round(var.efficacy_score, 2)
+            raw_score = round(raw_kd, 2)
+            adjusted_score = round(adj_score, 2)
+
+            safe_kd = max(1.0, min(99.0, raw_kd))
+            derived_ic50 = float(req.conc_nM * (100.0 - safe_kd) / safe_kd)
+            est_ic50 = round(derived_ic50, 4)
+            est_pic50 = round(9.0 - np.log10(max(1e-4, derived_ic50)), 4)
 
             gnn_val = round(float(batch_gnn[idx]), 2) if (idx < len(batch_gnn) and batch_gnn[idx] is not None) else None
-            gbdt_val = round(float(batch_gbdt[idx]), 2) if (idx < len(batch_gbdt) and batch_gbdt[idx] is not None) else None
+            gbdt_val = round(raw_kd, 2)
             delta_val = round(adjusted_score - base_for_delta, 2) if base_for_delta is not None else 0.0
 
             formatted_results.append({
@@ -652,23 +683,26 @@ def multi_mod_from_single_endpoint(req: MultiModFromSingleRequest):
                 "efficacy_score": adjusted_score,
                 "gnn_score": gnn_val,
                 "gbdt_score": gbdt_val,
-                "estimated_pIC50": getattr(var, 'estimated_pIC50', None),
-                "estimated_IC50_nM": getattr(var, 'estimated_IC50_nM', None),
-                "predicted_knockdown_pct": getattr(var, 'predicted_knockdown_pct', None) or adjusted_score,
-                "total_penalty": round(total_penalty, 1),
+                "estimated_pIC50": est_pic50,
+                "estimated_IC50_nM": est_ic50,
+                "predicted_knockdown_pct": raw_score,
+                "total_penalty": round(total_penalty, 2),
                 "delta_score": delta_val,
                 "efficacy_label": _get_efficacy_label(adjusted_score),
                 "penalties": {
                     k: {
-                        "total": round(v.get("total", 0.0) if isinstance(v, dict) else (float(v) if isinstance(v, (int, float)) else 0.0), 1),
+                        "total": round(v.get("total", 0.0) if isinstance(v, dict) else (float(v) if isinstance(v, (int, float)) else 0.0), 2),
                         "details": v.get("details", {}) if isinstance(v, dict) else {}
                     }
                     for k, v in penalties.items()
                 },
             })
 
-        # Sort by efficacy score descending
-        formatted_results.sort(key=lambda x: x["efficacy_score"], reverse=True)
+        # Sort with rigorous tie-breaking: adjusted score -> raw score -> lowest penalty
+        formatted_results.sort(
+            key=lambda x: (x["efficacy_score"], x["raw_efficacy_score"], -x["total_penalty"]),
+            reverse=True
+        )
         for idx, res in enumerate(formatted_results):
             res["rank"] = idx + 1
 

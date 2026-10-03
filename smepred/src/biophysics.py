@@ -422,11 +422,37 @@ def calculate_thermo_penalty(
         return sum(_RNA_NN_DG.get(s[i:i+2], -1.5) for i in range(len(s) - 1))
     sense_5p_dg = _terminus_dg(base_sense)
     guide_5p_dg = _terminus_dg(base_antisense)
+
+    # Effective 5' terminal stability including chemical modifications at positions 1-4
+    from .chem_alphabet import get_mod_delta_dg
+    sense_term_mod_dg = sum(get_mod_delta_dg(c) for c in sense[:4] if c.upper() not in "ACGTU.")
+    guide_term_mod_dg = sum(get_mod_delta_dg(c) for c in antisense[:4] if c.upper() not in "ACGTU.")
+    eff_sense_5p_dg = sense_5p_dg + sense_term_mod_dg
+    eff_guide_5p_dg = guide_5p_dg + guide_term_mod_dg
+
     # Sense 5' end should be more stable (more negative ΔG) than guide 5' end
     # If guide end is more stable (more negative), RISC may load sense strand
-    if sense_5p_dg >= guide_5p_dg:
-        total_penalty += 3.0
-        details[f"Thermodynamic asymmetry: sense ΔG ({sense_5p_dg:.2f}) >= guide ΔG ({guide_5p_dg:.2f})"] = 3.0
+    if eff_sense_5p_dg >= eff_guide_5p_dg:
+        asym_gap = eff_sense_5p_dg - eff_guide_5p_dg
+        pen = min(6.0, 3.0 + 1.2 * asym_gap)
+        total_penalty += pen
+        details[f"Thermodynamic asymmetry: sense ΔG ({eff_sense_5p_dg:.2f}) >= guide ΔG ({eff_guide_5p_dg:.2f})"] = round(pen, 2)
+
+    # Duplex chemical modification thermodynamic modulation:
+    # Captures cumulative free-energy contribution of 2'-F, 2'-OMe, 2'-deoxy, PS, etc.
+    total_mod_ddg = sum(get_mod_delta_dg(c) for c in (sense + antisense) if c.upper() not in "ACGTU.")
+    if total_mod_ddg < -12.0:
+        pen = 0.5 * (-12.0 - total_mod_ddg)
+        total_penalty += pen
+        details[f"Duplex hyper-stabilization (ΔΔG {total_mod_ddg:.2f} kcal/mol)"] = round(pen, 2)
+    elif total_mod_ddg > 4.0:
+        pen = 0.5 * (total_mod_ddg - 4.0)
+        total_penalty += pen
+        details[f"Duplex destabilization (ΔΔG {total_mod_ddg:.2f} kcal/mol)"] = round(pen, 2)
+    else:
+        thermo_shift = 0.40 * abs(total_mod_ddg - (-6.0))
+        total_penalty += thermo_shift
+        details[f"Duplex stability modulation (ΔΔG {total_mod_ddg:.2f} kcal/mol)"] = round(thermo_shift, 2)
 
     if re.search(r"[GC]{6}", base_seq):
         total_penalty += 3.0
@@ -468,17 +494,25 @@ def calculate_serum_penalty(
     elif antisense[0] not in ("S", "1"):
         total_penalty += 4.0
         details["Unprotected AS 5' terminus"] = 4.0
-    if len(antisense) > 20 and antisense[20] not in ("S", "1"):
-        total_penalty += 3.0
-        details["Unprotected AS 3' terminus"] = 3.0
+    if len(antisense) > 20:
+        if antisense[20] not in ("S", "1"):
+            total_penalty += 3.0
+            details["Unprotected AS 3' terminus"] = 3.0
+        elif len(antisense) > 19 and antisense[19] not in ("S", "1"):
+            total_penalty += 0.8
+            details["Single PS at AS 3' terminus (suboptimal vs dual PS)"] = 0.8
 
     # --- Unprotected sense termini ---
     if sense[0] not in ("S", "4"):
         total_penalty += 3.0
         details["Unprotected Sense 5' terminus"] = 3.0
-    if len(sense) > 20 and sense[20] not in ("S", "4"):
-        total_penalty += 2.0
-        details["Unprotected Sense 3' terminus"] = 2.0
+    if len(sense) > 20:
+        if sense[20] not in ("S", "4"):
+            total_penalty += 2.0
+            details["Unprotected Sense 3' terminus"] = 2.0
+        elif len(sense) > 19 and sense[19] not in ("S", "4"):
+            total_penalty += 0.6
+            details["Single PS at Sense 3' terminus (suboptimal vs dual PS)"] = 0.6
 
     # --- GalNAc valency and position bonus/penalty (Weingärtner et al. 2020) ---
     galnac_count = (sense + antisense).count("4")
@@ -770,16 +804,16 @@ def calculate_adjusted_efficacy(
         scale = penalty_scale
 
     penalties = {
-        "nuclease": {"total": round(pn * scale, 1), "details": dn},
-        "immuno": {"total": round(pi * scale, 1), "details": di},
-        "risc": {"total": round((pr + pex) * scale, 1), "details": {**dr, **dex}},
-        "thermo": {"total": round(pt * scale, 1), "details": dt},
-        "serum": {"total": round(ps * scale, 1), "details": ds},
-        "synthesis": {"total": round(psy * scale, 1), "details": dsy},
-        "target_gate": {"total": round((1.0 - f_gate) * 100.0, 1), "details": gate_details},
+        "nuclease": {"total": round(pn * scale, 2), "details": dn},
+        "immuno": {"total": round(pi * scale, 2), "details": di},
+        "risc": {"total": round((pr + pex) * scale, 2), "details": {**dr, **dex}},
+        "thermo": {"total": round(pt * scale, 2), "details": dt},
+        "serum": {"total": round(ps * scale, 2), "details": ds},
+        "synthesis": {"total": round(psy * scale, 2), "details": dsy},
+        "target_gate": {"total": round((1.0 - f_gate) * 100.0, 2), "details": gate_details},
     }
     
-    absolute_penalty_sum = sum(v["total"] for k, v in penalties.items() if k != "target_gate")
+    absolute_penalty_sum = round(sum(v["total"] for k, v in penalties.items() if k != "target_gate"), 2)
     
     # Direct subtraction of scaled penalty sum from raw ML score
     adjusted_score = max(0.0, min(100.0, raw_ml_score - absolute_penalty_sum))
