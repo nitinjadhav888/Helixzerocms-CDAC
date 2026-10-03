@@ -323,6 +323,7 @@ class RankedCmSiRNA:
             "gbdt_score": round(self.gbdt_score, 2) if self.gbdt_score is not None else None,
             "estimated_pIC50": round(self.estimated_pIC50, 4) if self.estimated_pIC50 is not None else None,
             "estimated_IC50_nM": round(self.estimated_IC50_nM, 4) if self.estimated_IC50_nM is not None else None,
+            "raw_efficacy_score": round(self.gbdt_score or self.efficacy_score, 2),
             "predicted_knockdown_pct": round(self.predicted_knockdown_pct, 2) if self.predicted_knockdown_pct is not None else None,
             "target_dose_nM": round(self.target_dose_nM, 2) if self.target_dose_nM is not None else None,
             "delta_score": round(self.delta_score, 2),
@@ -330,6 +331,7 @@ class RankedCmSiRNA:
             "toxicity_score": self.toxicity_score,
             "toxicity_label": self.toxicity_label,
             "toxicity_note": self.toxicity_note,
+            "penalties": self.biophysics,
         }
         if self.duplex_mfe_kcal is not None:
             result["duplex_mfe_kcal"] = round(self.duplex_mfe_kcal, 2)
@@ -727,7 +729,7 @@ def predict_modified(
     parent_v4_matrix = extract_batch_v4([actual_parent_s], [actual_parent_a])
     raw_parent_score = float(_normalize_scores(_predict_naked(parent_v4_matrix), calibrator_key="normal")[0])
 
-    raw_model_b_score = float(_predict_model_b([actual_parent_s], [actual_parent_a], [actual_parent_s], [actual_parent_a], model_key=model_key)[0])
+    raw_model_b_score = float(_predict_model_b([actual_parent_s], [actual_parent_a], [actual_parent_s], [actual_parent_a], model_key=model_key, conc_nM=conc_nM)[0])
 
     # 2. Generate variants
     if mode in ("scan", "single"):
@@ -771,10 +773,12 @@ def predict_modified(
 
     # 5. Apply biophysical constraints and compute parent anchor
     parent_adjusted_score, _, _ = calculate_adjusted_efficacy(
-        raw_model_b_score, sense, antisense, sense, antisense
+        raw_model_b_score, sense, antisense, sense, antisense,
+        mode="targeted" if mode in ("scan", "single") else "mod_ranking"
     )
     raw_parent_adjusted_score, _, _ = calculate_adjusted_efficacy(
-        raw_parent_score, sense, antisense, sense, antisense
+        raw_parent_score, sense, antisense, sense, antisense,
+        mode="targeted" if mode in ("scan", "single") else "mod_ranking"
     )
 
     p_s_first = ps_list[0] if ps_list else sense
@@ -807,7 +811,7 @@ def predict_modified(
 
         adj_score, penalties, _ = calculate_adjusted_efficacy(
             base_score, variant.sense, variant.antisense, variant.parent_sense, variant.parent_antisense,
-            mode="targeted" if mode == "multimod" else "mod_ranking"
+            mode="targeted" if mode in ("scan", "single", "multimod") else "mod_ranking"
         )
         viability, tox_label, tox_note = toxicity_for_modified(variant.antisense, variant.parent_antisense)
 

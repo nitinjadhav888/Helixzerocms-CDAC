@@ -77,7 +77,11 @@ def score_and_rank_candidates(candidates: List[Dict[str, Any]], top_k: int = 5) 
         # 5. Biophysical Penalty (0 is ideal, >0 is penalty)
         penalty = c.get("biophysical_penalty", c.get("total_penalty"))
         if penalty is None and isinstance(c.get("penalties"), dict):
-            penalty = sum(c["penalties"].values())
+            penalty = sum(
+                (p.get("total", 0.0) if isinstance(p, dict) else float(p))
+                for p in c["penalties"].values()
+                if isinstance(p, (dict, int, float))
+            )
         if penalty is None:
             penalty = 0.0
         try:

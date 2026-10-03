@@ -617,20 +617,28 @@ def multi_mod_from_single_endpoint(req: MultiModFromSingleRequest):
             v_a = [v.antisense for v in variants]
             p_s = [v.parent_sense for v in variants]
             p_a = [v.parent_antisense for v in variants]
-            batch_gbdt = model_b_v4.predict(v_s, v_a, p_s, p_a)
+            batch_gbdt = model_b_v4.predict(v_s, v_a, p_s, p_a, conc_nM=req.conc_nM)
             batch_gnn = [None] * len(variants)
         except Exception:
             batch_gnn = [None] * len(variants)
             batch_gbdt = [0.0] * len(variants)
 
         formatted_results = []
+        base_for_delta = model_b_baseline if model_b_baseline is not None else parent_baseline
         
         for idx, var in enumerate(variants):
             penalties = getattr(var, 'penalties', None) or {}
-            total_penalty = sum(p["total"] for p in penalties.values())
+            total_penalty = sum(
+                (p["total"] if isinstance(p, dict) and "total" in p else (float(p) if isinstance(p, (int, float)) else 0.0))
+                for p in penalties.values()
+            )
             
             raw_score = round(var.efficacy_score + total_penalty, 2)
             adjusted_score = round(var.efficacy_score, 2)
+
+            gnn_val = round(float(batch_gnn[idx]), 2) if (idx < len(batch_gnn) and batch_gnn[idx] is not None) else None
+            gbdt_val = round(float(batch_gbdt[idx]), 2) if (idx < len(batch_gbdt) and batch_gbdt[idx] is not None) else None
+            delta_val = round(adjusted_score - base_for_delta, 2) if base_for_delta is not None else 0.0
 
             formatted_results.append({
                 "rank": 0,
@@ -642,15 +650,21 @@ def multi_mod_from_single_endpoint(req: MultiModFromSingleRequest):
                 "mod_positions": var.mod_positions or str(var.mod_position),
                 "raw_efficacy_score": raw_score,
                 "efficacy_score": adjusted_score,
-                "gnn_score": round(float(batch_gnn[idx]), 2),
-                "gbdt_score": round(float(batch_gbdt[idx]), 2),
+                "gnn_score": gnn_val,
+                "gbdt_score": gbdt_val,
                 "estimated_pIC50": getattr(var, 'estimated_pIC50', None),
                 "estimated_IC50_nM": getattr(var, 'estimated_IC50_nM', None),
-                "predicted_knockdown_pct": getattr(var, 'predicted_knockdown_pct', None),
+                "predicted_knockdown_pct": getattr(var, 'predicted_knockdown_pct', None) or adjusted_score,
                 "total_penalty": round(total_penalty, 1),
-                "delta_score": round(adjusted_score - model_b_baseline, 2),
+                "delta_score": delta_val,
                 "efficacy_label": _get_efficacy_label(adjusted_score),
-                "penalties": {k: {"total": round(v.get("total", 0.0) if isinstance(v, dict) else v, 1), "details": v.get("details", {}) if isinstance(v, dict) else {}} for k, v in penalties.items()},
+                "penalties": {
+                    k: {
+                        "total": round(v.get("total", 0.0) if isinstance(v, dict) else (float(v) if isinstance(v, (int, float)) else 0.0), 1),
+                        "details": v.get("details", {}) if isinstance(v, dict) else {}
+                    }
+                    for k, v in penalties.items()
+                },
             })
 
         # Sort by efficacy score descending

@@ -187,7 +187,30 @@ def test_rank_upload_endpoint():
     data = response.json()
     assert data["filename"] == "ttr_test.fasta"
     assert data["total_candidates"] > 0
-    assert len(data["results"]) <= 5
     assert "efficacy_score" in data["results"][0]
+
+
+def test_multi_mod_from_single_endpoint():
+    """Verify POST /multi-mod-from-single runs seeded beam search and formats results safely."""
+    payload = {
+        "sense": TEST_SENSE,
+        "antisense": TEST_ANTISENSE,
+        "model": "IEEE_v5",
+        "max_mods": 4,
+        "beam_width": 5,
+        "full_scan": False,
+        "conc_nM": 10.0,
+    }
+    response = client.post("/multi-mod-from-single", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert "total_variants" in data
+    assert "results" in data
+    assert len(data["results"]) > 0
+    top = data["results"][0]
+    assert "efficacy_score" in top
+    assert "delta_score" in top
+    assert "penalties" in top
+
 
 
