@@ -64,13 +64,14 @@ A comprehensive recursive code audit of the entire repository was performed acro
 
 ---
 
-## 4. HelixZero IEEE v5: Hierarchical Multi-Module Pipeline (Default Flagship Engine)
+## 4. HelixZero Single Unified Dose-Aware Engine (Current Flagship Engine) & Historical IEEE v5 Archive
 
-- **Architecture**: Hierarchical 3-Module Architecture:
-  - **Module 1**: 30-Chemistry 20-bit NucSlot Ontological Schema (`helixzero_ieee_v5/src/chem_ontology.py`).
-  - **Module 2**: Intrinsic Potency Engine (CatBoost v5 $pIC_{50}$ Regressor).
-  - **Module 3**: Assay Response Predictor (CatBoost v5 Knockdown % Engine with Hill Slope kinetic transformation).
-- **Purpose**: Zero sequence leakage cross-validated cm-siRNA potency ($pIC_{50}$) and biological knockdown percentage prediction ($r = 0.8358$, MAE $9.68\%$).
+- **Production Flagship Architecture**: Single Unified Dose-Aware CatBoost Regressor (517-D Features)
+  - Evaluates 444 chemical slot features, 64 live RNA-FM embeddings, 5 ViennaRNA features, and 4 dynamic dose covariates natively.
+  - Directly predicts biological mRNA knockdown % and analytically derives $IC_{50}$ / $pIC_{50}$ via closed-form Hill inversion.
+  - Zero sequence leakage cross-validated across 17,761 multi-dose assays ($r = 0.6776$, held-out multi-dose $r = 0.8359$).
+- **Historical IEEE v5 Architecture (Preserved for Ablation Reproducibility)**:
+  - Preserved in `helixzero_ieee_v5/` to document the historical two-stage cascading architecture ($pIC_{50} \to \text{Hill}$). Retired from active production serving due to compounding error propagation.
 
 | Model Name | Dataset Name | Implementation Path | Data Source | Role |
 | :--- | :--- | :--- | :--- | :--- |

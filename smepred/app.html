@@ -4,138 +4,369 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>HelixZero-CMS — siRNA Chemical Modification Scanner</title>
+<meta name="description" content="HelixZero-CMS: Production-grade ML-driven siRNA efficacy prediction and chemical modification design workbench for RNAi therapeutics research.">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/3Dmol/2.0.4/3Dmol-min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
+  /* ════════════════════════════════════════════════════════════════════
+     HELIXZERO-CMS BIOMEDICAL RESEARCH DESIGN SYSTEM v2.6
+     A high-precision clinical genomics and laboratory workbench aesthetic
+     ════════════════════════════════════════════════════════════════════ */
   :root {
-    --bg: #090b10;
-    --surface: #12151d;
-    --surface2: #1a1f2b;
-    --surface3: #212736;
-    --border: #242a38;
-    --accent: #22d3c4;
-    --accent-dim: #1a9e93;
-    --accent2: #8b7fd6;
-    --green: #34d399;
-    --yellow: #fbbf24;
-    --red: #f87171;
-    --text: #e7ebf2;
-    --muted: #8b93a7;
-    --radius: 12px;
-    --font-display: 'Space Grotesk', system-ui, sans-serif;
-    --font-body: 'IBM Plex Sans', system-ui, sans-serif;
-    --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    background:
-      radial-gradient(1200px 500px at 15% -10%, rgba(34,211,196,0.05), transparent),
-      radial-gradient(900px 400px at 90% 0%, rgba(139,127,214,0.05), transparent),
-      var(--bg);
-    color: var(--text); font-family: var(--font-body); min-height: 100vh;
-    -webkit-font-smoothing: antialiased;
+    /* ── Laboratory Obsidian & Slate Surfaces ── */
+    --bg: #070d18;
+    --surface: #0c1527;
+    --surface2: #121e36;
+    --surface3: #182847;
+    --surface-hover: #1e3156;
+    --border: #1e3254;
+    --border-subtle: #14233c;
+    --border-highlight: rgba(0, 229, 191, 0.45);
+
+    /* ── Biological & Nucleic Chemistry Accents ── */
+    --accent: #00e5bf;
+    --accent-hover: #26fcd5;
+    --accent-dim: #059669;
+    --accent-muted: rgba(0, 229, 191, 0.12);
+    --accent-glow: 0 0 20px rgba(0, 229, 191, 0.28);
+
+    --accent2: #6366f1;
+    --accent2-light: #818cf8;
+    --accent2-muted: rgba(99, 102, 241, 0.12);
+    --accent2-glow: 0 0 20px rgba(99, 102, 241, 0.22);
+
+    --accent-sky: #38bdf8;
+    --accent-sky-muted: rgba(56, 189, 248, 0.12);
+
+    /* ── Special Biophysical Highlight Accent ── */
+    --accent-gold: #f59e0b;
+    --accent-gold-dim: rgba(245, 158, 11, 0.12);
+    --accent-gold-glow: 0 0 16px rgba(245, 158, 11, 0.25);
+
+    /* ── Strict Semantic Color Tokens ── */
+    --green: #10b981;
+    --green-bright: #34d399;
+    --green-dim: rgba(16, 185, 129, 0.12);
+    --green-border: rgba(16, 185, 129, 0.3);
+
+    --yellow: #f59e0b;
+    --yellow-dim: rgba(245, 158, 11, 0.12);
+    --yellow-border: rgba(245, 158, 11, 0.3);
+
+    --red: #f43f5e;
+    --red-bright: #fb7185;
+    --red-dim: rgba(244, 63, 94, 0.12);
+    --red-border: rgba(244, 63, 94, 0.3);
+
+    --blue: #3b82f6;
+    --blue-dim: rgba(59, 130, 246, 0.12);
+    --blue-border: rgba(59, 130, 246, 0.3);
+
+    /* ── Typography & Legibility ── */
+    --text: #e2e8f0;
+    --text-bright: #ffffff;
+    --text-secondary: #cbd5e1;
+    --muted: #64748b;
+    --muted-bright: #94a3b8;
+
+    /* ── Metric Grid & Geometry ── */
+    --radius-xs: 4px;
+    --radius-sm: 6px;
+    --radius: 10px;
+    --radius-lg: 14px;
+    --radius-xl: 18px;
+    --max-content: 1420px;
+    --gutter: 32px;
+
+    /* ── Typography Hierarchy ── */
+    --font-display: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-body: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+
+    /* ── Precision Transitions ── */
+    --ease: cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-out: cubic-bezier(0, 0, 0.2, 1);
   }
 
+  /* ── Reset & Base ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background-color: var(--bg);
+    background-image:
+      radial-gradient(circle at 10% 12%, rgba(0, 229, 191, 0.08) 0%, transparent 45%),
+      radial-gradient(circle at 90% 88%, rgba(99, 102, 241, 0.09) 0%, transparent 50%),
+      radial-gradient(circle at 50% 50%, rgba(56, 189, 248, 0.03) 0%, transparent 60%),
+      linear-gradient(rgba(56, 189, 248, 0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(56, 189, 248, 0.02) 1px, transparent 1px);
+    background-size: 100% 100%, 100% 100%, 100% 100%, 36px 36px, 36px 36px;
+    color: var(--text);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    line-height: 1.6;
+  }
+
+  ::selection { background: rgba(0, 229, 191, 0.3); color: #fff; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+  /* ════════════════════════════════════════════════════════════════════
+     HEADER
+     ════════════════════════════════════════════════════════════════════ */
   header {
-    background: linear-gradient(180deg, var(--surface), var(--bg));
-    border-bottom: 1px solid var(--border);
-    padding: 18px 32px;
-    display: flex; align-items: center; gap: 14px;
+    background: linear-gradient(180deg, rgba(12, 20, 36, 0.98) 0%, rgba(7, 12, 20, 0.95) 100%);
+    border-bottom: 1px solid var(--border-subtle);
+    padding: 13px var(--gutter);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
     position: relative;
+    backdrop-filter: blur(14px);
   }
   header::after {
     content: '';
-    position: absolute; left: 0; right: 0; bottom: -1px; height: 1px;
-    background: linear-gradient(90deg, var(--accent), var(--accent2), transparent 70%);
-    opacity: 0.55;
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 1px;
+    background: linear-gradient(90deg, var(--accent) 0%, var(--accent2) 40%, transparent 85%);
+    opacity: 0.45;
   }
-  header svg { flex-shrink: 0; filter: drop-shadow(0 0 10px rgba(34,211,196,0.25)); }
-  header h1 { font-family: var(--font-display); font-size: 1.3rem; font-weight: 700; letter-spacing: -0.01em; }
-  header p { font-size: 0.8rem; color: var(--muted); margin-top: 2px; }
-  .badge {
-    margin-left: auto;
-    background: #14261f;
-    color: var(--green);
-    border: 1px solid #24493a;
-    font-size: 0.7rem;
+  header svg { flex-shrink: 0; filter: drop-shadow(0 0 10px rgba(0, 210, 180, 0.25)); }
+  header h1 {
+    font-family: var(--font-display);
+    font-size: 1.18rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--text-bright);
+  }
+  header p {
+    font-size: 0.74rem;
+    color: var(--muted-bright);
+    margin-top: 1px;
+    font-weight: 400;
+    letter-spacing: 0.01em;
+  }
+
+  .model-badge {
+    background: rgba(0, 210, 180, 0.08);
+    border: 1px solid rgba(0, 210, 180, 0.25);
+    color: var(--accent);
+    font-size: 0.70rem;
     padding: 4px 11px;
     border-radius: 20px;
     font-weight: 600;
-    display: flex; align-items: center; gap: 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    letter-spacing: 0.01em;
+    font-family: var(--font-body);
   }
-  .badge::before { content: ''; width: 6px; height: 6px; background: var(--green); border-radius: 50%; display: inline-block; box-shadow: 0 0 6px var(--green); }
+  .benchmark-pill {
+    background: rgba(99, 102, 241, 0.08);
+    border: 1px solid rgba(99, 102, 241, 0.25);
+    color: #a5b4fc;
+    font-size: 0.68rem;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-weight: 600;
+    font-family: var(--font-mono);
+  }
 
+  .badge {
+    background: rgba(16, 185, 129, 0.08);
+    color: var(--green);
+    border: 1px solid rgba(16, 185, 129, 0.25);
+    font-size: 0.68rem;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-body);
+    letter-spacing: 0.02em;
+  }
+  .badge::before {
+    content: '';
+    width: 6px; height: 6px;
+    background: var(--green);
+    border-radius: 50%;
+    display: inline-block;
+    box-shadow: 0 0 6px var(--green);
+    animation: statusPulse 2s ease-in-out infinite;
+  }
+  @keyframes statusPulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 4px var(--green); }
+    50% { opacity: 0.5; box-shadow: 0 0 8px var(--green); }
+  }
+
+  /* ════════════════════════════════════════════════════════════════════
+     NAVIGATION
+     ════════════════════════════════════════════════════════════════════ */
   nav {
     display: flex;
     gap: 2px;
-    padding: 18px 32px 0;
-    border-bottom: 1px solid var(--border);
-    background: linear-gradient(180deg, rgba(255,255,255,0.008), transparent);
+    padding: 0 var(--gutter);
+    border-bottom: 1px solid var(--border-subtle);
+    background: rgba(10, 16, 28, 0.85);
+    overflow-x: auto;
+    backdrop-filter: blur(10px);
   }
   nav button {
-    background: none; border: none; color: var(--muted);
-    padding: 10px 18px; font-size: 0.875rem; font-family: var(--font-body); font-weight: 500; cursor: pointer;
+    background: none;
+    border: none;
+    color: var(--muted-bright);
+    padding: 13px 20px;
+    font-size: 0.82rem;
+    font-family: var(--font-body);
+    font-weight: 500;
+    cursor: pointer;
     border-bottom: 2px solid transparent;
-    transition: all 0.18s;
-    border-radius: var(--radius) var(--radius) 0 0;
+    transition: all 0.2s var(--ease);
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    letter-spacing: 0.01em;
   }
-  nav button:hover { color: var(--text); background: var(--surface2); }
-  nav button.active { color: var(--accent); border-bottom-color: var(--accent); background: var(--surface); font-weight: 600; }
-  .upload-btn:hover { background: var(--surface); border-color: var(--accent); color: var(--accent); }
-  .toggle-btn { background: transparent; color: var(--muted); }
-  .toggle-btn:hover { color: var(--text); background: var(--surface); }
-  .toggle-btn.active { background: var(--accent); color: #04140f; }
+  nav button .tab-num {
+    font-family: var(--font-mono);
+    font-size: 0.67rem;
+    color: var(--muted);
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+  nav button:hover {
+    color: var(--text-bright);
+    background: rgba(255, 255, 255, 0.02);
+  }
+  nav button:hover .tab-num {
+    color: var(--accent);
+    border-color: rgba(0, 210, 180, 0.25);
+  }
+  nav button.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    font-weight: 600;
+    background: rgba(0, 210, 180, 0.04);
+  }
+  nav button.active .tab-num {
+    color: var(--accent);
+    background: rgba(0, 210, 180, 0.12);
+    border-color: rgba(0, 210, 180, 0.35);
+  }
 
-  main { padding: 30px 32px 60px; max-width: 100%; }
+  /* ── Toggle Buttons ── */
+  .upload-btn:hover { background: var(--surface2); border-color: var(--accent); color: var(--accent); }
+  .toggle-btn {
+    background: transparent;
+    color: var(--muted-bright);
+    transition: all 0.15s var(--ease);
+  }
+  .toggle-btn:hover { color: var(--text-bright); background: rgba(255,255,255,0.04); }
+  .toggle-btn.active {
+    background: var(--accent);
+    color: #04140f;
+    font-weight: 700;
+  }
+
+  /* ════════════════════════════════════════════════════════════════════
+     MAIN CONTENT
+     ════════════════════════════════════════════════════════════════════ */
+  main {
+    padding: 26px var(--gutter) 80px;
+    max-width: var(--max-content);
+    margin: 0 auto;
+  }
 
   .tab { display: none; }
-  .tab.active { display: block; }
+  .tab.active { display: block; animation: tabFadeIn 0.22s var(--ease-out); }
+  @keyframes tabFadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
-  label { display: block; font-size: 0.72rem; color: var(--muted); margin-bottom: 7px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; font-family: var(--font-body); }
-  textarea, input, select {
+  /* ════════════════════════════════════════════════════════════════════
+     FORM ELEMENTS
+     ════════════════════════════════════════════════════════════════════ */
+  label {
+    display: block;
+    font-size: 0.72rem;
+    color: var(--muted-bright);
+    margin-bottom: 7px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    font-family: var(--font-body);
+  }
+  textarea, input[type="text"], input[type="number"], select {
     width: 100%;
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 8px;
-    color: var(--text);
+    border-radius: var(--radius-sm);
+    color: var(--text-bright);
     padding: 10px 14px;
-    font-size: 0.875rem;
+    font-size: 0.84rem;
     font-family: var(--font-mono);
     outline: none;
-    transition: border-color 0.15s, box-shadow 0.15s;
+    transition: border-color 0.2s var(--ease), box-shadow 0.2s var(--ease), background 0.2s;
   }
-  textarea:focus, input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(34,211,196,0.12); }
+  textarea:focus, input:focus, select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-muted);
+    background: var(--surface2);
+  }
+  textarea:hover, input:hover, select:hover {
+    border-color: rgba(0, 210, 180, 0.35);
+  }
   textarea { resize: vertical; }
+  select { cursor: pointer; }
 
   .row { display: grid; gap: 16px; margin-bottom: 16px; }
   .row.cols2 { grid-template-columns: 1fr 1fr; }
   .row.cols3 { grid-template-columns: 1fr 1fr 1fr; }
+  @media (max-width: 768px) {
+    .row.cols2, .row.cols3 { grid-template-columns: 1fr; }
+  }
 
   .field { margin-bottom: 16px; }
 
+  /* ════════════════════════════════════════════════════════════════════
+     BUTTONS
+     ════════════════════════════════════════════════════════════════════ */
   button.run {
-    background: linear-gradient(135deg, var(--accent), var(--accent-dim));
+    background: linear-gradient(135deg, var(--accent) 0%, #059669 100%);
     color: #04140f;
     border: none;
-    padding: 11px 28px;
-    border-radius: 9px;
-    font-size: 0.875rem;
+    padding: 11px 26px;
+    border-radius: 8px;
+    font-size: 0.84rem;
     font-family: var(--font-body);
     font-weight: 700;
     cursor: pointer;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.3), 0 4px 16px -4px rgba(34,211,196,0.35);
-    transition: transform 0.12s, box-shadow 0.15s, opacity 0.15s;
-    display: inline-flex; align-items: center; gap: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3), 0 4px 16px -2px rgba(0, 210, 180, 0.35);
+    transition: transform 0.12s var(--ease), box-shadow 0.2s var(--ease), opacity 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    letter-spacing: 0.01em;
   }
-  button.run:hover { transform: translateY(-1px); box-shadow: 0 2px 4px rgba(0,0,0,0.3), 0 8px 20px -4px rgba(34,211,196,0.45); }
+  button.run:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 3px 6px rgba(0,0,0,0.3), 0 8px 24px -3px rgba(0, 210, 180, 0.45);
+  }
   button.run:active { transform: translateY(0); }
-  button.run:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+  button.run:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
 
   .spinner {
     width: 14px; height: 14px;
-    border: 2px solid rgba(4,20,15,0.25);
+    border: 2px solid rgba(4, 20, 15, 0.25);
     border-top-color: #04140f;
     border-radius: 50%;
     animation: spin 0.6s linear infinite;
@@ -145,407 +376,664 @@
   @keyframes spin { to { transform: rotate(360deg); } }
 
   button.mini-btn {
-    background: var(--accent);
-    color: #fff;
-    border: none;
+    background: rgba(0, 210, 180, 0.09);
+    color: var(--accent);
+    border: 1px solid rgba(0, 210, 180, 0.25);
     padding: 4px 10px;
-    border-radius: 4px;
-    font-size: 0.7rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.68rem;
     font-weight: 600;
     cursor: pointer;
     white-space: nowrap;
-    transition: opacity 0.15s;
+    transition: all 0.15s var(--ease);
+    font-family: var(--font-body);
+    letter-spacing: 0.01em;
   }
-  button.mini-btn:hover { opacity: 0.8; }
+  button.mini-btn:hover {
+    background: var(--accent);
+    color: #04140f;
+    border-color: var(--accent);
+  }
 
+  /* ════════════════════════════════════════════════════════════════════
+     RESULTS & TABLES
+     ════════════════════════════════════════════════════════════════════ */
   .results-box {
     margin-top: 24px;
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: var(--radius);
+    border-radius: var(--radius-lg);
     overflow: hidden;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.2), 0 12px 32px -16px rgba(0,0,0,0.5);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.15), 0 8px 28px -8px rgba(0,0,0,0.35);
   }
   .results-header {
-    padding: 13px 18px;
+    padding: 13px 20px;
     background: var(--surface2);
     border-bottom: 1px solid var(--border);
     border-top: 2px solid var(--accent);
-    font-size: 0.8rem;
-    color: var(--muted);
-    display: flex; align-items: center; justify-content: space-between;
+    font-size: 0.78rem;
+    color: var(--muted-bright);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
   }
-  .results-header strong { color: var(--text); font-family: var(--font-display); }
-  .table-wrap { overflow-x: auto; max-height: 480px; overflow-y: auto; }
-  table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+  .results-header strong {
+    color: var(--text-bright);
+    font-family: var(--font-display);
+  }
+  .table-wrap {
+    overflow-x: auto;
+    max-height: 520px;
+    overflow-y: auto;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.78rem;
+  }
   thead th {
     background: var(--surface2);
-    padding: 10px 14px;
+    padding: 11px 14px;
     text-align: left;
-    color: var(--muted);
+    color: var(--muted-bright);
     font-weight: 600;
     font-family: var(--font-body);
     text-transform: uppercase;
-    letter-spacing: 0.06em;
-    font-size: 0.7rem;
-    position: sticky; top: 0; z-index: 1;
+    letter-spacing: 0.05em;
+    font-size: 0.67rem;
+    position: sticky;
+    top: 0;
+    z-index: 2;
     white-space: nowrap;
     border-bottom: 1px solid var(--border);
   }
-  tbody tr { border-bottom: 1px solid var(--border); transition: background 0.12s; }
-  tbody tr:hover { background: var(--surface2); }
-  tbody td { padding: 9px 14px; font-family: var(--font-mono); }
+  tbody tr {
+    border-bottom: 1px solid var(--border-subtle);
+    transition: background 0.15s var(--ease);
+  }
+  tbody tr:hover { background: rgba(0, 210, 180, 0.025); }
+  tbody td {
+    padding: 9px 14px;
+    font-family: var(--font-mono);
+    font-size: 0.76rem;
+  }
 
+  /* ── Score Bars ── */
   .score-bar {
-    display: flex; align-items: center; gap: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
   .bar-bg {
-    height: 6px; background: var(--border); border-radius: 3px;
-    flex: 1; min-width: 60px;
+    height: 7px;
+    background: var(--border-subtle);
+    border-radius: 4px;
+    flex: 1;
+    min-width: 60px;
+    overflow: hidden;
   }
-  .bar-fill { height: 100%; border-radius: 3px; }
+  .bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.4s var(--ease-out);
+  }
 
+  /* ── Efficacy Badges ── */
   .badge-eff {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-size: 0.7rem;
-    font-weight: 700;
-    white-space: nowrap;
-  }
-  .eff-vh { background: #123027; color: #34d399; border: 1px solid #1f4d3d; }
-  .eff-h  { background: #16301a; color: #86efac; border: 1px solid #234d2b; }
-  .eff-m  { background: #332a13; color: #fbbf24; border: 1px solid #4d3f1f; }
-  .eff-l  { background: #331717; color: #f87171; border: 1px solid #4d2323; }
-
-  /* Toxicity badges */
-  .tox-safe    { background: #10201a; color: #34d399; border: 1px solid #1f4536; }
-  .tox-caution { background: #332a13; color: #fbbf24; border: 1px solid #4d3f1f; }
-  .tox-toxic   { background: #331717; color: #f87171; border: 1px solid #4d2323; }
-  .tox-mitigated { background: #10262a; color: var(--accent); border: 1px solid #1a4d52; }
-  .tox-unknown { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
-  .func-bad    { color: #f87171; font-size: 0.7rem; }
-  .func-ok     { color: #34d399; font-size: 0.85rem; }
-
-  /* Domain badges */
-  .badge-domain {
-    display: inline-block;
-    padding: 2px 7px;
-    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 9px;
+    border-radius: var(--radius-sm);
     font-size: 0.68rem;
-    font-weight: 700;
+    font-weight: 600;
+    white-space: nowrap;
+    letter-spacing: 0.02em;
+    font-family: var(--font-body);
+  }
+  .eff-vh { background: rgba(16, 185, 129, 0.12); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+  .eff-h  { background: rgba(52, 211, 153, 0.09); color: #86efac; border: 1px solid rgba(52, 211, 153, 0.22); }
+  .eff-m  { background: rgba(245, 158, 11, 0.09); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.22); }
+  .eff-l  { background: rgba(244, 63, 94, 0.09); color: #f87171; border: 1px solid rgba(244, 63, 94, 0.22); }
+
+  /* ── Toxicity Badges ── */
+  .tox-safe      { background: rgba(16, 185, 129, 0.10); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.25); }
+  .tox-caution   { background: rgba(245, 158, 11, 0.10); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.25); }
+  .tox-toxic     { background: rgba(244, 63, 94, 0.10); color: #f87171; border: 1px solid rgba(244, 63, 94, 0.25); }
+  .tox-mitigated { background: rgba(0, 210, 180, 0.10); color: var(--accent); border: 1px solid rgba(0, 210, 180, 0.25); }
+  .tox-unknown   { background: rgba(100, 116, 139, 0.10); color: var(--muted-bright); border: 1px solid rgba(100, 116, 139, 0.2); }
+  .func-bad      { color: #f87171; font-size: 0.72rem; }
+  .func-ok       { color: #34d399; font-size: 0.85rem; }
+
+  /* ── Domain Badges ── */
+  .badge-domain {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 8px;
+    border-radius: var(--radius-sm);
+    font-size: 0.66rem;
+    font-weight: 600;
     white-space: nowrap;
     letter-spacing: 0.03em;
+    font-family: var(--font-body);
   }
-  .domain-5utr { background: #0c2a38; color: #38bdf8; border: 1px solid #164e63; }
-  .domain-cds  { background: #1e1b4b; color: #a5b4fc; border: 1px solid #3730a3; }
-  .domain-3utr { background: #3b0764; color: #f472b6; border: 1px solid #701a75; }
+  .domain-5utr { background: rgba(56, 189, 248, 0.09); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.25); }
+  .domain-cds  { background: rgba(165, 180, 252, 0.09); color: #a5b4fc; border: 1px solid rgba(165, 180, 252, 0.22); }
+  .domain-3utr { background: rgba(244, 114, 182, 0.09); color: #f472b6; border: 1px solid rgba(244, 114, 182, 0.22); }
 
+  /* ── Use Button ── */
   .use-btn {
-    background: var(--surface2);
-    border: 1px solid var(--border);
+    background: rgba(0, 210, 180, 0.08);
+    border: 1px solid rgba(0, 210, 180, 0.25);
     color: var(--accent);
-    padding: 5px 10px;
-    border-radius: 6px;
+    padding: 5px 12px;
+    border-radius: var(--radius-sm);
     font-size: 0.72rem;
     font-weight: 600;
     font-family: var(--font-body);
     cursor: pointer;
     white-space: nowrap;
-    transition: all 0.14s;
+    transition: all 0.15s var(--ease);
   }
-  .use-btn:hover { background: var(--accent); color: #04140f; border-color: var(--accent); }
+  .use-btn:hover {
+    background: var(--accent);
+    color: #04140f;
+    border-color: var(--accent);
+  }
 
-  /* ─── Score breakdown tooltip ───────────────────────────────────── */
-  .score-cell {
-    position: relative;
-    cursor: help;
-  }
+  /* ════════════════════════════════════════════════════════════════════
+     SCORE BREAKDOWN TOOLTIP
+     ════════════════════════════════════════════════════════════════════ */
+  .score-cell { position: relative; cursor: help; }
   .score-popup {
     display: none;
     position: fixed;
     z-index: 100;
-    background: var(--surface);
+    background: var(--surface2);
     border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 14px 18px;
-    min-width: 280px;
-    max-width: 380px;
-    box-shadow: 0 8px 30px rgba(0,0,0,0.5);
-    font-family: 'Inter', system-ui, sans-serif;
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    min-width: 290px;
+    max-width: 390px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+    font-family: var(--font-body);
     cursor: default;
+    backdrop-filter: blur(10px);
   }
   .score-popup.visible { display: block; }
-  .score-popup .raw-line {
-    font-size: 1.1rem;
-    font-weight: 700;
-    margin-bottom: 8px;
-  }
+  .score-popup .raw-line { font-size: 0.95rem; font-weight: 700; margin-bottom: 10px; color: var(--text-bright); }
   .score-popup .penalty-row {
-    display: flex; justify-content: space-between;
-    padding: 3px 0; font-size: 0.78rem;
-    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    padding: 5px 0;
+    font-size: 0.76rem;
+    border-bottom: 1px solid var(--border-subtle);
   }
   .score-popup .penalty-row:last-child { border-bottom: none; }
-  .score-popup .penalty-name { color: var(--muted); }
-  .score-popup .penalty-val { font-weight: 600; font-family: monospace; }
+  .score-popup .penalty-name { color: var(--muted-bright); }
+  .score-popup .penalty-val { font-weight: 600; font-family: var(--font-mono); }
   .score-popup .calc-line {
-    margin-top: 8px; padding-top: 8px;
+    margin-top: 10px;
+    padding-top: 10px;
     border-top: 1px solid var(--border);
-    font-size: 0.82rem; text-align: center;
+    font-size: 0.8rem;
+    text-align: center;
   }
   .score-popup .calc-line .formula {
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
     color: var(--accent);
     font-weight: 600;
+    font-size: 0.78rem;
   }
-  /* ─── Expandable rows ──────────────────────────────────────────── */
-  .row-expand-toggle {
-    cursor: pointer;
-    user-select: none;
-  }
-  .row-expand-toggle:hover { background: var(--surface2) !important; }
+
+  /* ════════════════════════════════════════════════════════════════════
+     EXPANDABLE ROWS
+     ════════════════════════════════════════════════════════════════════ */
+  .row-expand-toggle { cursor: pointer; user-select: none; }
+  .row-expand-toggle:hover { background: rgba(0, 210, 180, 0.035) !important; }
   .expanded-detail {
     display: none;
     background: var(--surface2);
-    border-top: 1px solid var(--border);
-    padding: 16px 20px;
+    border-top: 1px solid var(--border-subtle);
+    padding: 18px 22px;
   }
   .expanded-detail.open { display: table-row; }
   .expanded-detail .seq-view {
-    display: flex; flex-direction: column; gap: 6px;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.82rem;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
   }
-  .expanded-detail .seq-row {
-    display: flex; align-items: center; gap: 4px;
-  }
+  .expanded-detail .seq-row { display: flex; align-items: center; gap: 4px; }
   .expanded-detail .seq-label {
-    color: var(--muted); font-size: 0.7rem;
-    width: 60px; flex-shrink: 0; text-transform: uppercase;
+    color: var(--muted-bright);
+    font-size: 0.68rem;
+    width: 68px;
+    flex-shrink: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 600;
   }
   .expanded-detail .nt {
-    display: inline-flex; align-items: center; justify-content: center;
-    width: 20px; height: 20px; border-radius: 3px;
-    font-size: 0.78rem; font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 4px;
+    font-size: 0.76rem;
+    font-weight: 600;
     position: relative;
+    transition: transform 0.1s;
   }
+  .expanded-detail .nt:hover { transform: scale(1.12); }
   .expanded-detail .nt.modified {
-    background: #3a2e1a;
+    background: rgba(245, 158, 11, 0.14);
     color: var(--yellow);
-    border: 1px solid #5a4e2a;
+    border: 1px solid rgba(245, 158, 11, 0.35);
     cursor: help;
   }
   .expanded-detail .nt.seed {
-    background: #3a1f2a;
+    background: rgba(248, 160, 176, 0.12);
     color: #f8a0b0;
-    border: 1px solid #6a2f3a;
+    border: 1px solid rgba(248, 160, 176, 0.3);
   }
   .expanded-detail .nt.terminus {
-    background: #10262a;
+    background: rgba(0, 210, 180, 0.1);
     color: var(--accent);
-    border: 1px solid #1a4d52;
+    border: 1px solid rgba(0, 210, 180, 0.25);
   }
   .expanded-detail .nt.exotic {
-    background: #3a2a1a;
+    background: rgba(240, 192, 96, 0.12);
     color: #f0c060;
-    border: 1px solid #5a4a2a;
+    border: 1px solid rgba(240, 192, 96, 0.3);
   }
   .expanded-detail .penalty-legend {
-    display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
   }
   .expanded-detail .penalty-legend span {
-    font-size: 0.68rem; color: var(--muted);
-    background: var(--surface); padding: 2px 6px; border-radius: 4px;
-    border: 1px solid var(--border);
-  }
-  /* ─── Confidence badge ─────────────────────────────────────────── */
-  .conf-badge {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 4px;
     font-size: 0.68rem;
-    font-weight: 700;
+    color: var(--muted-bright);
+    background: var(--surface);
+    padding: 3px 8px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-subtle);
+  }
+
+  /* ── Confidence Badge ── */
+  .conf-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 9px;
+    border-radius: var(--radius-sm);
+    font-size: 0.66rem;
+    font-weight: 600;
     white-space: nowrap;
+    letter-spacing: 0.02em;
+    font-family: var(--font-body);
   }
   .conf-high {
-    background: #1a2a2a;
+    background: rgba(16, 185, 129, 0.09);
     color: #34d399;
-    border: 1px solid #2a4a3a;
+    border: 1px solid rgba(16, 185, 129, 0.22);
   }
   .conf-novel {
-    background: #2a2a1a;
+    background: rgba(240, 192, 96, 0.09);
     color: #f0c060;
-    border: 1px solid #4a3a2a;
+    border: 1px solid rgba(240, 192, 96, 0.22);
   }
 
+  /* ════════════════════════════════════════════════════════════════════
+     ALERTS & FEEDBACK
+     ════════════════════════════════════════════════════════════════════ */
   .info-box {
     margin-top: 20px;
-    background: #10201a;
-    border: 1px solid #1f4536;
-    border-radius: var(--radius);
+    background: rgba(16, 185, 129, 0.07);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    border-left: 3px solid var(--green);
+    border-radius: var(--radius-sm);
     padding: 14px 18px;
-    color: var(--green);
-    font-size: 0.875rem;
+    color: #a7f3d0;
+    font-size: 0.84rem;
+    line-height: 1.5;
   }
-
   .error-box {
     margin-top: 20px;
-    background: #2a1414;
-    border: 1px solid #5a2626;
-    border-radius: var(--radius);
+    background: rgba(244, 63, 94, 0.07);
+    border: 1px solid rgba(244, 63, 94, 0.2);
+    border-left: 3px solid var(--red);
+    border-radius: var(--radius-sm);
     padding: 14px 18px;
-    color: #f87171;
-    font-size: 0.875rem;
+    color: #fca5a5;
+    font-size: 0.84rem;
+    line-height: 1.5;
   }
 
+  /* ════════════════════════════════════════════════════════════════════
+     SINGLE RESULT CARD
+     ════════════════════════════════════════════════════════════════════ */
   .single-result-card {
     margin-top: 24px;
     background: var(--surface);
     border: 1px solid var(--border);
     border-top: 2px solid var(--accent);
-    border-radius: var(--radius);
-    padding: 22px 26px;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.2), 0 12px 32px -16px rgba(0,0,0,0.5);
+    border-radius: var(--radius-lg);
+    padding: 24px 28px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.15), 0 8px 24px -8px rgba(0,0,0,0.3);
   }
   .single-result-card .big-score {
     font-family: var(--font-display);
-    font-size: 3rem;
+    font-size: 2.8rem;
     font-weight: 700;
     line-height: 1;
-    background: linear-gradient(135deg, var(--text), var(--accent) 140%);
-    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+    color: var(--text-bright);
   }
   .single-result-card .score-label {
-    font-size: 0.8rem;
-    color: var(--muted);
-    margin-top: 4px;
+    font-size: 0.76rem;
+    color: var(--muted-bright);
+    margin-top: 5px;
+    font-weight: 500;
   }
-  .meta-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; margin-top: 20px; }
-  .meta-item { background: var(--surface2); border-radius: 8px; padding: 12px; }
-  .meta-item .key { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; margin-bottom: 4px; }
-  .meta-item .val { font-size: 0.875rem; font-family: monospace; word-break: break-all; }
-
-  .hint { font-size: 0.75rem; color: var(--muted); margin-top: 6px; }
-
-  .mod-legend {
-    display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;
+  .meta-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 10px;
+    margin-top: 20px;
   }
+  .meta-item {
+    background: var(--surface2);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+  }
+  .meta-item .key {
+    font-size: 0.66rem;
+    color: var(--muted-bright);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+  }
+  .meta-item .val {
+    font-size: 0.82rem;
+    font-family: var(--font-mono);
+    word-break: break-all;
+    color: var(--text-bright);
+  }
+
+  .hint {
+    font-size: 0.72rem;
+    color: var(--muted-bright);
+    margin-top: 5px;
+    line-height: 1.45;
+  }
+
+  /* ── Modification Tags ── */
+  .mod-legend { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
   .mod-tag {
     background: var(--surface2);
     border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 3px 10px;
-    font-size: 0.72rem;
-    font-family: monospace;
-    cursor: default;
-    transition: background 0.1s;
+    border-radius: var(--radius-sm);
+    padding: 5px 13px;
+    font-size: 0.73rem;
+    font-family: var(--font-mono);
+    cursor: pointer;
+    transition: all 0.15s var(--ease);
     user-select: none;
+    color: var(--text);
   }
-  .mod-tag:hover { background: var(--surface); border-color: var(--accent); }
-  .mod-tag.backbone { border-left: 3px solid var(--accent); }
+  .mod-tag:hover { background: var(--surface3); border-color: var(--accent); transform: translateY(-1px); }
+  .mod-tag.backbone  { border-left: 3px solid var(--accent); }
   .mod-tag.sugar     { border-left: 3px solid var(--accent2); }
   .mod-tag.base      { border-left: 3px solid var(--green); }
   .mod-tag.terminus  { border-left: 3px solid var(--yellow); }
   .mod-tag.conjugate { border-left: 3px solid var(--red); }
 
   .section-title {
-    font-family: var(--font-display); font-size: 1.15rem; font-weight: 600; margin-bottom: 4px; letter-spacing: -0.01em;
+    font-family: var(--font-display);
+    font-size: 1.15rem;
+    font-weight: 700;
+    margin-bottom: 4px;
+    letter-spacing: -0.01em;
+    color: var(--text-bright);
   }
 
-  /* ─── Hero band ─────────────────────────────────────────────────── */
+  /* ════════════════════════════════════════════════════════════════════
+     HERO BAND
+     ════════════════════════════════════════════════════════════════════ */
   .hero-band {
-    display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 28px;
-    background: linear-gradient(135deg, var(--surface), var(--bg) 130%);
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 28px;
+    background: linear-gradient(135deg, rgba(14, 22, 38, 0.95) 0%, rgba(8, 14, 24, 0.95) 100%);
     border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 24px 34px;
+    border-radius: var(--radius-lg);
+    padding: 26px 32px;
     margin-bottom: 26px;
     position: relative;
     overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
   }
   .hero-band::before {
     content: '';
-    position: absolute; inset: 0;
-    background-image: radial-gradient(circle, rgba(255,255,255,0.04) 1px, transparent 1px);
-    background-size: 22px 22px;
-    -webkit-mask-image: radial-gradient(ellipse 480px 260px at 82% 50%, black, transparent 72%);
-            mask-image: radial-gradient(ellipse 480px 260px at 82% 50%, black, transparent 72%);
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(circle, rgba(0, 210, 180, 0.035) 1px, transparent 1px);
+    background-size: 20px 20px;
+    -webkit-mask-image: radial-gradient(ellipse 460px 260px at 85% 50%, black, transparent 75%);
+            mask-image: radial-gradient(ellipse 460px 260px at 85% 50%, black, transparent 75%);
     pointer-events: none;
+    opacity: 0.8;
   }
   .hero-eyebrow {
-    font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase;
-    color: var(--accent); margin-bottom: 10px; display: flex; align-items: center; gap: 8px;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
   }
-  .hero-eyebrow::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); }
-  .hero-title { font-family: var(--font-display); font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; max-width: 600px; line-height: 1.28; position: relative; z-index: 1; }
-  .hero-title .grad { background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
-  .hero-sub { font-size: 0.85rem; color: var(--muted); margin-top: 9px; max-width: 560px; line-height: 1.55; position: relative; z-index: 1; }
-  .hero-tags { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; position: relative; z-index: 1; }
+  .hero-eyebrow::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+    flex-shrink: 0;
+  }
+  .hero-title {
+    font-family: var(--font-display);
+    font-size: 1.42rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    max-width: 660px;
+    line-height: 1.32;
+    position: relative;
+    z-index: 1;
+    color: var(--text-bright);
+  }
+  .hero-title .grad {
+    background: linear-gradient(135deg, var(--accent) 0%, #38bdf8 50%, var(--accent2) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .hero-sub {
+    font-size: 0.83rem;
+    color: var(--text-secondary);
+    margin-top: 10px;
+    max-width: 650px;
+    line-height: 1.6;
+    position: relative;
+    z-index: 1;
+    font-weight: 400;
+  }
+  .hero-tags {
+    display: flex;
+    gap: 7px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+    position: relative;
+    z-index: 1;
+  }
   .hero-tags span {
-    font-size: 0.7rem; font-weight: 500; color: var(--muted);
-    background: rgba(255,255,255,0.03); border: 1px solid var(--border);
-    padding: 4px 11px; border-radius: 20px;
+    font-size: 0.70rem;
+    font-weight: 500;
+    color: var(--muted-bright);
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border);
+    padding: 4px 11px;
+    border-radius: 16px;
+    font-family: var(--font-body);
+    letter-spacing: 0.01em;
+    transition: all 0.15s;
+  }
+  .hero-tags span:hover {
+    border-color: rgba(0, 210, 180, 0.3);
+    color: var(--accent);
   }
 
-  .helix-art { width: 120px; height: 168px; position: relative; z-index: 1; flex-shrink: 0; }
-  .helix-art svg { width: 100%; height: 100%; filter: drop-shadow(0 0 18px rgba(34,211,196,0.2)); overflow: visible; }
-  .helix-rung { animation: rungPulse 3.4s ease-in-out infinite; transform-origin: center; }
-  @keyframes rungPulse { 0%, 100% { opacity: 0.22; } 50% { opacity: 1; } }
-  @media (max-width: 860px) { .hero-band { grid-template-columns: 1fr; } .helix-art { margin: 0 auto; } }
-  .section-sub {
-    font-size: 0.8rem; color: var(--muted); margin-bottom: 20px;
+  /* ── Helix Art ── */
+  .helix-art {
+    width: 110px;
+    height: 156px;
+    position: relative;
+    z-index: 1;
+    flex-shrink: 0;
+    opacity: 0.85;
   }
-  /* Indeterminate loading bar */
+  .helix-art svg {
+    width: 100%;
+    height: 100%;
+    filter: drop-shadow(0 0 14px rgba(0, 210, 180, 0.2));
+    overflow: visible;
+  }
+  .helix-rung {
+    animation: rungPulse 3.4s ease-in-out infinite;
+    transform-origin: center;
+  }
+  @keyframes rungPulse { 0%, 100% { opacity: 0.18; } 50% { opacity: 0.65; } }
+  @media (max-width: 860px) {
+    .hero-band { grid-template-columns: 1fr; padding: 22px 24px; }
+    .helix-art { display: none; }
+    .hero-title { font-size: 1.22rem; }
+  }
+
+  .section-sub {
+    font-size: 0.80rem;
+    color: var(--muted-bright);
+    margin-bottom: 20px;
+    line-height: 1.55;
+  }
+
+  /* ════════════════════════════════════════════════════════════════════
+     LOADING STATES
+     ════════════════════════════════════════════════════════════════════ */
   .mm-loading {
-    text-align: center; padding: 40px 20px; color: var(--muted);
+    text-align: center;
+    padding: 48px 24px;
+    color: var(--muted-bright);
   }
   .mm-loading .bar {
-    width: 100%; max-width: 400px; height: 5px; margin: 0 auto 12px;
-    background: var(--surface); border-radius: 6px; overflow: hidden;
+    width: 100%;
+    max-width: 380px;
+    height: 4px;
+    margin: 0 auto 14px;
+    background: var(--border-subtle);
+    border-radius: 4px;
+    overflow: hidden;
     position: relative;
   }
   .mm-loading .bar::after {
-    content: ''; display: block; width: 35%; height: 100%;
-    background: linear-gradient(90deg, var(--accent2), var(--accent), var(--green));
-    border-radius: 6px; animation: loadSlide 1.2s ease-in-out infinite;
+    content: '';
+    display: block;
+    width: 30%;
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 4px;
+    animation: loadSlide 1.4s ease-in-out infinite;
   }
   @keyframes loadSlide {
     0% { transform: translateX(-100%); }
-    100% { transform: translateX(385%); }
+    100% { transform: translateX(430%); }
   }
-  .mm-loading .label { font-size: 0.95rem; font-weight: 600; }
-  .mm-loading .hint { font-size: 0.78rem; color: var(--muted); margin-top: 4px; }
+  .mm-loading .label {
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--text-bright);
+  }
+  .mm-loading .hint {
+    font-size: 0.76rem;
+    color: var(--muted-bright);
+    margin-top: 5px;
+  }
 
-  /* ─── Ambient helix watermark (decorative only, non-interactive) ──── */
+  /* ════════════════════════════════════════════════════════════════════
+     AMBIENT BACKGROUND
+     ════════════════════════════════════════════════════════════════════ */
   .helix-bg {
-    position: fixed; inset: 0; z-index: 0;
+    position: fixed;
+    inset: 0;
+    z-index: 0;
     pointer-events: none;
     overflow: hidden;
   }
   .helix-bg svg {
-    position: absolute; top: -8%; right: -6%;
-    height: 130vh; width: auto;
-    opacity: 0.055;
-    animation: helixDrift 22s ease-in-out infinite;
+    position: absolute;
+    top: -8%;
+    right: -6%;
+    height: 130vh;
+    width: auto;
+    opacity: 0.045;
+    animation: helixDrift 28s ease-in-out infinite;
   }
   @keyframes helixDrift {
     0%, 100% { transform: translateY(0) rotate(0deg); }
-    50% { transform: translateY(-2.5%) rotate(0.6deg); }
+    50% { transform: translateY(-2%) rotate(0.4deg); }
   }
   @media (prefers-reduced-motion: reduce) {
     .helix-bg svg { animation: none; }
+    .helix-rung { animation: none; opacity: 0.3; }
+    .tab.active { animation: none; }
   }
   header, nav, main { position: relative; z-index: 1; }
 
-  /* ─── Empty-state placeholders ──────────────────────────────────── */
+  /* ════════════════════════════════════════════════════════════════════
+     EMPTY STATES
+     ════════════════════════════════════════════════════════════════════ */
   .empty-state {
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 10px;
-    padding: 56px 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 60px 28px;
     text-align: center;
     border: 1px dashed var(--border);
-    border-radius: var(--radius);
+    border-radius: var(--radius-lg);
+    background: rgba(0, 210, 180, 0.015);
+  }
+  .empty-state .es-title {
+    font-family: var(--font-display);
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-bright);
+  }
+  .empty-state .es-sub {
+    font-size: 0.81rem;
+    color: var(--muted-bright);
+    max-width: 440px;
+    line-height: 1.55;
   }
 </style>
 </head>
@@ -575,30 +1063,46 @@
 </div>
 
 <header>
-  <svg width="34" height="34" viewBox="0 0 32 32" fill="none">
-    <rect width="32" height="32" rx="9" fill="#12232a"/>
-    <path d="M10 5 C10 10, 22 12, 22 17 C22 22, 10 24, 10 27" stroke="#22d3c4" stroke-width="1.8" stroke-linecap="round" fill="none"/>
-    <path d="M22 5 C22 10, 10 12, 10 17 C10 22, 22 24, 22 27" stroke="#8b7fd6" stroke-width="1.8" stroke-linecap="round" fill="none"/>
-    <line x1="10.6" y1="8.4" x2="21.4" y2="8.4" stroke="#3a4a52" stroke-width="1.1"/>
-    <line x1="16" y1="16.4" x2="16" y2="16.4" stroke="#3a4a52" stroke-width="1.1"/>
-    <line x1="10.6" y1="23.6" x2="21.4" y2="23.6" stroke="#3a4a52" stroke-width="1.1"/>
-  </svg>
-  <div>
-    <h1>HelixZero-CMS</h1>
-    <p>siRNA efficacy prediction &amp; chemical modification workbench</p>
+  <div style="display:flex;align-items:center;gap:13px">
+    <svg width="36" height="36" viewBox="0 0 32 32" fill="none">
+      <rect width="32" height="32" rx="9" fill="#0c1724" stroke="rgba(0,210,180,0.3)" stroke-width="1.2"/>
+      <path d="M10 5 C10 10, 22 12, 22 17 C22 22, 10 24, 10 27" stroke="#00d2b4" stroke-width="2" stroke-linecap="round" fill="none"/>
+      <path d="M22 5 C22 10, 10 12, 10 17 C10 22, 22 24, 22 27" stroke="#818cf8" stroke-width="2" stroke-linecap="round" fill="none"/>
+      <line x1="10.6" y1="8.4" x2="21.4" y2="8.4" stroke="#334155" stroke-width="1.2"/>
+      <line x1="16" y1="16.4" x2="16" y2="16.4" stroke="#334155" stroke-width="1.2"/>
+      <line x1="10.6" y1="23.6" x2="21.4" y2="23.6" stroke="#334155" stroke-width="1.2"/>
+    </svg>
+    <div>
+      <h1>HelixZero-CMS</h1>
+      <p>Therapeutic siRNA Chemical Modification Scanner &amp; Biophysical Design Workbench</p>
+    </div>
   </div>
-  <div style="margin-left:auto;display:flex;align-items:center;gap:10px">
-    <span style="background:#0f2b26;border:1px solid #1a5c51;color:#22d3c4;font-size:0.7rem;padding:4px 11px;border-radius:20px;font-weight:600;font-family:var(--font-body)" title="Single Unified Dose-Aware & Cell-Aware CatBoost Model: Verified Held-Out Test Pearson r = 0.8359 (n=472, Homogeneous), r = 0.8334 (n=1,796, Heterogeneous), 5-Fold Sequence GroupKFold CV r = 0.6776 (n=17,761, Zero Sequence Leakage); Model A r = 0.8788 (Takayuki), r = 0.8291 (Mixset), r = 0.8044 (Huesken).">🧬 Single Unified Dose-Aware CatBoost Model</span>
-    <span class="badge" id="api-badge">API Online</span>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+    <span class="model-badge" title="Single Unified Dose-Aware & Cell-Aware CatBoost Regressor: 517-D joint sequence, thermodynamic, and chemical features. Verified Held-Out Test Pearson r = 0.8359 (n=472, Homogeneous), r = 0.8334 (n=1,796, Heterogeneous), 5-Fold Sequence GroupKFold CV r = 0.6776 (n=17,761, Zero Sequence Leakage).">
+      🧬 Unified Dose-Aware ML Engine (CatBoost · 517-D)
+    </span>
+    <span class="benchmark-pill" title="Verified model accuracy metrics on held-out test and cross-validation partitions">
+      Held-Out Test r = 0.8359 · CV r = 0.6776
+    </span>
+    <span class="badge" id="api-badge">API Active</span>
   </div>
 </header>
 
 <nav>
-  <button class="active" onclick="switchTab('rank', this)">🔬 Rank siRNAs</button>
-  <button onclick="switchTab('singlemod', this)">⚗️ Single-Mod Scan</button>
-  <button onclick="switchTab('multimod', this)">🧬 Multi-Mod Design</button>
-  <button onclick="switchTab('mods', this)">📖 Modifications</button>
+  <button class="active" onclick="switchTab('rank', this)">
+    <span class="tab-num">01</span> Candidate Discovery &amp; Ranking
+  </button>
+  <button onclick="switchTab('singlemod', this)">
+    <span class="tab-num">02</span> Positional Chemistry Scan
+  </button>
+  <button onclick="switchTab('multimod', this)">
+    <span class="tab-num">03</span> Combinatorial Architecture Design
+  </button>
+  <button onclick="switchTab('mods', this)">
+    <span class="tab-num">04</span> Chemical Reference Catalog
+  </button>
 </nav>
+
 
 <main>
 
@@ -606,56 +1110,57 @@
 <div id="tab-rank" class="tab active">
   <div class="hero-band">
     <div>
-      <div class="hero-eyebrow">Candidate Generation &amp; Naked Baseline</div>
-      <h2 class="hero-title">Scan an entire transcript for every viable <span class="grad">21-mer siRNA</span> candidate.</h2>
-      <p class="hero-sub">Slides a 21-nt window across your mRNA or gene sequence, scores each unmodified candidate, and flags seed-region off-target risk before you spend beam-search budget on chemistry.</p>
+      <div class="hero-eyebrow">Module 01 · Transcript-Wide Candidate Discovery &amp; Naked Baseline</div>
+      <h2 class="hero-title">Systematic tiling &amp; biophysical pre-screening across <span class="grad">mRNA transcripts</span>.</h2>
+      <p class="hero-sub">Generates all overlapping 21-mer siRNA duplexes via sliding-window tiling, calculates baseline thermodynamic profiles (Schwarz-Zamore asymmetry ΔΔG), filters sequence liability motifs (toxic miRNA-like seeds, homopolymer runs, extreme GC content), and ranks unmodified candidates before downstream chemical engineering.</p>
       <div class="hero-tags">
-        <span>Sliding-window generation</span>
-        <span>Seed toxicity pre-screen</span>
-        <span>FASTA &amp; DsiRNA input</span>
-        <span>GC / homopolymer filtering</span>
+        <span>Sliding-Window 21-mer Tiling</span>
+        <span>Schwarz-Zamore Asymmetry (ΔΔG)</span>
+        <span>Janas Seed Toxicity Viability</span>
+        <span>GC Content &amp; Motifs Filter</span>
+        <span>FASTA &amp; DsiRNA Substrates</span>
       </div>
     </div>
     <div class="helix-art" aria-hidden="true">
       <svg viewBox="0 0 140 190" fill="none">
-        <path d="M22 6 C22 36 118 36 118 66 C118 96 22 96 22 126 C22 156 118 156 118 184" stroke="#22d3c4" stroke-width="2.2" stroke-linecap="round" fill="none" opacity="0.85"/>
-        <path d="M118 6 C118 36 22 36 22 66 C22 96 118 96 118 126 C118 156 22 156 22 184" stroke="#8b7fd6" stroke-width="2.2" stroke-linecap="round" fill="none" opacity="0.85"/>
-        <line class="helix-rung" style="animation-delay:0s"   x1="22"  y1="6"   x2="118" y2="6"   stroke="#3d4656" stroke-width="1.4"/>
-        <line class="helix-rung" style="animation-delay:0.4s" x1="47"  y1="21"  x2="93"  y2="21"  stroke="#3d4656" stroke-width="1.4"/>
-        <line class="helix-rung" style="animation-delay:0.8s" x1="22"  y1="66"  x2="118" y2="66"  stroke="#3d4656" stroke-width="1.4"/>
-        <line class="helix-rung" style="animation-delay:1.2s" x1="47"  y1="81"  x2="93"  y2="81"  stroke="#3d4656" stroke-width="1.4"/>
-        <line class="helix-rung" style="animation-delay:1.6s" x1="22"  y1="126" x2="118" y2="126" stroke="#3d4656" stroke-width="1.4"/>
-        <line class="helix-rung" style="animation-delay:2.0s" x1="47"  y1="141" x2="93"  y2="141" stroke="#3d4656" stroke-width="1.4"/>
-        <line class="helix-rung" style="animation-delay:2.4s" x1="22"  y1="184" x2="118" y2="184" stroke="#3d4656" stroke-width="1.4"/>
+        <path d="M22 6 C22 36 118 36 118 66 C118 96 22 96 22 126 C22 156 118 156 118 184" stroke="#00d2b4" stroke-width="2.2" stroke-linecap="round" fill="none" opacity="0.9"/>
+        <path d="M118 6 C118 36 22 36 22 66 C22 96 118 96 118 126 C118 156 22 156 22 184" stroke="#818cf8" stroke-width="2.2" stroke-linecap="round" fill="none" opacity="0.9"/>
+        <line class="helix-rung" style="animation-delay:0s"   x1="22"  y1="6"   x2="118" y2="6"   stroke="#334155" stroke-width="1.4"/>
+        <line class="helix-rung" style="animation-delay:0.4s" x1="47"  y1="21"  x2="93"  y2="21"  stroke="#334155" stroke-width="1.4"/>
+        <line class="helix-rung" style="animation-delay:0.8s" x1="22"  y1="66"  x2="118" y2="66"  stroke="#334155" stroke-width="1.4"/>
+        <line class="helix-rung" style="animation-delay:1.2s" x1="47"  y1="81"  x2="93"  y2="81"  stroke="#334155" stroke-width="1.4"/>
+        <line class="helix-rung" style="animation-delay:1.6s" x1="22"  y1="126" x2="118" y2="126" stroke="#334155" stroke-width="1.4"/>
+        <line class="helix-rung" style="animation-delay:2.0s" x1="47"  y1="141" x2="93"  y2="141" stroke="#334155" stroke-width="1.4"/>
+        <line class="helix-rung" style="animation-delay:2.4s" x1="22"  y1="184" x2="118" y2="184" stroke="#334155" stroke-width="1.4"/>
       </svg>
     </div>
   </div>
 
-  <div class="section-title">Rank siRNA Candidates</div>
-  <div class="section-sub">Generate and score all 21-mer siRNA candidates from an mRNA or gene sequence. Each row also shows seed toxicity &amp; functional checks.</div>
+  <div class="section-title">Candidate Duplex Scanning &amp; Baseline Ranking</div>
+  <div class="section-sub">Tiling 21-mer siRNA candidates across your target mRNA transcript. Evaluates raw naked knockdown baseline, thermodynamic asymmetry (ΔΔG), and seed-mediated off-target liabilities.</div>
 
   <div class="field">
-    <label>mRNA / Gene Sequence</label>
-    <textarea id="rank-seq" rows="5" placeholder="Paste plain sequence (e.g. AUGCAUG...) or FASTA format"></textarea>
+    <label>Target mRNA / Gene Transcript Sequence (5'→3')</label>
+    <textarea id="rank-seq" rows="5" placeholder="Paste nucleotide sequence in 5'→3' orientation (e.g. ATGAAGTTCCT... or AUGCAUG...) or upload a FASTA file below"></textarea>
     <div style="margin-top:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-      <label for="rank-file" class="upload-btn" style="display:inline-flex;align-items:center;gap:6px;background:var(--surface2);border:1px dashed var(--border);border-radius:var(--radius);padding:8px 16px;cursor:pointer;font-size:0.8rem;color:var(--muted);transition:all 0.15s">
+      <label for="rank-file" class="upload-btn" style="display:inline-flex;align-items:center;gap:6px;background:var(--surface2);border:1px dashed var(--border);border-radius:var(--radius);padding:8px 16px;cursor:pointer;font-size:0.8rem;color:var(--muted-bright);transition:all 0.15s">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-        Upload FASTA / plain text file
+        Upload FASTA / Plain Sequence File
         <input id="rank-file" type="file" accept=".fa,.fasta,.txt,.fsa,.fna" style="display:none" onchange="loadRankFile(event)">
       </label>
-      <button type="button" onclick="document.getElementById('rank-seq').value = 'ATGAAGTTCCTCTCCAGCCTACTGCGCCTCATCAACTATGATCTGCTGGATGCACGGATACAGCCCGAGGCGACATGGAATCGCATACAAGCTCTTCTTACAATGTATTTCGGTGATAATTCAATGGGAAAGGGACTTTCGAGTCATCTCAGCGTAGTAGGTATCTTATGCTGTCTAATTATGGTTCTTTCG';" style="display:inline-flex;align-items:center;background:var(--surface2);border:1px solid var(--accent);color:var(--accent);border-radius:var(--radius);padding:8px 16px;cursor:pointer;font-size:0.8rem;transition:all 0.15s; font-weight: 600;">Load Demo mRNA (TTR)</button>
+      <button type="button" onclick="document.getElementById('rank-seq').value = 'ATGAAGTTCCTCTCCAGCCTACTGCGCCTCATCAACTATGATCTGCTGGATGCACGGATACAGCCCGAGGCGACATGGAATCGCATACAAGCTCTTCTTACAATGTATTTCGGTGATAATTCAATGGGAAAGGGACTTTCGAGTCATCTCAGCGTAGTAGGTATCTTATGCTGTCTAATTATGGTTCTTTCG';" style="display:inline-flex;align-items:center;background:var(--surface2);border:1px solid var(--accent);color:var(--accent);border-radius:var(--radius);padding:8px 16px;cursor:pointer;font-size:0.8rem;transition:all 0.15s; font-weight: 600;">Load Demo Transcript: Human TTR (Transthyretin mRNA)</button>
       <span id="rank-filename" style="font-size:0.78rem;color:var(--green)"></span>
     </div>
   </div>
   <div class="row cols3">
     <div class="field" style="max-width:220px">
-      <label>Top N results (0 = all)</label>
+      <label>Top Candidates to Retain (0 = all)</label>
       <input id="rank-topn" type="number" value="20" min="0">
     </div>
     <div class="field" style="max-width:220px">
-      <label>Input Type</label>
+      <label>Input Sequence Mode</label>
       <div style="display:flex;gap:4px;background:var(--surface2);border-radius:var(--radius);padding:3px;border:1px solid var(--border)">
-        <button id="input-type-gene" class="toggle-btn active" onclick="setInputType('gene')" style="flex:1;padding:6px 12px;border:none;border-radius:6px;cursor:pointer;font-size:0.78rem;font-weight:600;transition:all 0.15s">Gene/Transcript</button>
+        <button id="input-type-gene" class="toggle-btn active" onclick="setInputType('gene')" style="flex:1;padding:6px 12px;border:none;border-radius:6px;cursor:pointer;font-size:0.78rem;font-weight:600;transition:all 0.15s">mRNA Transcript</button>
         <button id="input-type-dsirna" class="toggle-btn" onclick="setInputType('dsirna')" style="flex:1;padding:6px 12px;border:none;border-radius:6px;cursor:pointer;font-size:0.78rem;font-weight:600;transition:all 0.15s">DsiRNA (27-mer)</button>
       </div>
       <div class="hint" id="input-type-hint">Sliding window across transcript → all 21-mer candidates</div>
@@ -663,20 +1168,20 @@
     <div class="field" style="max-width:220px">
       <label>Assay Dose Reference</label>
       <div style="padding:9px 14px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);font-size:0.82rem;font-weight:600;color:var(--accent)">
-        10.0 nM (Standard Baseline)
+        10.0 nM (Standard Clinical Baseline)
       </div>
-      <div class="hint">Naked candidate screening reference dose.</div>
+      <div class="hint">Naked candidate screening reference concentration.</div>
     </div>
   </div>
   <button class="run" id="btn-rank" onclick="runRank()">
-    <span class="spinner"></span> Run Prediction
+    <span class="spinner"></span> Compute Candidates &amp; Rank Duplexes
   </button>
   <div id="rank-error"></div>
   <div id="rank-results">
     <div class="empty-state">
-      <svg width="40" height="40" viewBox="0 0 32 32" fill="none"><path d="M10 5 C10 10, 22 12, 22 17 C22 22, 10 24, 10 27" stroke="#22d3c4" stroke-width="1.8" stroke-linecap="round" fill="none"/><path d="M22 5 C22 10, 10 12, 10 17 C10 22, 22 24, 22 27" stroke="#8b7fd6" stroke-width="1.8" stroke-linecap="round" fill="none"/></svg>
-      <div class="es-title">No candidates ranked yet</div>
-      <div class="es-sub">Paste an mRNA/gene sequence or DsiRNA above and run a prediction to see scored 21-mer candidates here.</div>
+      <svg width="40" height="40" viewBox="0 0 32 32" fill="none"><path d="M10 5 C10 10, 22 12, 22 17 C22 22, 10 24, 10 27" stroke="#00d2b4" stroke-width="2" stroke-linecap="round" fill="none"/><path d="M22 5 C22 10, 10 12, 10 17 C10 22, 22 24, 22 27" stroke="#818cf8" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+      <div class="es-title">No candidate duplexes evaluated yet</div>
+      <div class="es-sub">Paste an mRNA target transcript or load demo data above, then click Compute Candidates to generate and inspect biophysically filtered 21-mers.</div>
     </div>
   </div>
 </div>
@@ -685,90 +1190,91 @@
 <div id="tab-singlemod" class="tab">
   <div class="hero-band">
     <div>
-      <div class="hero-eyebrow">Positional Chemistry Screening</div>
-      <h2 class="hero-title">See how every <span class="grad">modification</span> performs at every position, before you commit.</h2>
-      <p class="hero-sub">Substitutes one chemistry at a time across all 21 positions on both strands, so you can see exactly which positions tolerate 2'-F, 2'-OMe, LNA and the rest — and which quietly kill activity.</p>
+      <div class="hero-eyebrow">Module 02 · Positional Chemical Modification Tolerance Mapping</div>
+      <h2 class="hero-title">High-throughput positional tolerance &amp; <span class="grad">potency profiling</span> across both strands.</h2>
+      <p class="hero-sub">Systematically evaluates 1,260 single-site chemical substitutions (30 validated chemistries across 21 positions on sense and antisense strands) against the 517-D Unified Dose-Aware Model to quantify structural tolerance, seed-region off-target rescue, and potency shifts relative to the naked duplex.</p>
       <div class="hero-tags">
-        <span>All modification types</span>
-        <span>Both strands, 21 positions</span>
-        <span>Toxicity mitigation flags</span>
-        <span>Full or mini scan</span>
+        <span>1,260 Chemical Substitutions</span>
+        <span>Dual-Strand 21-Position Mapping</span>
+        <span>Seed Region Toxicity Rescue</span>
+        <span>Dose-Dependent Kinetics (pIC50 / IC50)</span>
+        <span>ViennaRNA Secondary Stability</span>
       </div>
     </div>
     <div class="helix-art" aria-hidden="true">
       <svg viewBox="0 0 140 190" fill="none">
-        <path d="M22 6 C22 36 118 36 118 66 C118 96 22 96 22 126 C22 156 118 156 118 184" stroke="#22d3c4" stroke-width="2.2" stroke-linecap="round" fill="none" opacity="0.85"/>
-        <path d="M118 6 C118 36 22 36 22 66 C22 96 118 96 118 126 C118 156 22 156 22 184" stroke="#8b7fd6" stroke-width="2.2" stroke-linecap="round" fill="none" opacity="0.85"/>
-        <line class="helix-rung" style="animation-delay:0s"   x1="22"  y1="6"   x2="118" y2="6"   stroke="#3d4656" stroke-width="1.4"/>
-        <line class="helix-rung" style="animation-delay:0.4s" x1="47"  y1="21"  x2="93"  y2="21"  stroke="#3d4656" stroke-width="1.4"/>
-        <line class="helix-rung" style="animation-delay:0.8s" x1="22"  y1="66"  x2="118" y2="66"  stroke="#3d4656" stroke-width="1.4"/>
-        <line class="helix-rung" style="animation-delay:1.2s" x1="47"  y1="81"  x2="93"  y2="81"  stroke="#3d4656" stroke-width="1.4"/>
-        <line class="helix-rung" style="animation-delay:1.6s" x1="22"  y1="126" x2="118" y2="126" stroke="#3d4656" stroke-width="1.4"/>
-        <line class="helix-rung" style="animation-delay:2.0s" x1="47"  y1="141" x2="93"  y2="141" stroke="#3d4656" stroke-width="1.4"/>
-        <line class="helix-rung" style="animation-delay:2.4s" x1="22"  y1="184" x2="118" y2="184" stroke="#3d4656" stroke-width="1.4"/>
+        <path d="M22 6 C22 36 118 36 118 66 C118 96 22 96 22 126 C22 156 118 156 118 184" stroke="#00d2b4" stroke-width="2.2" stroke-linecap="round" fill="none" opacity="0.9"/>
+        <path d="M118 6 C118 36 22 36 22 66 C22 96 118 96 118 126 C118 156 22 156 22 184" stroke="#818cf8" stroke-width="2.2" stroke-linecap="round" fill="none" opacity="0.9"/>
+        <line class="helix-rung" style="animation-delay:0s"   x1="22"  y1="6"   x2="118" y2="6"   stroke="#334155" stroke-width="1.4"/>
+        <line class="helix-rung" style="animation-delay:0.4s" x1="47"  y1="21"  x2="93"  y2="21"  stroke="#334155" stroke-width="1.4"/>
+        <line class="helix-rung" style="animation-delay:0.8s" x1="22"  y1="66"  x2="118" y2="66"  stroke="#334155" stroke-width="1.4"/>
+        <line class="helix-rung" style="animation-delay:1.2s" x1="47"  y1="81"  x2="93"  y2="81"  stroke="#334155" stroke-width="1.4"/>
+        <line class="helix-rung" style="animation-delay:1.6s" x1="22"  y1="126" x2="118" y2="126" stroke="#334155" stroke-width="1.4"/>
+        <line class="helix-rung" style="animation-delay:2.0s" x1="47"  y1="141" x2="93"  y2="141" stroke="#334155" stroke-width="1.4"/>
+        <line class="helix-rung" style="animation-delay:2.4s" x1="22"  y1="184" x2="118" y2="184" stroke="#334155" stroke-width="1.4"/>
       </svg>
     </div>
   </div>
 
-  <div class="section-title">Single-Modification Scan</div>
-  <div class="section-sub">Scan all 1260 single-mod variants (30 mods × 21 pos × 2 strands) for one or more siRNAs.</div>
+  <div class="section-title">Single-Site Chemical Modification Profiling</div>
+  <div class="section-sub">Comprehensive single-nucleotide chemical substitution scan across 21 positions on sense and antisense strands. Quantifies positional tolerance, seed toxicity mitigation, and delta efficacy over the naked duplex.</div>
 
   <div class="row cols2">
     <div class="field">
-      <label>Sense strand (21-nt)</label>
+      <label>Sense Strand Sequence (21-nt, 5'→3')</label>
       <input id="sm-sense" type="text" placeholder="e.g. GCAGUCGUUUAGUGAAUAUTT" maxlength="25">
     </div>
     <div class="field">
-      <label>Antisense strand (21-nt)</label>
+      <label>Antisense Guide Strand Sequence (21-nt, 5'→3')</label>
       <input id="sm-antisense" type="text" placeholder="e.g. AUAUUCACUAAACGACUGCTT" maxlength="25">
     </div>
   </div>
   <div class="row cols3">
     <div class="field">
-      <label>Prediction Model</label>
+      <label>Prediction Engine Architecture</label>
       <select id="sm-model" onchange="updateModelHint(); document.getElementById('mm-model').value = this.value;">
-        <option value="Unified_v5" selected>Single Unified Dose-Aware CatBoost Model (517-D, Dose &amp; Cell Line Aware, Verified r = 0.8359, default)</option>
+        <option value="Unified_v5" selected>Single Unified Dose-Aware CatBoost Model (517-D, Dose &amp; Cell Context Aware · Verified r = 0.8359 · Default)</option>
         <option value="B_v4">CatBoost Model B v4 (517-dim joint features, fast combinatorial search)</option>
         <option value="IEEE_v5">Legacy Multi-Module Engine (pIC50 + Knockdown Sigmoid)</option>
       </select>
       <div class="hint" id="sm-model-hint"></div>
     </div>
     <div class="field">
-      <label>Assay Dose (Concentration)</label>
+      <label>Assay Concentration (Screening Dose)</label>
       <select id="sm-conc" onchange="document.getElementById('mm-conc').value = this.value;">
-        <option value="1.0">1.0 nM (Low In Vitro / In Vivo Range)</option>
-        <option value="5.0">5.0 nM (Moderate Screening)</option>
+        <option value="1.0">1.0 nM (Sub-nanomolar Range)</option>
+        <option value="5.0">5.0 nM (Moderate in vitro Dose)</option>
         <option value="10.0" selected>10.0 nM (Standard Clinical Reference)</option>
-        <option value="25.0">25.0 nM (Elevated In Vitro Screen)</option>
-        <option value="50.0">50.0 nM (Patent Screening High Dose)</option>
-        <option value="100.0">100.0 nM (High Saturation Screening)</option>
+        <option value="25.0">25.0 nM (Elevated in vitro Screen)</option>
+        <option value="50.0">50.0 nM (High Saturation Screening)</option>
+        <option value="100.0">100.0 nM (Maximal Assay Saturation)</option>
       </select>
-      <div class="hint">Controls dose-dependent Hill kinetics &amp; assay response.</div>
+      <div class="hint">Controls dose-dependent Hill kinetics &amp; cellular assay response.</div>
     </div>
     <div class="field">
-      <label>Top N variants to display</label>
+      <label>Top Variants to Display</label>
       <input id="sm-topn" type="number" value="50" min="1">
     </div>
   </div>
 
   <div style="margin-bottom:16px">
-    <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;color:var(--text);text-transform:none;letter-spacing:0;font-weight:400;padding:10px 14px;background:var(--surface2);border-radius:8px;border:1px solid var(--border)">
+    <label style="display:flex;align-items:center;gap:10px;font-size:0.84rem;color:var(--text);text-transform:none;letter-spacing:0;font-weight:400;padding:12px 16px;background:var(--surface2);border-radius:8px;border:1px solid var(--border)">
       <input id="sm-fda-core" type="checkbox" checked style="width:auto;margin:0" onchange="const mmc = document.getElementById('mm-fda-core'); if(mmc) mmc.checked = this.checked;">
-      <strong>🛡️ Restrict to FDA-Approved Core Chemistries (Patisiran / Vutrisiran Standard)</strong>
-      <span style="color:var(--muted);font-size:0.78rem"> — Restricts scan to 2'-OMe, 2'-F, 2'-deoxy, PS, 5'-VP ({M, F, D, S, 1}). Uncheck to explore all 30 innovative chemistries (LNA, MOE, ENA, TNA, etc.).</span>
+      <strong>🛡️ Constrain Search Space to FDA-Approved Clinical Core Chemistries (Patisiran / Vutrisiran Standard)</strong>
+      <span style="color:var(--muted-bright);font-size:0.77rem"> — Restricts substitutions to 2'-OMe, 2'-F, 2'-deoxy, Phosphorothioate (PS), and 5'-Vinylphosphonate (5'-VP) [M, F, D, S, 1]. Uncheck to explore all 30 innovative nucleic acid chemistries (LNA, MOE, ENA, TNA, etc.).</span>
     </label>
   </div>
   <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px">
     <button class="run" id="btn-sm" onclick="runSingleMod()">
-      <span class="spinner"></span> Scan Variants
+      <span class="spinner"></span> Execute Positional Chemical Scan
     </button>
   </div>
   <div id="sm-error"></div>
   <div id="sm-results">
     <div class="empty-state">
-      <svg width="40" height="40" viewBox="0 0 32 32" fill="none"><path d="M10 5 C10 10, 22 12, 22 17 C22 22, 10 24, 10 27" stroke="#22d3c4" stroke-width="1.8" stroke-linecap="round" fill="none"/><path d="M22 5 C22 10, 10 12, 10 17 C10 22, 22 24, 22 27" stroke="#8b7fd6" stroke-width="1.8" stroke-linecap="round" fill="none"/></svg>
-      <div class="es-title">No single-mod scan run yet</div>
-      <div class="es-sub">Enter a sense/antisense pair above and click Scan Variants to test all single-modification positions.</div>
+      <svg width="40" height="40" viewBox="0 0 32 32" fill="none"><path d="M10 5 C10 10, 22 12, 22 17 C22 22, 10 24, 10 27" stroke="#00d2b4" stroke-width="2" stroke-linecap="round" fill="none"/><path d="M22 5 C22 10, 10 12, 10 17 C10 22, 22 24, 22 27" stroke="#818cf8" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+      <div class="es-title">No single-site scan executed yet</div>
+      <div class="es-sub">Specify sense and antisense sequences above and execute the scan to profile positional chemical tolerance across 1,260 substitutions.</div>
     </div>
   </div>
 </div>
@@ -777,114 +1283,115 @@
 <div id="tab-multimod" class="tab">
   <div class="hero-band">
     <div>
-      <div class="hero-eyebrow">Combinatorial Chemistry Design</div>
-      <h2 class="hero-title">Stack modifications with a guided <span class="grad">beam search</span>, not trial and error.</h2>
-      <p class="hero-sub">Specify exact positions manually, or let the beam search combine top-performing single mods into a full chemistry pattern — scored against real thermodynamic and RISC-loading constraints at every step, not just raw efficacy.</p>
+      <div class="hero-eyebrow">Module 03 · Combinatorial cm-siRNA Architecture &amp; Beam Search</div>
+      <h2 class="hero-title">Biophysically constrained <span class="grad">combinatorial engineering</span> of clinical cm-siRNAs.</h2>
+      <p class="hero-sub">Design fully modified siRNA duplexes manually or deploy an automated heuristic beam search optimizer. Every candidate is evaluated against strict biophysical penalty functions: Ago2 MID-domain 5'-binding, seed-region hypomodification rules, nuclease resistance, internal cleavage site flexibility, and serum stability.</p>
       <div class="hero-tags">
-        <span>Manual position control</span>
-        <span>Beam search combinatorics</span>
-        <span>Biophysics-penalty scoring</span>
-        <span>FDA-core or full chemistry space</span>
+        <span>Combinatorial Beam Optimization</span>
+        <span>7-Category Biophysical Penalties</span>
+        <span>Human Ago2 Structural Compatibility</span>
+        <span>Endonuclease &amp; Exonuclease Resistance</span>
+        <span>Dose-Aware Efficacy &amp; Potency</span>
       </div>
     </div>
     <div class="helix-art" aria-hidden="true">
       <svg viewBox="0 0 140 190" fill="none">
-        <path d="M22 6 C22 36 118 36 118 66 C118 96 22 96 22 126 C22 156 118 156 118 184" stroke="#22d3c4" stroke-width="2.2" stroke-linecap="round" fill="none" opacity="0.85"/>
-        <path d="M118 6 C118 36 22 36 22 66 C22 96 118 96 118 126 C118 156 22 156 22 184" stroke="#8b7fd6" stroke-width="2.2" stroke-linecap="round" fill="none" opacity="0.85"/>
-        <line class="helix-rung" style="animation-delay:0s"   x1="22"  y1="6"   x2="118" y2="6"   stroke="#3d4656" stroke-width="1.4"/>
-        <line class="helix-rung" style="animation-delay:0.4s" x1="47"  y1="21"  x2="93"  y2="21"  stroke="#3d4656" stroke-width="1.4"/>
-        <line class="helix-rung" style="animation-delay:0.8s" x1="22"  y1="66"  x2="118" y2="66"  stroke="#3d4656" stroke-width="1.4"/>
-        <line class="helix-rung" style="animation-delay:1.2s" x1="47"  y1="81"  x2="93"  y2="81"  stroke="#3d4656" stroke-width="1.4"/>
-        <line class="helix-rung" style="animation-delay:1.6s" x1="22"  y1="126" x2="118" y2="126" stroke="#3d4656" stroke-width="1.4"/>
-        <line class="helix-rung" style="animation-delay:2.0s" x1="47"  y1="141" x2="93"  y2="141" stroke="#3d4656" stroke-width="1.4"/>
-        <line class="helix-rung" style="animation-delay:2.4s" x1="22"  y1="184" x2="118" y2="184" stroke="#3d4656" stroke-width="1.4"/>
+        <path d="M22 6 C22 36 118 36 118 66 C118 96 22 96 22 126 C22 156 118 156 118 184" stroke="#00d2b4" stroke-width="2.2" stroke-linecap="round" fill="none" opacity="0.9"/>
+        <path d="M118 6 C118 36 22 36 22 66 C22 96 118 96 118 126 C118 156 22 156 22 184" stroke="#818cf8" stroke-width="2.2" stroke-linecap="round" fill="none" opacity="0.9"/>
+        <line class="helix-rung" style="animation-delay:0s"   x1="22"  y1="6"   x2="118" y2="6"   stroke="#334155" stroke-width="1.4"/>
+        <line class="helix-rung" style="animation-delay:0.4s" x1="47"  y1="21"  x2="93"  y2="21"  stroke="#334155" stroke-width="1.4"/>
+        <line class="helix-rung" style="animation-delay:0.8s" x1="22"  y1="66"  x2="118" y2="66"  stroke="#334155" stroke-width="1.4"/>
+        <line class="helix-rung" style="animation-delay:1.2s" x1="47"  y1="81"  x2="93"  y2="81"  stroke="#334155" stroke-width="1.4"/>
+        <line class="helix-rung" style="animation-delay:1.6s" x1="22"  y1="126" x2="118" y2="126" stroke="#334155" stroke-width="1.4"/>
+        <line class="helix-rung" style="animation-delay:2.0s" x1="47"  y1="141" x2="93"  y2="141" stroke="#334155" stroke-width="1.4"/>
+        <line class="helix-rung" style="animation-delay:2.4s" x1="22"  y1="184" x2="118" y2="184" stroke="#334155" stroke-width="1.4"/>
       </svg>
     </div>
   </div>
 
-  <div class="section-title">Multi-Modification Design</div>
-  <div class="section-sub">Predict efficacy for a custom cm-siRNA with specific modifications at specific positions.</div>
+  <div class="section-title">Combinatorial Chemical Architecture Design</div>
+  <div class="section-sub">Evaluate a targeted custom chemical modification pattern, or run the guided beam search optimizer to discover Pareto-optimal clinical architectures with verified biophysical constraints.</div>
 
   <div class="row cols2">
     <div class="field">
-      <label>Sense strand (21-nt)</label>
+      <label>Sense Strand Sequence (21-nt, 5'→3')</label>
       <input id="mm-sense" type="text" placeholder="GCAGUCGUUUAGUGAAUAUTT">
     </div>
     <div class="field">
-      <label>Antisense strand (21-nt)</label>
+      <label>Antisense Guide Strand Sequence (21-nt, 5'→3')</label>
       <input id="mm-antisense" type="text" placeholder="AUAUUCACUAAACGACUGCTT">
     </div>
   </div>
   <div class="row cols2">
     <div class="field">
-      <label>Sense modifications</label>
-      <input id="mm-smods" type="text" placeholder="e.g. F,,M  (comma-sep, blank = no mod)">
-      <div class="hint">One symbol per position group. Leave blank to skip.</div>
+      <label>Sense Chemical Modifications (symbols)</label>
+      <input id="mm-smods" type="text" placeholder="e.g. F,,M  (comma-separated symbols, blank = no modification)">
+      <div class="hint">One symbol per position group. Leave blank to retain parent nucleotide.</div>
     </div>
     <div class="field">
-      <label>Sense positions</label>
+      <label>Sense Modification Positions (1-indexed)</label>
       <input id="mm-spos" type="text" placeholder="e.g. 2,5,,10">
     </div>
   </div>
   <div class="row cols2">
     <div class="field">
-      <label>Antisense modifications</label>
-      <input id="mm-amods" type="text" placeholder="">
+      <label>Antisense Chemical Modifications (symbols)</label>
+      <input id="mm-amods" type="text" placeholder="e.g. 1,M,F,,S">
     </div>
     <div class="field">
-      <label>Antisense positions</label>
-      <input id="mm-apos" type="text" placeholder="">
+      <label>Antisense Modification Positions (1-indexed)</label>
+      <input id="mm-apos" type="text" placeholder="e.g. 1,2,6,,20">
     </div>
   </div>
   <div class="row cols3">
     <div class="field">
-      <label>Prediction Model</label>
+      <label>Prediction Engine Architecture</label>
       <select id="mm-model" onchange="document.getElementById('sm-model').value = this.value;">
-        <option value="Unified_v5" selected>Single Unified Dose-Aware CatBoost Model (517-D, Dose &amp; Cell Line Aware, Verified r = 0.8359, default)</option>
+        <option value="Unified_v5" selected>Single Unified Dose-Aware CatBoost Model (517-D, Dose &amp; Cell Context Aware · Verified r = 0.8359 · Default)</option>
         <option value="B_v4">CatBoost Model B v4 (517-dim joint features, fast combinatorial search)</option>
         <option value="IEEE_v5">Legacy Multi-Module Engine (pIC50 + Knockdown Sigmoid)</option>
       </select>
-      <div class="hint">Synced with the Single-Mod tab's model selector.</div>
+      <div class="hint">Synchronized with Positional Chemistry Scan selection.</div>
     </div>
     <div class="field">
-      <label>Assay Dose (Concentration)</label>
+      <label>Assay Concentration (Screening Dose)</label>
       <select id="mm-conc" onchange="document.getElementById('sm-conc').value = this.value;">
-        <option value="1.0">1.0 nM (Low In Vitro / In Vivo Range)</option>
-        <option value="5.0">5.0 nM (Moderate Screening)</option>
+        <option value="1.0">1.0 nM (Sub-nanomolar Range)</option>
+        <option value="5.0">5.0 nM (Moderate in vitro Dose)</option>
         <option value="10.0" selected>10.0 nM (Standard Clinical Reference)</option>
-        <option value="25.0">25.0 nM (Elevated In Vitro Screen)</option>
-        <option value="50.0">50.0 nM (Patent Screening High Dose)</option>
-        <option value="100.0">100.0 nM (High Saturation Screening)</option>
+        <option value="25.0">25.0 nM (Elevated in vitro Screen)</option>
+        <option value="50.0">50.0 nM (High Saturation Screening)</option>
+        <option value="100.0">100.0 nM (Maximal Assay Saturation)</option>
       </select>
-      <div class="hint">Controls dose-dependent Hill kinetics &amp; assay response.</div>
+      <div class="hint">Controls dose-dependent Hill kinetics &amp; cellular assay response.</div>
     </div>
     <div class="field">
-      <label>Top N variants to display (0 = all)</label>
+      <label>Top Variants to Display (0 = all)</label>
       <input id="mm-topn" type="number" value="20" min="0" max="100" placeholder="e.g. 20">
-      <div class="hint">Limits beam search display (default Top 20) to keep rendering fast and lightweight.</div>
+      <div class="hint">Limits beam search display (default Top 20) for optimal responsiveness.</div>
     </div>
   </div>
   <div style="margin:12px 0 16px 0">
-    <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;color:var(--text);text-transform:none;letter-spacing:0;font-weight:400;padding:10px 14px;background:var(--surface2);border-radius:8px;border:1px solid var(--border)">
+    <label style="display:flex;align-items:center;gap:10px;font-size:0.84rem;color:var(--text);text-transform:none;letter-spacing:0;font-weight:400;padding:12px 16px;background:var(--surface2);border-radius:8px;border:1px solid var(--border)">
       <input id="mm-fda-core" type="checkbox" checked style="width:auto;margin:0" onchange="const smc = document.getElementById('sm-fda-core'); if(smc) smc.checked = this.checked;">
-      <strong>🛡️ Restrict to FDA-Approved Core Chemistries (Patisiran / Vutrisiran Standard)</strong>
-      <span style="color:var(--muted);font-size:0.78rem"> — Restricts beam search to 2'-OMe, 2'-F, 2'-deoxy, PS, 5'-VP ({M, F, D, S, 1}). Uncheck to explore all 30 innovative chemistries (LNA, MOE, ENA, TNA, etc.). Unconstrained multi-position beam search.</span>
+      <strong>🛡️ Constrain Search Space to FDA-Approved Clinical Core Chemistries (Patisiran / Vutrisiran Standard)</strong>
+      <span style="color:var(--muted-bright);font-size:0.77rem"> — Restricts beam search to 2'-OMe, 2'-F, 2'-deoxy, Phosphorothioate (PS), and 5'-VP [M, F, D, S, 1]. Uncheck to explore all 30 innovative chemistries (LNA, MOE, ENA, TNA, etc.).</span>
     </label>
   </div>
   <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:12px">
     <button class="run" id="btn-mm" onclick="runMultiMod(false)">
-      <span class="spinner"></span> Predict Specific Variant
+      <span class="spinner"></span> Predict Target Architecture
     </button>
-    <button class="run" id="btn-mm-beam" style="background:linear-gradient(135deg,#06b6d4,#3b82f6)" onclick="runMultiMod(true)">
-      <span class="spinner"></span> ⚡ Run Multi-Mod Beam Search
+    <button class="run" id="btn-mm-beam" style="background:linear-gradient(135deg,var(--accent) 0%,var(--accent2) 100%)" onclick="runMultiMod(true)">
+      <span class="spinner"></span> ⚡ Run Combinatorial Beam Optimization
     </button>
   </div>
   <div id="mm-error"></div>
   <div id="mm-results">
     <div class="empty-state">
-      <svg width="40" height="40" viewBox="0 0 32 32" fill="none"><path d="M10 5 C10 10, 22 12, 22 17 C22 22, 10 24, 10 27" stroke="#22d3c4" stroke-width="1.8" stroke-linecap="round" fill="none"/><path d="M22 5 C22 10, 10 12, 10 17 C10 22, 22 24, 22 27" stroke="#8b7fd6" stroke-width="1.8" stroke-linecap="round" fill="none"/></svg>
-      <div class="es-title">No multi-mod design generated yet</div>
-      <div class="es-sub">Specify modifications and positions, or launch a beam search, to see combinatorial candidate scores here.</div>
+      <svg width="40" height="40" viewBox="0 0 32 32" fill="none"><path d="M10 5 C10 10, 22 12, 22 17 C22 22, 10 24, 10 27" stroke="#00d2b4" stroke-width="2" stroke-linecap="round" fill="none"/><path d="M22 5 C22 10, 10 12, 10 17 C10 22, 22 24, 22 27" stroke="#818cf8" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+      <div class="es-title">No combinatorial design generated yet</div>
+      <div class="es-sub">Specify custom modifications above, or launch a Combinatorial Beam Optimization to discover high-potency biophysically balanced designs.</div>
     </div>
   </div>
 </div>
@@ -893,32 +1400,32 @@
 <div id="tab-mods" class="tab">
   <div class="hero-band">
     <div>
-      <div class="hero-eyebrow">Chemistry Reference</div>
-      <h2 class="hero-title">Every supported <span class="grad">modification</span>, in one place.</h2>
-      <p class="hero-sub">Backbone, sugar, base, and conjugate chemistries this platform can place on a candidate — what each one does, and where it's typically used in a clinical design.</p>
+      <div class="hero-eyebrow">Module 04 · Standardized Nucleic Acid Modification Ontology &amp; Catalog</div>
+      <h2 class="hero-title">Pharmacological classification &amp; reference catalog for <span class="grad">30 supported chemistries</span>.</h2>
+      <p class="hero-sub">Comprehensive bioinformatic reference catalog of all 30 validated chemical modifications supported by the 517-D model engine, categorized across backbone linkages, 2'-ribose substitutions, modified nucleobases, and terminal conjugates with clinical mechanisms and usage guidelines.</p>
       <div class="hero-tags">
-        <span>Backbone linkages</span>
-        <span>Sugar chemistries</span>
-        <span>Base modifications</span>
-        <span>Terminal &amp; conjugate chemistries</span>
+        <span>Phosphorothioate &amp; Backbone Linkages</span>
+        <span>2'-Ribose Conformation Modifications</span>
+        <span>Modified Nucleobases &amp; Isoforms</span>
+        <span>Terminal Conjugates &amp; Inverted Caps</span>
       </div>
     </div>
     <div class="helix-art" aria-hidden="true">
       <svg viewBox="0 0 140 190" fill="none">
-        <path d="M22 6 C22 36 118 36 118 66 C118 96 22 96 22 126 C22 156 118 156 118 184" stroke="#22d3c4" stroke-width="2.2" stroke-linecap="round" fill="none" opacity="0.85"/>
-        <path d="M118 6 C118 36 22 36 22 66 C22 96 118 96 118 126 C118 156 22 156 22 184" stroke="#8b7fd6" stroke-width="2.2" stroke-linecap="round" fill="none" opacity="0.85"/>
-        <line class="helix-rung" style="animation-delay:0s"   x1="22"  y1="6"   x2="118" y2="6"   stroke="#3d4656" stroke-width="1.4"/>
-        <line class="helix-rung" style="animation-delay:0.4s" x1="47"  y1="21"  x2="93"  y2="21"  stroke="#3d4656" stroke-width="1.4"/>
-        <line class="helix-rung" style="animation-delay:0.8s" x1="22"  y1="66"  x2="118" y2="66"  stroke="#3d4656" stroke-width="1.4"/>
-        <line class="helix-rung" style="animation-delay:1.2s" x1="47"  y1="81"  x2="93"  y2="81"  stroke="#3d4656" stroke-width="1.4"/>
-        <line class="helix-rung" style="animation-delay:1.6s" x1="22"  y1="126" x2="118" y2="126" stroke="#3d4656" stroke-width="1.4"/>
-        <line class="helix-rung" style="animation-delay:2.0s" x1="47"  y1="141" x2="93"  y2="141" stroke="#3d4656" stroke-width="1.4"/>
-        <line class="helix-rung" style="animation-delay:2.4s" x1="22"  y1="184" x2="118" y2="184" stroke="#3d4656" stroke-width="1.4"/>
+        <path d="M22 6 C22 36 118 36 118 66 C118 96 22 96 22 126 C22 156 118 156 118 184" stroke="#00d2b4" stroke-width="2.2" stroke-linecap="round" fill="none" opacity="0.9"/>
+        <path d="M118 6 C118 36 22 36 22 66 C22 96 118 96 118 126 C118 156 22 156 22 184" stroke="#818cf8" stroke-width="2.2" stroke-linecap="round" fill="none" opacity="0.9"/>
+        <line class="helix-rung" style="animation-delay:0s"   x1="22"  y1="6"   x2="118" y2="6"   stroke="#334155" stroke-width="1.4"/>
+        <line class="helix-rung" style="animation-delay:0.4s" x1="47"  y1="21"  x2="93"  y2="21"  stroke="#334155" stroke-width="1.4"/>
+        <line class="helix-rung" style="animation-delay:0.8s" x1="22"  y1="66"  x2="118" y2="66"  stroke="#334155" stroke-width="1.4"/>
+        <line class="helix-rung" style="animation-delay:1.2s" x1="47"  y1="81"  x2="93"  y2="81"  stroke="#334155" stroke-width="1.4"/>
+        <line class="helix-rung" style="animation-delay:1.6s" x1="22"  y1="126" x2="118" y2="126" stroke="#334155" stroke-width="1.4"/>
+        <line class="helix-rung" style="animation-delay:2.0s" x1="47"  y1="141" x2="93"  y2="141" stroke="#334155" stroke-width="1.4"/>
+        <line class="helix-rung" style="animation-delay:2.4s" x1="22"  y1="184" x2="118" y2="184" stroke="#334155" stroke-width="1.4"/>
       </svg>
     </div>
   </div>
 
-  <div id="mods-content"><p style="color:var(--muted);font-size:0.875rem">Loading…</p></div>
+  <div id="mods-content"><p style="color:var(--muted-bright);font-size:0.875rem">Loading modification directory…</p></div>
 </div>
 
 </main>
@@ -1000,8 +1507,16 @@ function updateModelHint() {
   if (el) el.innerHTML = hint;
 }
 
-// Initialize hint on page load.
-document.addEventListener('DOMContentLoaded', () => updateModelHint());
+// Initialize hint and deep-linked tab on page load.
+document.addEventListener('DOMContentLoaded', () => {
+  updateModelHint();
+  const hash = window.location.hash ? window.location.hash.replace('#', '') : '';
+  const params = new URLSearchParams(window.location.search);
+  const tabParam = params.get('tab') || hash;
+  if (tabParam && ['rank', 'singlemod', 'multimod', 'mods'].includes(tabParam)) {
+    switchTab(tabParam);
+  }
+});
 
 // ─── Shared Penalty Category Registry ──────────────────────────────────
 // Single source of truth for all 7 biophysics penalty categories, mirroring
@@ -1189,19 +1704,19 @@ function asymBadge(ddg, label) {
   const formatted = `${sign}${val.toFixed(2)} kcal/mol`;
   
   if (val >= 1.5) {
-    return `<span class="badge" style="background:#14261f;color:var(--green);border:1px solid rgba(52,211,153,0.35);font-family:var(--font-mono);font-size:0.75rem;padding:3px 8px;border-radius:6px;display:inline-flex;align-items:center;gap:4px;white-space:nowrap" title="Optimal Guide Bias (Schwarz-Zamore rule ΔΔG ≥ 1.5 kcal/mol). Antisense 5'-end is weaker, promoting selective Ago2 loading.">
+    return `<span class="badge" style="background:rgba(16,185,129,0.12);color:var(--green-bright);border:1px solid rgba(16,185,129,0.35);font-family:var(--font-mono);font-size:0.75rem;padding:3px 8px;border-radius:6px;display:inline-flex;align-items:center;gap:4px;white-space:nowrap" title="Optimal Guide Bias (Schwarz-Zamore rule ΔΔG ≥ +1.5 kcal/mol). Antisense 5'-end is weaker, promoting selective Ago2 loading.">
       <span style="font-weight:700">${formatted}</span>
-      <span style="font-size:0.68rem;opacity:0.85">✓ Optimal</span>
+      <span style="font-size:0.68rem;opacity:0.9">✓ Optimal</span>
     </span>`;
   } else if (val >= 0.0) {
-    return `<span class="badge" style="background:#262214;color:var(--yellow);border:1px solid rgba(251,191,36,0.35);font-family:var(--font-mono);font-size:0.75rem;padding:3px 8px;border-radius:6px;display:inline-flex;align-items:center;gap:4px;white-space:nowrap" title="Moderate Asymmetry (0 ≤ ΔΔG < 1.5 kcal/mol). Slight guide strand bias, but moderate risk of passenger co-loading.">
+    return `<span class="badge" style="background:rgba(245,158,11,0.12);color:var(--yellow);border:1px solid rgba(245,158,11,0.35);font-family:var(--font-mono);font-size:0.75rem;padding:3px 8px;border-radius:6px;display:inline-flex;align-items:center;gap:4px;white-space:nowrap" title="Moderate Asymmetry (0 ≤ ΔΔG < 1.5 kcal/mol). Slight guide strand bias, but moderate risk of passenger co-loading.">
       <span style="font-weight:700">${formatted}</span>
-      <span style="font-size:0.68rem;opacity:0.85">⚠ Moderate</span>
+      <span style="font-size:0.68rem;opacity:0.9">⚠ Moderate</span>
     </span>`;
   } else {
-    return `<span class="badge" style="background:#261414;color:var(--red);border:1px solid rgba(248,113,113,0.35);font-family:var(--font-mono);font-size:0.75rem;padding:3px 8px;border-radius:6px;display:inline-flex;align-items:center;gap:4px;white-space:nowrap" title="Unfavorable Asymmetry (ΔΔG < 0 kcal/mol). Sense 5'-end is weaker, causing passenger strand loading and severe off-target toxicity.">
+    return `<span class="badge" style="background:rgba(244,63,94,0.12);color:var(--red);border:1px solid rgba(244,63,94,0.35);font-family:var(--font-mono);font-size:0.75rem;padding:3px 8px;border-radius:6px;display:inline-flex;align-items:center;gap:4px;white-space:nowrap" title="Unfavorable Asymmetry (ΔΔG < 0 kcal/mol). Sense 5'-end is weaker, causing passenger strand loading and severe off-target toxicity.">
       <span style="font-weight:700">${formatted}</span>
-      <span style="font-size:0.68rem;opacity:0.85">✗ High Risk</span>
+      <span style="font-size:0.68rem;opacity:0.9">✗ High Risk</span>
     </span>`;
   }
 }
@@ -1209,7 +1724,7 @@ function asymBadge(ddg, label) {
 
 function funcCell(ok, reason) {
   return ok
-    ? '<span class="func-ok" title="Passes GC/run/palindrome checks">✓</span>'
+    ? '<span class="func-ok" title="Passes GC/run/palindrome checks">✓ Pass</span>'
     : `<span class="func-bad" title="${reason}">✗ ${reason}</span>`;
 }
 
@@ -1331,32 +1846,32 @@ function renderRankResults(data) {
       <td style="color:var(--muted);font-weight:600">${leadNum}</td>
       ${domainHtml}
       <td>${posDisplay}</td>
-      <td style="letter-spacing:0.05em;font-family:monospace">${r.sense ?? r.sequence ?? '—'}</td>
-      <td style="letter-spacing:0.05em;font-family:monospace">${r.antisense ?? '—'}</td>
+      <td style="letter-spacing:0.05em;font-family:var(--font-mono)">${r.sense ?? r.sequence ?? '—'}</td>
+      <td style="letter-spacing:0.05em;font-family:var(--font-mono)">${r.antisense ?? '—'}</td>
       <td>${scoreBar(r.efficacy_score ?? r.score ?? 0)}</td>
       <td>${effBadge(r.efficacy_label ?? r.label ?? '—')}</td>
       <td>${toxBadge(r.toxicity_score, r.toxicity_label ?? 'Unknown')}</td>
       <td>${asymBadge(r.asymmetry_ddg, r.asymmetry_label)}</td>
       <td>${funcCell(r.func_ok !== false, r.func_reason ?? '')}</td>
-      <td style="display:flex;gap:4px;white-space:nowrap">
-        <button class="mini-btn" onclick="useCandidate('${s}','${a}')" title="Run single-mod scan">Single-Mod</button>
-        <button class="mini-btn" onclick="runMultiModFromRank('${s}','${a}')" title="Run multi-mod beam search">Multi-Mod</button>
-        <button class="mini-btn" style="background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.4);color:#06b6d4;cursor:pointer" onclick="inspectVariant(this, '${s}', '${a}')" title="View 3D Double Helix & Biophysics">🔍 3D View</button>
+      <td style="display:flex;gap:5px;white-space:nowrap">
+        <button class="mini-btn" onclick="useCandidate('${s}','${a}')" title="Transfer duplex to Positional Chemistry Scan">⚡ Positional Scan</button>
+        <button class="mini-btn" onclick="runMultiModFromRank('${s}','${a}')" title="Launch combinatorial beam search on this candidate">🚀 Beam Search</button>
+        <button class="mini-btn" style="background:rgba(0,229,191,0.12);border:1px solid rgba(0,229,191,0.35);color:var(--accent);cursor:pointer" onclick="inspectVariant(this, '${s}', '${a}')" title="Inspect 3D Double Helix & Structural Biophysics">🔬 3D Inspector</button>
       </td>
     </tr>`;
   }).join('');
 
   const leadsBtnStyle = isLeadsView 
-    ? 'background:var(--accent);color:#04140f;font-weight:700;border:1px solid var(--accent);' 
+    ? 'background:var(--accent);color:#03140e;font-weight:700;border:1px solid var(--accent);box-shadow:0 0 10px rgba(0,229,191,0.35);' 
     : 'background:var(--surface2);color:var(--text);border:1px solid var(--border);';
   const allBtnStyle = !isLeadsView 
-    ? 'background:var(--accent);color:#04140f;font-weight:700;border:1px solid var(--accent);' 
+    ? 'background:var(--accent);color:#03140e;font-weight:700;border:1px solid var(--accent);box-shadow:0 0 10px rgba(0,229,191,0.35);' 
     : 'background:var(--surface2);color:var(--text);border:1px solid var(--border);';
 
   const viewToggleHtml = hasLeads ? `
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;padding:8px 12px;background:var(--surface2);border-radius:var(--radius);border:1px solid var(--border);">
       <div style="display:flex;gap:8px;align-items:center;">
-        <span style="font-size:0.8rem;color:var(--muted);font-weight:600">SELECTION VIEW:</span>
+        <span style="font-size:0.78rem;color:var(--muted-bright);font-weight:600">SELECTION VIEW:</span>
         <button type="button" class="mini-btn" style="${leadsBtnStyle}padding:6px 12px;border-radius:6px;cursor:pointer;" onclick="setRankViewMode('leads')">
           🎯 Curated Lead Scaffolds (${data.curated_leads.length})
         </button>
@@ -1364,7 +1879,7 @@ function renderRankResults(data) {
           📋 All Candidates (${data.total_candidates ?? data.results.length})
         </button>
       </div>
-      <div style="font-size:0.78rem;color:var(--muted)">
+      <div style="font-size:0.78rem;color:var(--muted-bright)">
         ${isLeadsView ? '✓ Filtered: Non-redundant spatial domain leads (≥35 nt separation, toxic seeds & hairpins removed)' : 'Showing top candidates sorted by raw naked model score'}
       </div>
     </div>` : '';
@@ -1373,8 +1888,8 @@ function renderRankResults(data) {
     <div class="results-box">
       ${viewToggleHtml}
       <div class="results-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-        <div>Showing <strong>${activeList.length}</strong> ${isLeadsView ? 'curated non-redundant lead scaffolds' : 'candidates'} (${data.input_type === 'dsirna' ? 'DsiRNA mode' : 'gene mode — sliding window'}, naked baseline)</div>
-        <button type="button" class="mini-btn" style="background:linear-gradient(135deg, rgba(34,211,196,0.18), rgba(139,127,214,0.18));color:var(--accent);border:1px solid var(--accent);padding:6px 14px;border-radius:6px;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:6px;" onclick="triggerTop5Analysis()" title="Synthesize Top 5 clinical leads with AI dossier">
+        <div>Showing <strong>${activeList.length}</strong> ${isLeadsView ? 'curated non-redundant lead scaffolds' : 'candidates'} (${data.input_type === 'dsirna' ? 'DsiRNA substrate mode' : 'mRNA transcript sliding window'}, naked baseline)</div>
+        <button type="button" class="mini-btn" style="background:linear-gradient(135deg, rgba(0,229,191,0.2), rgba(99,102,241,0.2));color:var(--accent);border:1px solid var(--accent);padding:6px 14px;border-radius:6px;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:6px;" onclick="triggerTop5Analysis()" title="Synthesize Top 5 clinical leads with AI dossier">
           <span>🧬</span> AI Lead Progression (Top 5)
         </button>
       </div>
@@ -1384,13 +1899,13 @@ function renderRankResults(data) {
             <th>#</th>
             <th>Domain</th>
             <th>Position</th>
-            <th>Sense (5'→3')</th>
-            <th>Antisense (5'→3')</th>
-            <th title="Naked (unmodified) siRNA efficacy score — baseline before chemical modification">LightGBM</th>
-            <th>Label</th>
-            <th title="Seed toxicity (Janas et al. 2018 cell viability)">Seed Tox</th>
-            <th title="Schwarz-Zamore terminal asymmetry (ΔΔG = ΔG_5'AS - ΔG_5'SS). Favorable: ≥ 1.5 kcal/mol for biased guide strand RISC loading.">Asymmetry ΔΔG</th>
-            <th title="GC/run/palindrome checks">Func</th>
+            <th>Sense Sequence (5'→3')</th>
+            <th>Antisense Guide (5'→3')</th>
+            <th title="Baseline unmodified siRNA knockdown efficacy percentage predicted by the model prior to chemical modification">Naked Efficacy (%)</th>
+            <th>Activity Tier</th>
+            <th title="Predicted cell viability score based on seed-mediated off-target liabilities (Janas et al. 2018 benchmark)">Seed Viability (%)</th>
+            <th title="Schwarz-Zamore terminal thermodynamic asymmetry (ΔΔG = ΔG_5'AS − ΔG_5'SS). Favorable: ≥ +1.5 kcal/mol for preferential guide strand RISC loading">Asymmetry (ΔΔG kcal/mol)</th>
+            <th title="Sequence liability screening: GC content (30–60%), homopolymer runs (≤4), and secondary palindromic hairpins">Biophysical Filter</th>
             <th>Actions</th>
           </tr></thead>
           <tbody>${rows}</tbody>
@@ -1578,20 +2093,20 @@ function renderSingleModResults(data) {
     const aPos = modStrand.includes('anti') ? modPos : '';
 
     return `<tr style="cursor:pointer" onclick="loadMultiModFromVariant(${i})" title="Click row to initialize Multi-Mod beam search from this variant">
-      <td style="color:var(--muted)">${r.rank ?? i+1}</td>
-      <td style="letter-spacing:0.05em">${r.sense ?? '—'}</td>
-      <td style="letter-spacing:0.05em">${r.antisense ?? '—'}</td>
-      <td>${r.mod_strand ?? '—'}</td>
-      <td>${r.mod_position ?? '—'}</td>
-      <td>${modSym}</td>
+      <td style="color:var(--muted);font-weight:600">${r.rank ?? i+1}</td>
+      <td style="letter-spacing:0.05em;font-family:var(--font-mono)">${r.sense ?? '—'}</td>
+      <td style="letter-spacing:0.05em;font-family:var(--font-mono)">${r.antisense ?? '—'}</td>
+      <td><span style="text-transform:capitalize">${r.mod_strand ?? '—'}</span></td>
+      <td>Pos ${r.mod_position ?? '—'}</td>
+      <td><span class="mod-tag" style="padding:2px 7px;font-size:0.75rem;font-weight:700">${modSym}</span></td>
       <td title="Single Unified CatBoost: ${adjKdPct.toFixed(1)}% Knockdown @ ${data.target_dose_nM || 10} nM | Raw KD: ${rawKdPct.toFixed(1)}% | pIC50: ${pic50Str} | IC50: ${ic50Str}">
         ${scoreBar(adjKdPct)}
       </td>
       <td>${deltaStr}</td>
       <td>${modToxDeltaCell(r.toxicity_score, r.toxicity_label ?? 'Unknown', r.toxicity_note ?? '', parentLabel)}</td>
-      <td style="display:flex;gap:4px;white-space:nowrap" onclick="event.stopPropagation()">
-        <button class="mini-btn" style="background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.4);color:#06b6d4;cursor:pointer" onclick="inspectVariant(this, '${s}', '${a}', '${modSym}', '${modPos}', '${modStrand}', '${sMod}', '${sPos}', '${aMod}', '${aPos}', '', '${(data.parent_sense || '').replace(/'/g, "\\'")}', '${(data.parent_antisense || '').replace(/'/g, "\\'")}')" title="View 3D Double Helix & Biophysics">🔍 3D View</button>
-        <button class="mini-btn" onclick="loadMultiModFromVariant(${i})" title="Initialize beam search from this single mod">⚡ Multi-Mod</button>
+      <td style="display:flex;gap:5px;white-space:nowrap" onclick="event.stopPropagation()">
+        <button class="mini-btn" style="background:rgba(0,229,191,0.12);border:1px solid rgba(0,229,191,0.35);color:var(--accent);cursor:pointer" onclick="inspectVariant(this, '${s}', '${a}', '${modSym}', '${modPos}', '${modStrand}', '${sMod}', '${sPos}', '${aMod}', '${aPos}', '', '${(data.parent_sense || '').replace(/'/g, "\\'")}', '${(data.parent_antisense || '').replace(/'/g, "\\'")}')" title="Inspect 3D Double Helix & Structural Biophysics">🔬 3D Inspector</button>
+        <button class="mini-btn" onclick="loadMultiModFromVariant(${i})" title="Pre-fill and initialize combinatorial beam search from this single mod">⚡ Multi-Mod</button>
       </td>
     </tr>`;
   }).join('');
@@ -1603,29 +2118,29 @@ function renderSingleModResults(data) {
   const modelBBase = data.model_b_baseline ?? cmParentScore;
   const parentBanner = `
     <div style="display:flex;align-items:center;gap:14px;padding:10px 18px;background:var(--surface2);border-bottom:1px solid var(--border);flex-wrap:wrap">
-      <span style="font-size:0.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;font-weight:600">Baseline</span>
+      <span style="font-size:0.7rem;color:var(--muted-bright);text-transform:uppercase;letter-spacing:0.05em;font-weight:600">Baseline</span>
       <div style="display:flex;align-items:center;gap:6px" title="Single Unified CatBoost 0-modification anchor at ${data.target_dose_nM || 10} nM">
         <span style="font-size:0.65rem;color:var(--accent);font-weight:600">Single Unified CatBoost Anchor (${data.target_dose_nM || 10} nM)</span>
         ${scoreBarSmall(modelBBase)}
       </div>
       <span style="width:1px;height:20px;background:var(--border)"></span>
-      <span style="font-size:0.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;font-weight:600">Seed toxicity</span>
+      <span style="font-size:0.7rem;color:var(--muted-bright);text-transform:uppercase;letter-spacing:0.05em;font-weight:600">Seed toxicity</span>
       ${parentBadge}
-      <span style="font-size:0.75rem;color:var(--muted);font-family:monospace">seed (pos 2–7): ${parentSeed}</span>
-      <button style="margin-left:auto;background:linear-gradient(135deg,#06b6d4,#3b82f6);border:none;color:#fff;font-size:0.75rem;font-weight:700;padding:6px 14px;border-radius:6px;cursor:pointer;" onclick="loadMultiModFromSingleModBatch()">
-        ⚡ Run Fast Multi-Mod Beam Search from Top Single Mods
+      <span style="font-size:0.75rem;color:var(--muted-bright);font-family:var(--font-mono)">seed (pos 2–7): ${parentSeed}</span>
+      <button style="margin-left:auto;background:linear-gradient(135deg,var(--accent) 0%,var(--accent2) 100%);border:none;color:#03140e;font-size:0.75rem;font-weight:700;padding:6px 16px;border-radius:6px;cursor:pointer;box-shadow:0 0 14px rgba(0,229,191,0.25)" onclick="loadMultiModFromSingleModBatch()">
+        ⚡ Launch Combinatorial Optimization from Top Single-Mods
       </button>
     </div>`;
 
   const scanModeLabel = data.full_scan
-    ? '<span style="color:var(--accent);font-size:0.72rem">full 1260 scan</span>'
-    : '<span style="color:var(--muted);font-size:0.72rem">40-variant mini-scan (E/D/Q/L on antisense)</span>';
+    ? '<span style="color:var(--accent);font-size:0.72rem">full 1,260 scan</span>'
+    : '<span style="color:var(--muted-bright);font-size:0.72rem">40-variant mini-scan</span>';
 
   document.getElementById('sm-results').innerHTML = `
     <div class="results-box">
       <div class="results-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-        <div>Top <strong>${data.results.length}</strong> of <strong>${data.total_variants}</strong> variants — Model ${modelLabel(data.model)} @ <strong>${data.target_dose_nM || 10} nM</strong> ${scanModeLabel}</div>
-        <button type="button" class="mini-btn" style="background:linear-gradient(135deg, rgba(34,211,196,0.18), rgba(139,127,214,0.18));color:var(--accent);border:1px solid var(--accent);padding:6px 14px;border-radius:6px;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:6px;" onclick="triggerTop5Analysis()" title="Synthesize Top 5 clinical leads with AI dossier">
+        <div>Top <strong>${data.results.length}</strong> of <strong>${data.total_variants}</strong> variants — Model ${modelLabel(data.model)} @ <strong>${data.target_dose_nM || 10} nM</strong> (${scanModeLabel})</div>
+        <button type="button" class="mini-btn" style="background:linear-gradient(135deg, rgba(0,229,191,0.2), rgba(99,102,241,0.2));color:var(--accent);border:1px solid var(--accent);padding:6px 14px;border-radius:6px;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:6px;" onclick="triggerTop5Analysis()" title="Synthesize Top 5 clinical leads with AI dossier">
           <span>🧬</span> AI Lead Progression (Top 5)
         </button>
       </div>
@@ -1633,25 +2148,30 @@ function renderSingleModResults(data) {
       ${data.structural_properties ? `
       <div style="padding:10px 18px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:16px;flex-wrap:wrap;font-size:0.8rem">
         <span style="font-size:0.7rem;color:var(--accent);text-transform:uppercase;font-weight:700;letter-spacing:0.05em">🧬 2D Structure &amp; Biophysics</span>
-        <span style="font-family:monospace;color:var(--text);background:var(--surface2);padding:2px 8px;border-radius:4px;border:1px solid var(--border)" title="ViennaRNA RNAcofold 2D secondary structure dot-bracket notation">${data.structural_properties.cofold_dotbracket}</span>
+        <span style="font-family:var(--font-mono);color:var(--text);background:var(--surface2);padding:2px 8px;border-radius:4px;border:1px solid var(--border)" title="ViennaRNA RNAcofold 2D secondary structure dot-bracket notation">${data.structural_properties.cofold_dotbracket}</span>
         <span><strong style="color:var(--text)">Parent Duplex ΔG:</strong> <span style="color:#34d399;font-weight:700">${data.structural_properties.duplex_mfe_kcal} kcal/mol</span></span>
         <span><strong style="color:var(--text)">Sense MFE:</strong> ${data.structural_properties.sense_mfe_kcal} kcal/mol</span>
         <span><strong style="color:var(--text)">Antisense MFE:</strong> ${data.structural_properties.anti_mfe_kcal} kcal/mol</span>
         <span><strong style="color:var(--text)">GC Content:</strong> Sense ${data.structural_properties.gc_sense_pct}% / AS ${data.structural_properties.gc_anti_pct}%</span>
-        <button class="mini-btn" style="margin-left:auto;background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.4);color:#06b6d4;cursor:pointer;padding:4px 12px;font-weight:700;font-size:0.75rem;display:flex;align-items:center;gap:6px;" onclick="const sVal = (document.getElementById('sm-sense')?.value || '${(data.parent_sense || '').replace(/'/g, "\\'")}').trim(); const aVal = (document.getElementById('sm-antisense')?.value || '${(data.parent_antisense || '').replace(/'/g, "\\'")}').trim(); inspectVariant(this, sVal, aVal, '', '', '', '', '', '', '', '')">🔍 View 3D Structure &amp; Biophysics</button>
+        <button class="mini-btn" style="margin-left:auto;background:rgba(0,229,191,0.12);border:1px solid rgba(0,229,191,0.35);color:var(--accent);cursor:pointer;padding:5px 14px;font-weight:700;font-size:0.75rem;display:flex;align-items:center;gap:6px;" onclick="const sVal = (document.getElementById('sm-sense')?.value || '${(data.parent_sense || '').replace(/'/g, "\\'")}').trim(); const aVal = (document.getElementById('sm-antisense')?.value || '${(data.parent_antisense || '').replace(/'/g, "\\'")}').trim(); inspectVariant(this, sVal, aVal, '', '', '', '', '', '', '', '')">🔬 3D Duplex Inspector</button>
       </div>` : ''}
       ${data.parent_safety ? `
       <div style="padding:10px 18px;background:var(--surface2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;">
-        <span style="font-size:0.7rem;color:var(--muted);text-transform:uppercase;font-weight:600">Off-Target Safety (Parent)</span>
+        <span style="font-size:0.7rem;color:var(--muted-bright);text-transform:uppercase;font-weight:600">Off-Target Safety (Parent)</span>
         <span style="color:${data.parent_safety.isSafe ? '#34d399' : '#f87171'};font-weight:bold;font-size:0.85rem">${data.parent_safety.status} (${data.parent_safety.overallSafetyScore}%)</span>
       </div>` : ''}
       <div class="table-wrap">
         <table>
           <thead><tr>
-            <th>#</th><th>Modified Sense</th><th>Modified Antisense</th>
-            <th>Strand</th><th>Pos</th><th>Mod</th>
-            <th>Knockdown (%)</th><th>Δ Knockdown</th>
-            <th title="Per-row toxicity change vs parent seed">Tox Δ</th>
+            <th>#</th>
+            <th>Modified Sense Strand (5'→3')</th>
+            <th>Modified Antisense Strand (5'→3')</th>
+            <th>Target Strand</th>
+            <th>Position</th>
+            <th>Chemistry</th>
+            <th>Knockdown Efficacy (%)</th>
+            <th>Potency Shift (Δ%)</th>
+            <th title="Per-row seed-region toxicity shift vs parent unmodified duplex">Seed Tox Shift</th>
             <th>Actions</th>
           </tr></thead>
           <tbody>${rows}</tbody>
@@ -1839,7 +2359,7 @@ function renderMultiModResult(data) {
         <span style="font-size:0.75rem;color:var(--muted)">(Standalone GBDT Model 2 Regressor)</span>
       </div>` : ''}
       <div style="margin-top:16px; margin-bottom:8px;">
-        <button class="use-btn" style="padding:6px 14px;font-size:0.8rem;background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.4);color:#06b6d4;cursor:pointer" onclick="const sVal = (document.getElementById('mm-sense')?.value || '${(data.parent_sense || '').replace(/'/g, "\\'")}').trim(); const aVal = (document.getElementById('mm-antisense')?.value || '${(data.parent_antisense || '').replace(/'/g, "\\'")}').trim(); const sm = (document.getElementById('mm-smods')?.value || '').trim(); const sp = (document.getElementById('mm-spos')?.value || '').trim(); const am = (document.getElementById('mm-amods')?.value || '').trim(); const ap = (document.getElementById('mm-apos')?.value || '').trim(); inspectVariant(this, sVal, aVal, '', '', '', sm, sp, am, ap)">🔍 View 3D Structure &amp; Biophysics</button>
+        <button class="mini-btn" style="padding:6px 16px;font-size:0.78rem;background:rgba(0,229,191,0.12);border:1px solid rgba(0,229,191,0.35);color:var(--accent);cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-weight:700;" onclick="const sVal = (document.getElementById('mm-sense')?.value || '${(data.parent_sense || '').replace(/'/g, "\\'")}').trim(); const aVal = (document.getElementById('mm-antisense')?.value || '${(data.parent_antisense || '').replace(/'/g, "\\'")}').trim(); const sm = (document.getElementById('mm-smods')?.value || '').trim(); const sp = (document.getElementById('mm-spos')?.value || '').trim(); const am = (document.getElementById('mm-amods')?.value || '').trim(); const ap = (document.getElementById('mm-apos')?.value || '').trim(); inspectVariant(this, sVal, aVal, '', '', '', sm, sp, am, ap)">🔬 3D Duplex Inspector</button>
       </div>
       ${data.structural_properties ? `
       <div style="margin-top:12px;padding:12px 16px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);display:flex;align-items:center;gap:16px;flex-wrap:wrap;font-size:0.82rem">
@@ -2152,15 +2672,15 @@ function renderAutoMultiModResults(data) {
     const detailHtml = buildExpandedDetail(r.sense, r.antisense, p, r.mod_symbol, data.parent_sense, data.parent_antisense);
 
     return `<tr class="row-expand-toggle" onclick="toggleRow(this)">
-      <td style="color:var(--muted)">${r.rank ?? i+1}</td>
-      <td style="letter-spacing:0.05em">${r.sense}</td>
-      <td style="letter-spacing:0.05em">${r.antisense}</td>
+      <td style="color:var(--muted);font-weight:600">${r.rank ?? i+1}</td>
+      <td style="letter-spacing:0.05em;font-family:var(--font-mono)">${r.sense}</td>
+      <td style="letter-spacing:0.05em;font-family:var(--font-mono)">${r.antisense}</td>
       <td>${formatOrderedMods(r, data.parent_sense, data.parent_antisense)}</td>
       <td>${confHtml}</td>
       <td title="Single Unified CatBoost: ${adjKdPct.toFixed(1)}% Knockdown @ ${data.target_dose_nM || 10} nM (Raw KD: ${rawKdPct.toFixed(1)}%, Penalty: -${totalPen.toFixed(1)}%) | pIC50: ${pic50Str} | IC50: ${ic50Str}">${scoreHtml}</td>
       <td>${deltaStr}</td>
-      <td style="display:flex;gap:4px;white-space:nowrap" onclick="event.stopPropagation()">
-        <button class="mini-btn" style="background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.4);color:#06b6d4;cursor:pointer" onclick="inspectVariant(this, '${r.sense}', '${r.antisense}', '${r.mod_symbol || ''}', '${r.mod_position || 0}', '${r.mod_strand || ''}', '${r.sense_mods || ''}', '${r.sense_positions || ''}', '${r.antisense_mods || ''}', '${r.antisense_positions || ''}', '${r.mod_positions || ''}')" title="View 3D Double Helix & Biophysics">🔍 3D View</button>
+      <td style="display:flex;gap:5px;white-space:nowrap" onclick="event.stopPropagation()">
+        <button class="mini-btn" style="background:rgba(0,229,191,0.12);border:1px solid rgba(0,229,191,0.35);color:var(--accent);cursor:pointer" onclick="inspectVariant(this, '${r.sense}', '${r.antisense}', '${r.mod_symbol || ''}', '${r.mod_position || 0}', '${r.mod_strand || ''}', '${r.sense_mods || ''}', '${r.sense_positions || ''}', '${r.antisense_mods || ''}', '${r.antisense_positions || ''}', '${r.mod_positions || ''}')" title="Inspect 3D Double Helix & Structural Biophysics">🔬 3D Inspector</button>
       </td>
     </tr>
     <tr class="expanded-detail" style="display:none">
@@ -2171,23 +2691,27 @@ function renderAutoMultiModResults(data) {
   document.getElementById('mm-results').innerHTML = `
     <div class="results-box">
       <div class="results-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-        <div>Top <strong>${displayResults.length}</strong> of <strong>${total}</strong> beam variants — Model <strong>${modelLabel(data.model)}</strong></div>
-        <button type="button" class="mini-btn" style="background:linear-gradient(135deg, rgba(34,211,196,0.18), rgba(139,127,214,0.18));color:var(--accent);border:1px solid var(--accent);padding:6px 14px;border-radius:6px;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:6px;" onclick="triggerTop5Analysis()" title="Synthesize Top 5 clinical leads with AI dossier">
+        <div>Top <strong>${displayResults.length}</strong> of <strong>${total}</strong> combinatorial beam candidates — Model <strong>${modelLabel(data.model)}</strong></div>
+        <button type="button" class="mini-btn" style="background:linear-gradient(135deg, rgba(0,229,191,0.2), rgba(99,102,241,0.2));color:var(--accent);border:1px solid var(--accent);padding:6px 14px;border-radius:6px;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:6px;" onclick="triggerTop5Analysis()" title="Synthesize Top 5 clinical leads with AI dossier">
           <span>🧬</span> AI Lead Progression (Top 5)
         </button>
       </div>
       ${parentBadge}
       ${data.parent_safety ? `
       <div style="padding:10px 18px;background:var(--surface2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;margin-bottom:12px;">
-        <span style="font-size:0.7rem;color:var(--muted);text-transform:uppercase;font-weight:600">Off-Target Safety (Parent)</span>
+        <span style="font-size:0.7rem;color:var(--muted-bright);text-transform:uppercase;font-weight:600">Off-Target Safety (Parent)</span>
         <span style="color:${data.parent_safety.isSafe ? '#34d399' : '#f87171'};font-weight:bold;font-size:0.85rem">${data.parent_safety.status} (${data.parent_safety.overallSafetyScore}%)</span>
       </div>` : ''}
       <div class="table-wrap">
         <table>
           <thead><tr>
-            <th>#</th><th>Modified Sense</th><th>Modified Antisense</th>
-            <th>Mod(s)</th><th>Chemistry</th>
-            <th>Knockdown (%) @ ${data.target_dose_nM || 10} nM</th><th>Δ Knockdown</th>
+            <th>#</th>
+            <th>Modified Sense Strand (5'→3')</th>
+            <th>Modified Antisense Strand (5'→3')</th>
+            <th>Modification Architecture</th>
+            <th>Chemistries</th>
+            <th>Knockdown Efficacy (%) @ ${data.target_dose_nM || 10} nM</th>
+            <th>Potency Gain (Δ%)</th>
             <th>Actions</th>
           </tr></thead>
           <tbody>${rows}</tbody>
@@ -2255,6 +2779,16 @@ document.addEventListener('mouseout', function(e) {
 
 // ─── MODS ─────────────────────────────────────────────────────────────────────
 let modsLoaded = false;
+
+function copyModSymbol(sym, el) {
+  navigator.clipboard.writeText(sym);
+  const hint = el.querySelector('.copy-hint');
+  if (hint) {
+    hint.innerHTML = '<span style="color:#34d399;font-weight:700">Copied! ✓</span>';
+    setTimeout(() => { hint.innerText = 'Click to copy 📋'; }, 1500);
+  }
+}
+
 async function loadMods() {
   if (modsLoaded) return;
   try {
@@ -2263,23 +2797,83 @@ async function loadMods() {
     const all = [...(data.canonical || []), ...(data.modifications || [])];
 
     const groups = {};
-    all.forEach(m => { (groups[m.type] = groups[m.type] || []).push(m); });
+    // Ensure priority order: fda_core, delivery, innovative, canonical
+    const typeOrder = ['fda_core', 'delivery', 'innovative', 'canonical'];
+    typeOrder.forEach(t => { groups[t] = []; });
+    all.forEach(m => { 
+      const t = m.type || 'innovative';
+      if (!groups[t]) groups[t] = [];
+      groups[t].push(m);
+    });
 
-    const sectionHtml = Object.entries(groups).map(([type, mods]) => `
-      <div style="margin-bottom:20px">
-        <div style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px">${type}</div>
-        <div class="mod-legend">
-          ${mods.map(m => `
-            <div class="mod-tag ${m.type}" title="${m.name}" onclick="navigator.clipboard.writeText('${m.symbol}');this.style.background='#1e3a2f'">
-              <strong>${m.symbol}</strong> — ${m.name}
-            </div>`).join('')}
-        </div>
-      </div>`).join('');
+    const GROUP_META = {
+      fda_core: {
+        title: '🛡️ FDA-Approved Clinical Core Chemistries (Patisiran / Givosiran / Vutrisiran Standard)',
+        desc: 'Approved nucleic acid modifications utilized in commercial clinical RNAi therapeutics. Confers high endonuclease resistance, metabolic stability, and human Ago2 cleavage compatibility.',
+        badge: 'Clinical Core',
+        color: 'var(--accent)'
+      },
+      delivery: {
+        title: '🎯 Targeted Delivery & Tissue-Specific Conjugates',
+        desc: 'Receptor-targeted and lipophilic conjugate ligands enabling extrahepatic or targeted organ biodistribution and receptor-mediated cellular endocytosis.',
+        badge: 'Conjugate Ligand',
+        color: '#f43f5e'
+      },
+      innovative: {
+        title: '⚡ High-Affinity, Bridged & Immune-Evading Chemistries',
+        desc: 'Conformationally locked nucleic acids (LNA/ENA), modified purines/pyrimidines, and abasic mimics for fine-tuning duplex thermal stability (Tm), target affinity, and immune evasion.',
+        badge: 'Innovation Tier',
+        color: '#818cf8'
+      },
+      canonical: {
+        title: '🧬 Canonical Unmodified Nucleotides',
+        desc: 'Native ribonucleotides and deoxyribonucleotides utilized as standard RNA sequence baseline.',
+        badge: 'Native RNA/DNA',
+        color: 'var(--green-bright)'
+      }
+    };
+
+    const sectionHtml = Object.entries(groups)
+      .filter(([, mods]) => mods.length > 0)
+      .map(([type, mods]) => {
+        const meta = GROUP_META[type] || {
+          title: type.toUpperCase(),
+          desc: 'Classified chemical modification category.',
+          badge: 'Chemistry',
+          color: 'var(--accent)'
+        };
+        return `
+        <div style="margin-bottom:28px;background:var(--surface);border:1px solid var(--border);border-top:2px solid ${meta.color};border-radius:var(--radius-lg);padding:22px 26px;box-shadow:0 4px 20px rgba(0,0,0,0.25)">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px;flex-wrap:wrap">
+            <h3 style="font-family:var(--font-display);font-size:0.98rem;color:var(--text-bright);font-weight:700">${meta.title}</h3>
+            <span style="font-size:0.68rem;padding:3px 10px;border-radius:12px;background:rgba(255,255,255,0.05);border:1px solid var(--border);color:${meta.color};font-weight:600">${mods.length} Chemistries</span>
+          </div>
+          <p style="font-size:0.78rem;color:var(--muted-bright);margin-bottom:16px;line-height:1.5">${meta.desc}</p>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(260px, 1fr));gap:12px">
+            ${mods.map(m => `
+              <div class="mod-card" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;display:flex;flex-direction:column;justify-content:space-between;gap:8px;transition:all 0.15s ease;cursor:pointer;"
+                   title="Click to copy modification symbol '${m.symbol}'"
+                   onmouseover="this.style.borderColor='var(--accent)';this.style.transform='translateY(-1px)'"
+                   onmouseout="this.style.borderColor='var(--border)';this.style.transform=''"
+                   onclick="copyModSymbol('${m.symbol}', this)">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+                  <span style="font-family:var(--font-mono);font-size:1.05rem;font-weight:700;color:var(--accent);background:rgba(0,229,191,0.1);border:1px solid rgba(0,229,191,0.3);padding:2px 10px;border-radius:6px">${m.symbol}</span>
+                  <span style="font-size:0.68rem;color:var(--muted-bright);text-transform:uppercase;letter-spacing:0.04em">${meta.badge}</span>
+                </div>
+                <div style="font-size:0.83rem;font-weight:600;color:var(--text-bright);line-height:1.3">${m.name}</div>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px;padding-top:6px;border-top:1px solid var(--border-subtle);font-size:0.72rem;color:var(--muted-bright)">
+                  <span>Symbol: <strong style="color:var(--accent);font-family:var(--font-mono)">${m.symbol}</strong></span>
+                  <span class="copy-hint" style="color:var(--muted-bright)">Click to copy 📋</span>
+                </div>
+              </div>`).join('')}
+          </div>
+        </div>`;
+      }).join('');
 
     document.getElementById('mods-content').innerHTML = sectionHtml;
     modsLoaded = true;
   } catch(e) {
-    document.getElementById('mods-content').innerHTML = `<div class="error-box">Failed to load: ${e.message}</div>`;
+    document.getElementById('mods-content').innerHTML = `<div class="error-box">Failed to load chemical catalog: ${e.message}</div>`;
   }
 }
 
@@ -2377,10 +2971,11 @@ async function loadMods() {
     align-items:center; justify-content:center;
     animation: fadeInBg 0.2s ease;">
     <div style="
-      background: linear-gradient(135deg, #1a1f2e 0%, #0f1419 100%);
-      border: 1px solid rgba(99,102,241,0.35);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-top: 2px solid var(--accent2);
       border-radius: 16px;
-      box-shadow: 0 25px 60px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.05);
+      box-shadow: 0 25px 60px rgba(0,0,0,0.7), 0 0 40px rgba(99,102,241,0.2);
       width: 520px; max-width: 95vw; max-height: 85vh;
       overflow: hidden; display: flex; flex-direction: column;
       animation: slideUp 0.25s cubic-bezier(0.34,1.56,0.64,1);">
@@ -2388,27 +2983,27 @@ async function loadMods() {
       <!-- Header -->
       <div style="
         display:flex; align-items:center; justify-content:space-between;
-        padding: 20px 24px 16px;
-        border-bottom: 1px solid rgba(255,255,255,0.08);
-        background: rgba(99,102,241,0.08);">
+        padding: 18px 24px 16px;
+        border-bottom: 1px solid var(--border);
+        background: var(--surface2);">
         <div style="display:flex; align-items:center; gap:12px;">
           <div style="
             width:36px; height:36px; border-radius:10px;
-            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            background: linear-gradient(135deg, var(--accent2), #8b5cf6);
             display:flex; align-items:center; justify-content:center;
-            font-size:1.1rem;" id="penaltyModalIcon">⚗️</div>
+            font-size:1.1rem; color:#fff;" id="penaltyModalIcon">⚗️</div>
           <div>
-            <div id="penaltyModalTitle" style="font-size:1.1rem; font-weight:700; color:#fff; letter-spacing:-0.01em;"></div>
-            <div style="font-size:0.72rem; color:#6366f1; font-weight:500; margin-top:2px;">Biophysical Constraint Analysis</div>
+            <div id="penaltyModalTitle" style="font-size:1.05rem; font-weight:700; color:var(--text-bright); font-family:var(--font-display); letter-spacing:-0.01em;"></div>
+            <div style="font-size:0.72rem; color:#a5b4fc; font-weight:500; margin-top:2px;">Biophysical Constraint &amp; Penalties Audit</div>
           </div>
         </div>
         <button onclick="closePenaltyModal()" style="
-          width:32px; height:32px; border-radius:8px; border:1px solid rgba(255,255,255,0.12);
-          background:rgba(255,255,255,0.05); color:#9ca3af; font-size:1.2rem;
+          width:32px; height:32px; border-radius:8px; border:1px solid rgba(244,63,94,0.3);
+          background:rgba(244,63,94,0.1); color:var(--red); font-size:1.2rem;
           cursor:pointer; display:flex; align-items:center; justify-content:center;
           transition: all 0.15s;"
-          onmouseover="this.style.background='rgba(239,68,68,0.2)'; this.style.color='#ef4444'; this.style.borderColor='rgba(239,68,68,0.4)'"
-          onmouseout="this.style.background='rgba(255,255,255,0.05)'; this.style.color='#9ca3af'; this.style.borderColor='rgba(255,255,255,0.12)'">
+          onmouseover="this.style.background='rgba(244,63,94,0.25)'"
+          onmouseout="this.style.background='rgba(244,63,94,0.1)'">
           &times;
         </button>
       </div>
@@ -2416,7 +3011,7 @@ async function loadMods() {
       <!-- Body -->
       <div id="penaltyModalBody" style="
         overflow-y:auto; padding:20px 24px 24px;
-        font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size:0.88rem;"></div>
+        font-family: var(--font-body); font-size:0.86rem;"></div>
     </div>
   </div>
 
@@ -2426,22 +3021,22 @@ async function loadMods() {
     background: rgba(5, 8, 16, 0.85); backdrop-filter: blur(8px);
     align-items:center; justify-content:center; animation: fadeInBg 0.2s ease;">
     <div style="
-      background: #0f172a; border: 1px solid rgba(6, 182, 212, 0.4);
-      box-shadow: 0 0 40px rgba(6, 182, 212, 0.25); border-radius: 16px;
+      background: var(--surface); border: 1px solid var(--border); border-top: 2px solid var(--accent);
+      box-shadow: 0 0 50px rgba(0, 229, 191, 0.2), 0 24px 60px rgba(0, 0, 0, 0.75); border-radius: 16px;
       width: 92%; max-width: 900px; max-height: 90vh; display:flex; flex-direction:column;
       overflow:hidden; animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);">
       
       <!-- Modal Header -->
-      <div style="display:flex; align-items:center; justify-content:space-between; padding: 16px 24px; border-bottom: 1px solid rgba(255,255,255,0.08); background: rgba(6, 182, 212, 0.1);">
+      <div style="display:flex; align-items:center; justify-content:space-between; padding: 16px 24px; border-bottom: 1px solid var(--border); background: var(--surface2);">
         <div style="display:flex; align-items:center; gap:12px;">
-          <div style="width:36px; height:36px; border-radius:10px; background: linear-gradient(135deg, #06b6d4, #3b82f6); display:flex; align-items:center; justify-content:center; font-size:1.1rem;">🧬</div>
+          <div style="width:36px; height:36px; border-radius:10px; background: linear-gradient(135deg, var(--accent), var(--accent2)); display:flex; align-items:center; justify-content:center; font-size:1.1rem; color:#03140e;">🧬</div>
           <div>
-            <div id="inspectorModalTitle" style="font-size:1.05rem; font-weight:700; color:#fff;">3D Molecular Structure &amp; Biophysics Inspector</div>
-            <div style="font-size:0.72rem; color:#06b6d4; font-weight:500; margin-top:2px;">A-Form RNA Double Helix &amp; Structural Thermodynamics</div>
+            <div id="inspectorModalTitle" style="font-size:1.05rem; font-weight:700; color:var(--text-bright); font-family:var(--font-display);">3D Molecular Structure &amp; Biophysics Inspector</div>
+            <div style="font-size:0.72rem; color:var(--accent); font-weight:500; margin-top:2px;">A-Form RNA Double Helix Conformation &amp; Thermodynamic Profile</div>
           </div>
         </div>
         <div style="display:flex; gap:8px; align-items:center;">
-          <button onclick="close3DInspectorModal()" style="padding:6px 14px; border-radius:8px; border:1px solid rgba(239,68,68,0.4); background:rgba(239,68,68,0.15); color:#ef4444; font-size:0.85rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px;" onmouseover="this.style.background='rgba(239,68,68,0.3)'" onmouseout="this.style.background='rgba(239,68,68,0.15)'">
+          <button onclick="close3DInspectorModal()" style="padding:6px 14px; border-radius:8px; border:1px solid rgba(244,63,94,0.4); background:rgba(244,63,94,0.12); color:var(--red); font-size:0.82rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px; transition:all 0.15s;" onmouseover="this.style.background='rgba(244,63,94,0.25)'" onmouseout="this.style.background='rgba(244,63,94,0.12)'">
             <span>✖</span> <span>Close</span>
           </button>
         </div>
@@ -2451,40 +3046,40 @@ async function loadMods() {
       <div style="overflow-y:auto; padding:20px 24px; display:flex; flex-direction:column; gap:20px;">
         
         <!-- Top Section: 3D Duplex Visualizer (Full Width) -->
-        <div style="background:#020617; border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:14px; display:flex; flex-direction:column;">
-          <div style="font-size:0.75rem; font-weight:700; color:#38bdf8; text-transform:uppercase; margin-bottom:8px; display:flex; align-items:center; justify-content:space-between;">
+        <div style="background:var(--surface2); border:1px solid var(--border); border-radius:12px; padding:16px; display:flex; flex-direction:column;">
+          <div style="font-size:0.75rem; font-weight:700; color:var(--accent-sky); text-transform:uppercase; margin-bottom:8px; display:flex; align-items:center; justify-content:space-between;">
             <span>🔮 3D Molecular Duplex (A-Form Helix)</span>
-            <button onclick="downloadPDBFile()" style="padding:4px 10px; background:linear-gradient(135deg,#06b6d4,#3b82f6); color:#fff; border:none; border-radius:6px; font-size:0.7rem; font-weight:700; cursor:pointer;">
+            <button onclick="downloadPDBFile()" style="padding:5px 12px; background:linear-gradient(135deg,var(--accent),var(--accent-dim)); color:#03140e; border:none; border-radius:6px; font-size:0.72rem; font-weight:700; cursor:pointer; box-shadow:0 0 10px rgba(0,229,191,0.25);">
               📥 Download PDB File
             </button>
           </div>
-          <div id="3dmol-canvas" style="width:100%; height:320px; position:relative; border-radius:8px; overflow:hidden; background:#000;"></div>
-          <div style="font-size:0.65rem; color:#64748b; margin-top:8px;">Drag to rotate 360° · Scroll to zoom · Green = 2'-OMe · Cyan = 2'-F · Orange = PS · Amber = 2'-MOE · Purple = LNA</div>
+          <div id="3dmol-canvas" style="width:100%; height:320px; position:relative; border-radius:8px; overflow:hidden; background:#040810; border:1px solid var(--border-subtle);"></div>
+          <div style="font-size:0.68rem; color:var(--muted-bright); margin-top:8px;">Drag to rotate 360° · Scroll to zoom · Green = 2'-OMe · Cyan = 2'-F · Orange = PS · Amber = 2'-MOE · Purple = LNA</div>
         </div>
 
         <!-- Middle Section: Deep Structural Analysis & Modification Breakdown -->
-        <div id="inspector-analysis-panel" style="background:#020617; border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:14px;">
-          <div style="font-size:0.75rem; font-weight:700; color:#38bdf8; text-transform:uppercase; margin-bottom:8px;">
+        <div id="inspector-analysis-panel" style="background:var(--surface2); border:1px solid var(--border); border-radius:12px; padding:16px;">
+          <div style="font-size:0.75rem; font-weight:700; color:var(--accent-sky); text-transform:uppercase; margin-bottom:8px;">
             🧬 Deep Structural &amp; Chemical Modification Breakdown
           </div>
-          <div id="inspector-analysis-content" style="font-size:0.78rem; color:#cbd5e1; line-height:1.5;"></div>
+          <div id="inspector-analysis-content" style="font-size:0.80rem; color:var(--text); line-height:1.55;"></div>
         </div>
 
         <!-- Middle-Bottom Section: Off-Target Transcriptome & Immunological Safety Audit -->
-        <div id="inspector-offtarget-panel" style="background:#020617; border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:14px;">
-          <div style="font-size:0.75rem; font-weight:700; color:#38bdf8; text-transform:uppercase; margin-bottom:8px; display:flex; align-items:center; justify-content:space-between;">
+        <div id="inspector-offtarget-panel" style="background:var(--surface2); border:1px solid var(--border); border-radius:12px; padding:16px;">
+          <div style="font-size:0.75rem; font-weight:700; color:var(--accent-sky); text-transform:uppercase; margin-bottom:8px; display:flex; align-items:center; justify-content:space-between;">
             <span>🛡️ Human Transcriptome Off-Target &amp; Immunological Safety Audit</span>
-            <span id="inspector-offtarget-badge" style="font-size:0.7rem; padding:2px 8px; border-radius:12px; font-weight:700; background:rgba(255,255,255,0.08); color:var(--muted)">Scanning...</span>
+            <span id="inspector-offtarget-badge" style="font-size:0.7rem; padding:3px 10px; border-radius:12px; font-weight:700; background:rgba(255,255,255,0.06); color:var(--muted-bright)">Scanning...</span>
           </div>
-          <div id="inspector-offtarget-content" style="font-size:0.78rem; color:#cbd5e1; line-height:1.5;"></div>
+          <div id="inspector-offtarget-content" style="font-size:0.80rem; color:var(--text); line-height:1.55;"></div>
         </div>
 
         <!-- Bottom Section: Local Thermodynamic Unfolding Curve -->
-        <div style="background:#020617; border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:14px;">
-          <div style="font-size:0.75rem; font-weight:700; color:#34d399; text-transform:uppercase; margin-bottom:10px;">
+        <div style="background:var(--surface2); border:1px solid var(--border); border-radius:12px; padding:16px;">
+          <div style="font-size:0.75rem; font-weight:700; color:var(--green-bright); text-transform:uppercase; margin-bottom:10px;">
             📊 Local Thermodynamic Stability Curve (&Delta;G<sub>i</sub> per dinucleotide position 1–20)
           </div>
-          <div id="inspector-thermo-bars" style="display:flex; gap:6px; align-items:flex-end; height:70px; padding-top:10px; border-bottom:1px solid rgba(255,255,255,0.1);"></div>
+          <div id="inspector-thermo-bars" style="display:flex; gap:6px; align-items:flex-end; height:70px; padding-top:10px; border-bottom:1px solid var(--border);"></div>
         </div>
 
       </div>

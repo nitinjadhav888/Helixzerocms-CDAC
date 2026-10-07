@@ -63,8 +63,8 @@ When presenting HelixZero to your HOD and Mentors:
 ### Visuals
 - 4-Card Architecture Layout:
   1. *Pillar 1: Sequence Screening* (LightGBM, 214 features, seed fluidity, terminal asymmetry $\Delta\Delta G$).
-  2. *Pillar 2: Chemical Ontology* (Orthogonal 6-attribute slot model, 577-D feature space, cleavage-sparing core).
-  3. *Pillar 3: Dose Potency Curve* (CatBoost hierarchical $pIC_{50}$ regressor, 4-parameter Hill equation).
+  2. *Pillar 2: Chemical Ontology* (Orthogonal 6-attribute slot model, 517-D feature space, cleavage-sparing core).
+  3. *Pillar 3: Single Unified Dose-Aware Engine* (CatBoost 517-D regressor with native dose conditioning and closed-form Hill derivation).
   4. *Pillar 4: 3D Ago2 Docking* (PDB 4W5N, MID anchor $\le 4.5$ Å, PAZ pocket, PIWI catalytic proxy $\le 5.5$ Å).
 
 ### Verbal Spoken Script (Say This)
@@ -72,9 +72,9 @@ When presenting HelixZero to your HOD and Mentors:
 >
 > **Pillar 1 is Canonical Sequence Screening**, where a 214-dimensional LightGBM model prioritizes target mRNA accessibility, seed-region thermodynamic fluidity (positions 2–7), and asymmetry rules.
 >
-> **Pillar 2 is our Multi-Modal Chemical Ontology**, which represents every nucleotide as an orthogonal 6-attribute tuple: base identity, sugar chemistry, backbone linkage, base modification, terminal group, and ligand conjugate.
+> **Pillar 2 is our Multi-Modal Chemical Ontology**, which represents every nucleotide as an orthogonal tuple: base identity, sugar chemistry, backbone linkage, terminal group, and ligand conjugate.
 >
-> **Pillar 3 is Hierarchical Dose-Potency Modeling**, where we predict intrinsic molecular potency ($pIC_{50}$) independently from the experimental assay concentration.
+> **Pillar 3 is our Single Unified Dose-Aware Potency Engine**, where a 517-dimensional CatBoost model natively integrates positional chemistries, RNA-FM foundation embeddings, thermodynamics, and assay dose within a single gradient-boosted decision forest, eliminating cascading two-stage variance.
 >
 > **And Pillar 4 is 3D Argonaute-2 Structural Docking**. Drawing inspiration from the structural screening workflows and docking platforms developed in our C-DAC lab—such as **TANGO and PARAM-DOCK**—we project prioritized candidates into crystallographic human Ago2 (PDB 4W5N) to verify pocket accommodation and catalytic clearances before any molecule is synthesized. Each pillar validates a separate biological hypothesis."
 
@@ -149,19 +149,20 @@ When presenting HelixZero to your HOD and Mentors:
 
 ---
 
-## SLIDE 7: Hierarchical Potency–Response Modeling & Hill Curve Estimation
+## SLIDE 7: Single Unified Dose-Aware Potency Engine & Dynamic Pharmacokinetics
 
 ### Visuals
-- Flowchart of the Two-Stage CatBoost Engine:
-  - Stage 1: CatBoost Regressor predicts intrinsic potency ($pIC_{50}$).
-  - Stage 2: 4-Parameter Hill Equation predicts concentration-dependent knockdown at dose $C$:
-    $$y(C) = y_{\min} + \frac{y_{\max} - y_{\min}}{1 + 10^{(\log_{10} IC_{50} - \log_{10} C) \cdot h}}$$
-  - Comparison plots: Flat single-label model vs. Dose-conditioned Hill response.
+- Flowchart of the Single Unified CatBoost Engine:
+  - Input: 517-D continuous feature vector (444-D chemical slots, 64-D RNA-FM embeddings, 5-D ViennaRNA, 4-D dynamic covariates).
+  - Regressor: Single CatBoost Regressor conditioned on $\log_{10}(\text{Dose\_nM})$ directly predicting % knockdown ($0.0 - 100.0\%$).
+  - Closed-Form Derivations: Analytic derivation of intrinsic potency without compounding error:
+    $$IC_{50} = C \times \left(\frac{100 - \text{KD}}{\text{KD}}\right), \quad pIC_{50} = 9.0 - \log_{10}(IC_{50})$$
+  - Comparison plots: Flat dose-blind model vs. Single Unified Dose-Conditioned response.
 
 ### Verbal Spoken Script (Say This)
 > "One of the major scientific contributions in HelixZero is how we handle experimental assay concentration. In public datasets like CMsiRNAdb, knockdown is measured across a wide range of doses—from 0.001 nM to 100 nM. If you train a model directly on percentage knockdown without conditioning on concentration, the model becomes fatally confused: it cannot tell whether a 90% knockdown is due to an exceptionally potent molecule at 0.1 nM or an average molecule flooded at 100 nM.
 >
-> HelixZero resolves this through a **two-stage hierarchical regression engine**. First, Stage 1 predicts the intrinsic thermodynamic potency, expressed as $pIC_{50} = -\log_{10}(IC_{50})$. Then, Stage 2 couples this predicted potency with the user's target concentration $C$ via an audited four-parameter Hill sigmoid equation.
+> HelixZero resolves this through our **Single Unified Dose-Aware CatBoost Architecture**. Instead of an error-prone two-stage cascade that splits the problem and amplifies variance, our model ingests the continuous 517-dimensional vector—including positional chemistries, RNA-FM foundation embeddings, thermodynamics, and the exact assay dose $\log_{10}(C)$—within a single unified gradient-boosted decision forest. From the predicted knockdown, the engine analytically derives the intrinsic thermodynamic $IC_{50}$ and $pIC_{50}$ via closed-form Hill inversion.
 >
 > This enables researchers to simulate full in vitro concentration-response curves computationally, identifying which candidates maintain therapeutic efficacy at low nanomolar doses while avoiding off-target toxicity at higher exposures."
 
@@ -226,18 +227,18 @@ When presenting HelixZero to your HOD and Mentors:
   - *Takayuki Benchmark ($N=702$)*: LightGBM achieves Pearson $r = 0.8788$, Spearman $\rho = 0.8734$.
   - *Mixset Benchmark ($N=472$)*: LightGBM achieves Pearson $r = 0.8291$, Spearman $\rho = 0.8093$.
   - *Huesken Benchmark ($N=2,361$)*: LightGBM achieves Pearson $r = 0.8044$, Spearman $\rho = 0.8065$, MAE $= 6.99\%$.
-  - *CMsiRNAdb Homogeneous ($N=472$)*: CatBoost Model B v4 achieves $r = 0.7401$, $\rho = 0.7540$.
-  - *CMsiRNAdb Heterogeneous ($N=2,576$)*: CatBoost Model B v4 achieves $r = 0.6217$, $\rho = 0.6049$.
-  - *Master Zero-Leakage Test Split ($N=7,674$ across 1,708 core sequences)*: Pearson $r = 0.8187$, Spearman $\rho = 0.8154$, ROC-AUC $= 0.9283$, $R^2 = 0.6655$.
+  - *5-Fold Sequence GroupKFold CV ($N=17,761$)*: Single Unified CatBoost achieves $r = 0.6776$, $\rho = 0.6752$, ROC-AUC $= 0.8524$.
+  - *Homogeneous Multi-Dose Held-Out ($N=472$)*: Single Unified CatBoost achieves $r = 0.8359$, $\rho = 0.8558$, ROC-AUC $= 0.9312$.
+  - *Heterogeneous Multi-Dose Held-Out ($N=1,796$)*: Single Unified CatBoost achieves $r = 0.8334$, $\rho = 0.8383$, ROC-AUC $= 0.9291$.
 
 ### Verbal Spoken Script (Say This)
-> "Let us examine the empirical results. Slide 10 presents HelixZero's verified live performance across independent gold-standard benchmarks maintained in our `final_benchmarks/` repository.
+> "Let us examine the empirical results. Slide 10 presents HelixZero's verified live performance across independent gold-standard benchmarks maintained strictly in our authoritative `final_benchmarks/` directory.
 >
 > On canonical unmodified siRNA collections—including Takayuki ($r = 0.8788$), Mixset ($r = 0.8291$), and Huesken ($r = 0.8044$)—our sequence-screening LightGBM model achieves top-tier Pearson correlations above $0.80$ to $0.87$, outperforming conventional linear scoring tools.
 >
-> More importantly, on chemically modified duplexes where conventional algorithms fail, HelixZero's chemistry-aware CatBoost model achieves a Pearson correlation of **$0.7401$ on homogeneous modifications** and **$0.6217$ on complex, heterogeneous clinical chemistries**.
+> More importantly, on chemically modified duplexes where conventional algorithms fail, HelixZero's chemistry-aware Unified CatBoost model achieves a Pearson correlation of **$0.8359$ on homogeneous multi-dose screens** and **$0.8334$ on heterogeneous clinical chemistries** across 1,796 held-out assays.
 >
-> Across the strictly held-out test split of 7,674 assays spanning 1,708 unique core sequences with zero sequence overlap, the hierarchical engine achieves a **Pearson $r$ of $0.8187$ and a Spearman rank correlation $\rho$ of $0.8154$**, with an $R^2$ of $0.6655$ and ROC-AUC of $0.9283$. These results confirm that our orthogonal chemical representation successfully learns generalized structure-activity relationships."
+> Furthermore, across 5-fold cross-validation partitioned strictly by unique core sequence with zero sequence identity leakage ($N = 17,761$), the unified engine achieves a **Pearson $r$ of $0.6776$ and a Spearman rank correlation $\rho$ of $0.6752$**, confirming robust out-of-distribution generalization without data leakage."
 
 
 ---
@@ -346,7 +347,7 @@ When presenting HelixZero to your HOD and Mentors:
 ### Verbal Spoken Script (Say This)
 > "In conclusion, HelixZero represents a comprehensive, physically grounded, and clinically validated platform for therapeutic siRNA design. By integrating:
 > 1. Orthogonal multi-modal chemical ontologies,
-> 2. Two-stage hierarchical potency-dose modeling, and
+> 2. Single Unified Dose-Aware machine learning with live RNA-FM foundation embeddings, and
 > 3. 3D Argonaute-2 structural pocket constraints,
 >
 > HelixZero bridges the long-standing gap between sequence bioinformatics and therapeutic oligonucleotide pharmacology.

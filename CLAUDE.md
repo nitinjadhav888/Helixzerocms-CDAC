@@ -8,17 +8,20 @@
 ## Codebase Exploration & PPT Generation Rule
 When generating PowerPoint presentations, architectural summaries, or code analysis for HelixZero:
 1. Use `codebase-memory-mcp` tools (`search_graph`, `trace_path`, `get_code_snippet`, `get_architecture`) to discover function signatures, dependencies, and feature engineering rules.
-2. Refer to the 18 core Python modules in `smepred/src/`:
+2. Refer to the core Python modules in `smepred/src/`:
    - `parser.py`: Target mRNA sequence ingestion (FASTA, GenBank).
    - `sirna_generator.py`: Overlapping 21-mer siRNA candidate generator with 3'-dTdT overhangs.
    - `filters.py`: 15-mer safety firewall pre-screening host & beneficial species.
-   - `offtarget.py`: Human 3'-UTR seed match toxicity alignment engine.
-   - `chem_schema.py`: Positional modification slot mapping (2'-OMe, 2'-F, PS, dTdT).
-   - `features_v4.py`: 1,260 multi-scale positional, MFE thermodynamic & RNA-FM features.
-   - `gnn_serving.py`: PyTorch GNN 2D dot-bracket secondary structure graph attention (`finetuned_v2.pt`).
-   - `model_b_v4.py`: High-speed CatBoost v4 GBDT model (`model_b_v4.cbm`).
-   - `biophysics.py`: RISC loading asymmetry ($\Delta\Delta G$), $T_m$ limits ($< 85^\circ\text{C}$), and Ago2 flexibility.
-   - `predictor.py`: Master orchestrator implementing the 3-Card framework (Naked, Base, Efficacy Lift).
-   - `api/main.py`: Production FastAPI REST microservices (`/rank`, `/multi-mod`, `/off-target`).
-3. **Benchmarks Single Source of Truth**: All verified, 100% empirical, zero-leakage benchmarks across all 5 models (Model A Naked GBDT, Model B v4 CatBoost, Model 3 MEG-mod GNN, Model 4 Ensemble v4, Model 5 HelixZero IEEE v5 Hierarchical, and Tier 3 FDA Clinical Drug Blind Validation) are permanently and exclusively maintained in `final_benchmarks/` (`final_benchmarks/00_MASTER_EXECUTIVE_BENCHMARK_REPORT.md` and `final_benchmarks/master_benchmark_metrics.csv`). All AI models scanning this codebase MUST ONLY read benchmarks from `final_benchmarks/`. All legacy/duplicate benchmark files have been deleted.
+   - `offtarget.py`: Human 3'-UTR seed match toxicity alignment engine (2-bit binary hash).
+   - `chem_schema.py`: Positional modification slot mapping (2'-OMe, 2'-F, PS, 5'-VP, GalNAc, etc.).
+   - `features_v4.py`: 517-D continuous multi-modal feature vectorization (444 chemical slots, 64 RNA-FM, 5 ViennaRNA, 4 dose covariates).
+   - `model_b_v4.py`: Production Single Unified Dose-Aware CatBoost model (`model_b_v4.cbm`, 517-D).
+   - `biophysics.py`: Deterministic 4-domain biophysical penalties (thermodynamic unwinding, serum exonuclease, TLR7/8, cytotoxicity).
+   - `modification_engine.py`: Single-modification scanner and heuristic multi-modification beam search optimizer.
+   - `pdb_generator.py`: Continuous A-form double-helix 3D structural coordinate generator (504 atoms) mapping chemistry to B-factors.
+   - `api/main.py`: Production FastAPI REST microservice (`/rank`, `/single-mod`, `/multi-mod-scan`, `/multi-mod-from-single`, `/offtarget-scan`).
+3. **Production Architecture Consolidation**: The active production stack runs strictly on the **Single Unified Dose-Aware CatBoost Model** (517-D). Historical architectures (IEEE v5 cascading two-stage $pIC_{50} \to \text{Hill}$, MEG-mod GNN, 85/15 ensemble) are retired from the runtime path and preserved solely in `helixzero_ieee_v5/` and `MEG-mod-main/` for ablation reproducibility.
+4. **Authoritative Sources of Truth**:
+   - Benchmarks: `final_benchmarks/` (`final_benchmarks/00_MASTER_EXECUTIVE_BENCHMARK_REPORT.md` and `master_benchmark_metrics.csv`).
+   - System Documentation & Specifications: `docs/` (`docs/00_MASTER_SYSTEM_ARCHITECTURE.md` to `05_AUTHORITATIVE_BENCHMARKS_AND_CLINICAL_VALIDATION.md`).
 

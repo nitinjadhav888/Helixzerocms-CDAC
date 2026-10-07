@@ -80,7 +80,7 @@ In this foundational 2019 study on antisense gapmer-RNA duplexes, molecular dyna
 #### Design Principle: Avoid Monolithic Collapse
 * **Decoupled Responsibilities:** Whole-transcriptome sequence filtering (< 1 ms) is completely decoupled from heavy chemical potency evaluation and dose-response modeling.
 * **Independent Auditing:** Each tier can be unit-tested and calibrated against biological gold standards independently.
-* **Pluggable Model Backends:** Fast switching between CatBoost, GNN, Ensemble, and IEEE v5 via the central model registry.
+* **Production Consolidation:** Standardized on the Single Unified Dose-Aware CatBoost Regressor (517-D) for production stability and sub-10ms latency, retiring legacy GNN and two-stage cascades.
 
 ### Spoken Talk Track (Presenter Notes)
 > "Slide 3 presents the overall system topology. Instead of a monolithic black-box neural net that tries to predict everything at once, HelixZero decouples the software into five distinct tiers: Tier 1 handles sequence ingestion and sliding window; Tier 2 extracts our 517-D multi-modal signature; Tier 3 runs our gradient-boosted machine learning engines—Model A for naked sequence screening and our retrained Single Unified Dose-Aware CatBoost model for chemically modified duplexes; Tier 4 enforces biophysical and safety guardrails; and Tier 5 performs combinatorial beam search and Pareto-TOPSIS ranking."

@@ -40,8 +40,11 @@ HelixZero-CMS/
 │   ├── modification_codes.json # Nomenclature library mapping chemical moieties
 │   └── human_transcriptome.fasta # Transcriptomic baseline for safety scans
 │
+├── final_benchmarks/           # Authoritative Single Source of Truth for verified empirical benchmarks
+├── docs/                       # Authoritative System Architecture & Engineering Specifications
+├── Paper/                      # Scientific presentation decks, talk tracks, and manuscripts
 ├── app.html                    # Single-Page Application (SPA) frontend interface
-└── docs/                       # Auto-generated Clinical Safety Certificates
+└── Dockerfile                  # Production containerization specification
 ```
 
 ## Scientific Logic & Validation
@@ -60,18 +63,18 @@ This framework enforces rigorous scientific heuristics based on modern siRNA lit
 
 1.  **Install Requirements:**
     ```bash
-    pip install fastapi uvicorn pydantic pandas numpy lightgbm joblib
+    pip install fastapi uvicorn pydantic pandas numpy lightgbm catboost joblib
     ```
 
 2.  **Acquire Transcriptome Baseline:**
     Before utilizing the off-target module, download the reference transcriptome:
     ```bash
-    python src/download_transcriptome.py
+    python smepred/src/download_transcriptome.py
     ```
 
 3.  **Start the REST API:**
     ```bash
-    uvicorn api.main:app --reload --port 8000
+    uvicorn smepred.api.main:app --reload --port 8000
     ```
     *The Single Page Application is served automatically at `http://localhost:8000/`.*
 
@@ -84,7 +87,7 @@ HelixZero is free and open-source software for research, academic, and commercia
 ### Citation
 ```bibtex
 @article{jadhav2026helixzero,
-  title={HelixZero: Hierarchical, Chemistry-Aware Machine Learning for siRNA Potency Prediction and Modification Design},
+  title={HelixZero: Unified, Chemistry-Aware Machine Learning for siRNA Potency Prediction and Modification Design},
   author={Jadhav, Nitin and C-DAC BioComputing Consortium},
   journal={bioRxiv preprint},
   year={2026},
