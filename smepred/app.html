@@ -424,24 +424,68 @@
   }
   .table-wrap {
     overflow-x: auto;
-    max-height: 520px;
+    max-height: 540px;
     overflow-y: auto;
+    position: relative;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 210, 180, 0.6) rgba(15, 23, 42, 0.9);
   }
+  .table-wrap::-webkit-scrollbar {
+    height: 8px;
+    width: 8px;
+  }
+  .table-wrap::-webkit-scrollbar-track {
+    background: rgba(10, 15, 29, 0.95);
+    border-radius: 4px;
+  }
+  .table-wrap::-webkit-scrollbar-thumb {
+    background: linear-gradient(90deg, #00d2b4, #6366f1);
+    border-radius: 4px;
+  }
+  .table-wrap::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(90deg, #34d399, #818cf8);
+  }
+
+  /* Pinned / Sticky Actions Column — Stays fixed on the right on any display width */
+  .table-wrap table thead th:last-child {
+    position: sticky;
+    top: 0;
+    right: 0;
+    z-index: 10;
+    background: #111a30 !important;
+    border-left: 1px solid rgba(99, 102, 241, 0.45);
+    box-shadow: -8px 0 16px rgba(0, 0, 0, 0.65);
+    text-align: center;
+  }
+  .table-wrap table tbody tr:not(.expanded-detail) > td:last-child {
+    position: sticky;
+    right: 0;
+    z-index: 5;
+    background: #090e1c !important;
+    border-left: 1px solid rgba(99, 102, 241, 0.35);
+    box-shadow: -8px 0 16px rgba(0, 0, 0, 0.65);
+  }
+  .table-wrap table tbody tr:not(.expanded-detail):hover > td:last-child {
+    background: #141e38 !important;
+  }
+
   table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.78rem;
+    font-size: 0.77rem;
   }
   thead th {
     background: var(--surface2);
-    padding: 11px 14px;
+    padding: 10px 12px;
     text-align: left;
     color: var(--muted-bright);
     font-weight: 600;
     font-family: var(--font-body);
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    font-size: 0.67rem;
+    font-size: 0.66rem;
     position: sticky;
     top: 0;
     z-index: 2;
@@ -454,9 +498,9 @@
   }
   tbody tr:hover { background: rgba(0, 210, 180, 0.025); }
   tbody td {
-    padding: 9px 14px;
+    padding: 8px 12px;
     font-family: var(--font-mono);
-    font-size: 0.76rem;
+    font-size: 0.75rem;
   }
 
   /* ── Score Bars ── */
@@ -521,26 +565,6 @@
   .domain-cds  { background: rgba(165, 180, 252, 0.09); color: #a5b4fc; border: 1px solid rgba(165, 180, 252, 0.22); }
   .domain-3utr { background: rgba(244, 114, 182, 0.09); color: #f472b6; border: 1px solid rgba(244, 114, 182, 0.22); }
 
-  /* ── Use Button ── */
-  .use-btn {
-    background: rgba(0, 210, 180, 0.08);
-    border: 1px solid rgba(0, 210, 180, 0.25);
-    color: var(--accent);
-    padding: 5px 12px;
-    border-radius: var(--radius-sm);
-    font-size: 0.72rem;
-    font-weight: 600;
-    font-family: var(--font-body);
-    cursor: pointer;
-    white-space: nowrap;
-    transition: all 0.15s var(--ease);
-  }
-  .use-btn:hover {
-    background: var(--accent);
-    color: #04140f;
-    border-color: var(--accent);
-  }
-
   /* ════════════════════════════════════════════════════════════════════
      SCORE BREAKDOWN TOOLTIP
      ════════════════════════════════════════════════════════════════════ */
@@ -597,7 +621,6 @@
     border-top: 1px solid var(--border-subtle);
     padding: 18px 22px;
   }
-  .expanded-detail.open { display: table-row; }
   .expanded-detail .seq-view {
     display: flex;
     flex-direction: column;
@@ -664,7 +687,7 @@
     border: 1px solid var(--border-subtle);
   }
 
-  /* ── Confidence Badge ── */
+  /* ── Confidence & Evidence Badges ── */
   .conf-badge {
     display: inline-flex;
     align-items: center;
@@ -676,15 +699,67 @@
     letter-spacing: 0.02em;
     font-family: var(--font-body);
   }
-  .conf-high {
-    background: rgba(16, 185, 129, 0.09);
-    color: #34d399;
-    border: 1px solid rgba(16, 185, 129, 0.22);
+  .conf-tier0 {
+    background: rgba(0, 229, 191, 0.1);
+    color: #00e5bf;
+    border: 1px solid rgba(0, 229, 191, 0.3);
   }
-  .conf-novel {
-    background: rgba(240, 192, 96, 0.09);
-    color: #f0c060;
-    border: 1px solid rgba(240, 192, 96, 0.22);
+  .conf-tier1 {
+    background: rgba(99, 102, 241, 0.12);
+    color: #a5b4fc;
+    border: 1px solid rgba(99, 102, 241, 0.3);
+  }
+  .conf-tier2 {
+    background: rgba(245, 158, 11, 0.1);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.3);
+  }
+  .cost-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.62rem;
+    font-weight: 700;
+    font-family: var(--font-mono);
+    letter-spacing: 0.03em;
+  }
+  .cost-std {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--muted-bright);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+  }
+  .cost-spec {
+    background: rgba(99, 102, 241, 0.1);
+    color: #818cf8;
+    border: 1px solid rgba(99, 102, 241, 0.25);
+  }
+  .cost-exotic {
+    background: rgba(244, 63, 94, 0.1);
+    color: #f43f5e;
+    border: 1px solid rgba(244, 63, 94, 0.25);
+  }
+  .export-btn {
+    background: linear-gradient(135deg, rgba(0, 229, 191, 0.15), rgba(99, 102, 241, 0.18));
+    color: #00e5bf;
+    border: 1px solid rgba(0, 229, 191, 0.4);
+    border-radius: 6px;
+    padding: 6px 14px;
+    font-size: 0.74rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 0 10px rgba(0, 229, 191, 0.15);
+  }
+  .export-btn:hover {
+    background: linear-gradient(135deg, rgba(0, 229, 191, 0.28), rgba(99, 102, 241, 0.32));
+    color: #ffffff;
+    border-color: #00e5bf;
+    transform: translateY(-1px);
+    box-shadow: 0 0 15px rgba(0, 229, 191, 0.35);
   }
 
   /* ════════════════════════════════════════════════════════════════════
@@ -773,7 +848,6 @@
   }
 
   /* ── Modification Tags ── */
-  .mod-legend { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
   .mod-tag {
     background: var(--surface2);
     border: 1px solid var(--border);
@@ -787,11 +861,6 @@
     color: var(--text);
   }
   .mod-tag:hover { background: var(--surface3); border-color: var(--accent); transform: translateY(-1px); }
-  .mod-tag.backbone  { border-left: 3px solid var(--accent); }
-  .mod-tag.sugar     { border-left: 3px solid var(--accent2); }
-  .mod-tag.base      { border-left: 3px solid var(--green); }
-  .mod-tag.terminus  { border-left: 3px solid var(--yellow); }
-  .mod-tag.conjugate { border-left: 3px solid var(--red); }
 
   .section-title {
     font-family: var(--font-display);
@@ -1035,6 +1104,14 @@
     max-width: 440px;
     line-height: 1.55;
   }
+
+  /* ── Penalty Modal Animations & Scrollbar ── */
+  @keyframes fadeInBg { from { opacity:0 } to { opacity:1 } }
+  @keyframes slideUp  { from { opacity:0; transform: translateY(24px) scale(0.96) } to { opacity:1; transform: translateY(0) scale(1) } }
+  #penaltyModal::-webkit-scrollbar { width:0 }
+  #penaltyModalBody::-webkit-scrollbar { width:5px }
+  #penaltyModalBody::-webkit-scrollbar-track { background: rgba(255,255,255,0.03) }
+  #penaltyModalBody::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.4); border-radius:3px }
 </style>
 </head>
 <body>
@@ -1148,7 +1225,7 @@
         Upload FASTA / Plain Sequence File
         <input id="rank-file" type="file" accept=".fa,.fasta,.txt,.fsa,.fna" style="display:none" onchange="loadRankFile(event)">
       </label>
-      <button type="button" onclick="document.getElementById('rank-seq').value = 'ATGAAGTTCCTCTCCAGCCTACTGCGCCTCATCAACTATGATCTGCTGGATGCACGGATACAGCCCGAGGCGACATGGAATCGCATACAAGCTCTTCTTACAATGTATTTCGGTGATAATTCAATGGGAAAGGGACTTTCGAGTCATCTCAGCGTAGTAGGTATCTTATGCTGTCTAATTATGGTTCTTTCG';" style="display:inline-flex;align-items:center;background:var(--surface2);border:1px solid var(--accent);color:var(--accent);border-radius:var(--radius);padding:8px 16px;cursor:pointer;font-size:0.8rem;transition:all 0.15s; font-weight: 600;">Load Demo Transcript: Human TTR (Transthyretin mRNA)</button>
+      <button type="button" onclick="loadTTRDemoTranscript()" style="display:inline-flex;align-items:center;background:var(--surface2);border:1px solid var(--accent);color:var(--accent);border-radius:var(--radius);padding:8px 16px;cursor:pointer;font-size:0.8rem;transition:all 0.15s; font-weight: 600;">Load Demo Transcript: Human TTR (Transthyretin mRNA)</button>
       <span id="rank-filename" style="font-size:0.78rem;color:var(--green)"></span>
     </div>
   </div>
@@ -1767,6 +1844,28 @@ function setInputType(type) {
 }
 
 // ─── RANK ─────────────────────────────────────────────────────────────────────
+const TTR_DEMO_FASTA = `>TTR_mRNA_spliced_NM_000371-based (5'UTR+CDS+partial 3'UTR, reconstructed via exon splicing of NG_009490.1)
+GTTGACTAAGTCAATAATCAGAATCAGCAGGTTTGCAGTCAGATTGGCAGGGATAAGCAGCCTAGCTCAG
+GAGAAGTGAGTATAAAAGCCCCAGGCTGGGAGCAGCCATCACAGAAGTCCACTCATTCTTGGCAGGATGG
+CTTCTCATCGTCTGCTCCTCCTCTGCCTTGCTGGACTGGTATTTGTGTCTGAGGCTGGCCCTACGGGCAC
+CGGTGAATCCAAGTGTCCTCTGATGGTCAAAGTTCTAGATGCTGTCCGAGGCAGTCCTGCCATCAATGTG
+GCCGTGCATGTGTTCAGAAAGGCTGCTGATGACACCTGGGAGCCATTTGCCTCTGGGAAAACCAGTGAGT
+CTGGAGAGCTGCATGGGCTCACAACTGAGGAGGAATTTGTAGAAGGGATATACAAAGTGGAAATAGACAC
+CAAATCTTACTGGAAGGCACTTGGCATCTCCCCATTCCATGAGCATGCAGAGGTGGTATTCACAGCCAAC
+GACTCCGGCCCCCGCCGCTACACCATTGCCGCCCTGCTGAGCCCCTACTCCTATTCCACCACGGCTGTCG
+TCACCAATCCCAAGGAATGAGGGACTTCTCCTCCAGTGGACCTGAAGGACGAGGGATGGGATTTCATGTA
+ACCAAGAGTATTCCATTTTTACTAAAGCAGTGTTTTCACCTCATATGCTATGTTAGAAGTCCAGGCAGAG
+ACAATAAAACATTCCTGTGAAAGGCACTTTTCATTCCACTTTAACTTGATTTTTTAAATTCCCTTATTGT
+CCCTTCCAAAAAAAAGAGAATCAAAATTTTACAAAGAATCAAAGGAATTCTAGAAAGTATCTGGGCAGAA
+CGCTAGGAGAGATCCAAATTTCCATTGTCTTGCAAGCAAAGCACGTATTAAATATGATCTGCAGCCATTA
+AAAAGACACATTCTGTAAA`;
+
+function loadTTRDemoTranscript() {
+  document.getElementById('rank-seq').value = TTR_DEMO_FASTA;
+  const badge = document.getElementById('rank-filename');
+  if (badge) badge.textContent = '🧬 Loaded: Human TTR Spliced mRNA (929 nt · 909 Candidates)';
+}
+
 function loadRankFile(event) {
   const file = event.target.files[0];
   if (!file) return;
@@ -1889,9 +1988,23 @@ function renderRankResults(data) {
       ${viewToggleHtml}
       <div class="results-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
         <div>Showing <strong>${activeList.length}</strong> ${isLeadsView ? 'curated non-redundant lead scaffolds' : 'candidates'} (${data.input_type === 'dsirna' ? 'DsiRNA substrate mode' : 'mRNA transcript sliding window'}, naked baseline)</div>
-        <button type="button" class="mini-btn" style="background:linear-gradient(135deg, rgba(0,229,191,0.2), rgba(99,102,241,0.2));color:var(--accent);border:1px solid var(--accent);padding:6px 14px;border-radius:6px;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:6px;" onclick="triggerTop5Analysis()" title="Synthesize Top 5 clinical leads with AI dossier">
-          <span>🧬</span> AI Lead Progression (Top 5)
-        </button>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button type="button" class="export-btn" onclick="exportLabHandoffCSV('rank')" title="Export candidate leads and biophysical filter metrics for experimental screening budget (.CSV)">
+            <span>📥</span> Export Leads (.CSV)
+          </button>
+          <button type="button" class="mini-btn" style="background:linear-gradient(135deg, rgba(0,229,191,0.2), rgba(99,102,241,0.2));color:var(--accent);border:1px solid var(--accent);padding:6px 14px;border-radius:6px;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:6px;" onclick="triggerTop5Analysis()" title="Synthesize Top 5 clinical leads with AI dossier">
+            <span>🧬</span> AI Lead Progression (Top 5)
+          </button>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 14px;background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.22);border-radius:var(--radius-sm);margin:8px 0 10px 0;font-size:0.73rem;color:var(--text-secondary);flex-wrap:wrap;gap:8px;">
+        <span style="display:flex;align-items:center;gap:6px;">
+          <span style="color:var(--accent);font-size:0.85rem">↔</span>
+          <strong>All 11 Biophysical Metrics:</strong> Scroll horizontally to inspect full candidate sequences and thermodynamics.
+        </span>
+        <span style="display:flex;align-items:center;gap:6px;color:var(--accent);font-weight:600;font-size:0.72rem;background:rgba(0,229,191,0.08);padding:3px 8px;border-radius:4px;border:1px solid rgba(0,229,191,0.25);">
+          <span>📌</span> Actions Column Fixed On Right
+        </span>
       </div>
       <div class="table-wrap">
         <table>
@@ -2098,7 +2211,17 @@ function renderSingleModResults(data) {
       <td style="letter-spacing:0.05em;font-family:var(--font-mono)">${r.antisense ?? '—'}</td>
       <td><span style="text-transform:capitalize">${r.mod_strand ?? '—'}</span></td>
       <td>Pos ${r.mod_position ?? '—'}</td>
-      <td><span class="mod-tag" style="padding:2px 7px;font-size:0.75rem;font-weight:700">${modSym}</span></td>
+      <td>
+        <div style="display:flex;flex-direction:column;gap:3px;align-items:flex-start;">
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span class="mod-tag" style="padding:2px 7px;font-size:0.75rem;font-weight:700">${modSym}</span>
+            <span class="conf-badge ${getEvidenceLimitSummary(modSym).badgeClass}" style="font-size:0.62rem;padding:1px 6px;" title="${getEvidenceLimitSummary(modSym).names} — ${getEvidenceLimitSummary(modSym).domain} | ${getEvidenceLimitSummary(modSym).dataSupport}">${getEvidenceLimitSummary(modSym).tierBadge}</span>
+          </div>
+          <span class="cost-badge ${getEvidenceLimitSummary(modSym).costIndex === '$$$' ? 'cost-exotic' : (getEvidenceLimitSummary(modSym).costIndex === '$$' ? 'cost-spec' : 'cost-std')}" title="Synthesis reagent cost tier for experiment budget: ${getEvidenceLimitSummary(modSym).cost}">
+            Budget: ${getEvidenceLimitSummary(modSym).cost}
+          </span>
+        </div>
+      </td>
       <td title="Single Unified CatBoost: ${adjKdPct.toFixed(1)}% Knockdown @ ${data.target_dose_nM || 10} nM | Raw KD: ${rawKdPct.toFixed(1)}% | pIC50: ${pic50Str} | IC50: ${ic50Str}">
         ${scoreBar(adjKdPct)}
       </td>
@@ -2140,9 +2263,14 @@ function renderSingleModResults(data) {
     <div class="results-box">
       <div class="results-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
         <div>Top <strong>${data.results.length}</strong> of <strong>${data.total_variants}</strong> variants — Model ${modelLabel(data.model)} @ <strong>${data.target_dose_nM || 10} nM</strong> (${scanModeLabel})</div>
-        <button type="button" class="mini-btn" style="background:linear-gradient(135deg, rgba(0,229,191,0.2), rgba(99,102,241,0.2));color:var(--accent);border:1px solid var(--accent);padding:6px 14px;border-radius:6px;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:6px;" onclick="triggerTop5Analysis()" title="Synthesize Top 5 clinical leads with AI dossier">
-          <span>🧬</span> AI Lead Progression (Top 5)
-        </button>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button type="button" class="export-btn" onclick="exportLabHandoffCSV('single')" title="Export positional scan predictions, evidence limits, and synthesis budget tiers (.CSV)">
+            <span>📥</span> Export Lab Handoff &amp; Budget (.CSV)
+          </button>
+          <button type="button" class="mini-btn" style="background:linear-gradient(135deg, rgba(0,229,191,0.2), rgba(99,102,241,0.2));color:var(--accent);border:1px solid var(--accent);padding:6px 14px;border-radius:6px;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:6px;" onclick="triggerTop5Analysis()" title="Synthesize Top 5 clinical leads with AI dossier">
+            <span>🧬</span> AI Lead Progression (Top 5)
+          </button>
+        </div>
       </div>
       ${parentBanner}
       ${data.structural_properties ? `
@@ -2160,6 +2288,15 @@ function renderSingleModResults(data) {
         <span style="font-size:0.7rem;color:var(--muted-bright);text-transform:uppercase;font-weight:600">Off-Target Safety (Parent)</span>
         <span style="color:${data.parent_safety.isSafe ? '#34d399' : '#f87171'};font-weight:bold;font-size:0.85rem">${data.parent_safety.status} (${data.parent_safety.overallSafetyScore}%)</span>
       </div>` : ''}
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 14px;background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.22);border-radius:var(--radius-sm);margin:8px 0 10px 0;font-size:0.73rem;color:var(--text-secondary);flex-wrap:wrap;gap:8px;">
+        <span style="display:flex;align-items:center;gap:6px;">
+          <span style="color:var(--accent);font-size:0.85rem">↔</span>
+          <strong>Positional Chemistry Tolerance Table:</strong> Scroll horizontally for all 10 single-mod metrics and potency shifts.
+        </span>
+        <span style="display:flex;align-items:center;gap:6px;color:var(--accent);font-weight:600;font-size:0.72rem;background:rgba(0,229,191,0.08);padding:3px 8px;border-radius:4px;border:1px solid rgba(0,229,191,0.25);">
+          <span>📌</span> Actions Column Fixed On Right
+        </span>
+      </div>
       <div class="table-wrap">
         <table>
           <thead><tr>
@@ -2168,7 +2305,7 @@ function renderSingleModResults(data) {
             <th>Modified Antisense Strand (5'→3')</th>
             <th>Target Strand</th>
             <th>Position</th>
-            <th>Chemistry</th>
+            <th title="Chemical modification symbol, clinical evidence tier, and synthesis budget category">Chemistry &amp; Evidence Limit</th>
             <th>Knockdown Efficacy (%)</th>
             <th>Potency Shift (Δ%)</th>
             <th title="Per-row seed-region toxicity shift vs parent unmodified duplex">Seed Tox Shift</th>
@@ -2358,8 +2495,9 @@ function renderMultiModResult(data) {
         <span><strong style="color:var(--text)">Predicted IC₅₀:</strong> <span style="color:#34d399;font-weight:700;font-size:1.05rem">${ic50Val} nM</span> (${(parseFloat(ic50Val) * 1000).toFixed(1)} pM)</span>
         <span style="font-size:0.75rem;color:var(--muted)">(Standalone GBDT Model 2 Regressor)</span>
       </div>` : ''}
-      <div style="margin-top:16px; margin-bottom:8px;">
+      <div style="margin-top:16px; margin-bottom:8px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
         <button class="mini-btn" style="padding:6px 16px;font-size:0.78rem;background:rgba(0,229,191,0.12);border:1px solid rgba(0,229,191,0.35);color:var(--accent);cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-weight:700;" onclick="const sVal = (document.getElementById('mm-sense')?.value || '${(data.parent_sense || '').replace(/'/g, "\\'")}').trim(); const aVal = (document.getElementById('mm-antisense')?.value || '${(data.parent_antisense || '').replace(/'/g, "\\'")}').trim(); const sm = (document.getElementById('mm-smods')?.value || '').trim(); const sp = (document.getElementById('mm-spos')?.value || '').trim(); const am = (document.getElementById('mm-amods')?.value || '').trim(); const ap = (document.getElementById('mm-apos')?.value || '').trim(); inspectVariant(this, sVal, aVal, '', '', '', sm, sp, am, ap)">🔬 3D Duplex Inspector</button>
+        <button class="export-btn" onclick="exportLabHandoffCSV('multi_targeted')" title="Export targeted variant predictions, evidence limits, and synthesis budget tiers (.CSV)"><span>📥</span> Export Variant &amp; Budget (.CSV)</button>
       </div>
       ${data.structural_properties ? `
       <div style="margin-top:12px;padding:12px 16px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);display:flex;align-items:center;gap:16px;flex-wrap:wrap;font-size:0.82rem">
@@ -2386,7 +2524,6 @@ function renderMultiModResult(data) {
 // EXOTIC = remaining 8 symbols that were missing from the original 22-symbol set:
 // Y (ENA), 2 (3'-phosphate), 3 (5'-OMe cap), 4 (conjugate), 5 (PEG), 6 (UNA), 8 (GNA), 9 (TNA).
 // Covers all 30 modification symbols; unclassified symbols no longer silently fall into "High Precedent".
-const _STANDARD_MODS = new Set(['F','M','S','1','L','E','D']);
 const _EXOTIC_MODS   = new Set(['B','J','V','I','N','O','P','R','H','K','Z','Q','W','X','7','Y','2','3','4','5','6','8','9']);
 
 const MOD_FULL_NAMES = {
@@ -2422,17 +2559,359 @@ const MOD_FULL_NAMES = {
   9: "TNA (Threose Nucleic Acid)"
 };
 
+// ─── Evidence Limits, Applicability Domain & Experiment Budgeting ─────────
+const MOD_EVIDENCE_MAP = {
+  'M': { name: "2'-O-Methyl (2'-OMe)", tier: 0, tierBadge: "Tier 0: FDA Core", cost: "Standard ($)", costIndex: "$", domain: "Interpolation (Dense clinical: Patisiran, Givlaari, Leqvio)", dataSupport: "High (>3,500 clinical & assay points)" },
+  'F': { name: "2'-Fluoro (2'-F)", tier: 0, tierBadge: "Tier 0: FDA Core", cost: "Standard ($)", costIndex: "$", domain: "Interpolation (Dense clinical: Inclisiran, Nedosiran)", dataSupport: "High (>3,000 clinical points)" },
+  'D': { name: "2'-deoxy (DNA)", tier: 0, tierBadge: "Tier 0: FDA Core", cost: "Standard ($)", costIndex: "$", domain: "Interpolation (Standard commercial phosphoramidite)", dataSupport: "High (>1,200 points)" },
+  'S': { name: "Phosphorothioate (PS)", tier: 0, tierBadge: "Tier 0: FDA Core", cost: "Standard ($)", costIndex: "$", domain: "Interpolation (Universal clinical nuclease shield)", dataSupport: "High (>4,000 points)" },
+  '1': { name: "5'-Phosphate / 5'-VP", tier: 0, tierBadge: "Tier 0: FDA Core", cost: "Specialty ($$)", costIndex: "$$", domain: "Interpolation (Terminal Ago2 anchor, ESC+ architecture)", dataSupport: "High (>800 points)" },
+  '2': { name: "3'-Phosphate", tier: 0, tierBadge: "Tier 0: FDA Core", cost: "Standard ($)", costIndex: "$", domain: "Interpolation (Terminal capping)", dataSupport: "Moderate (>400 points)" },
+  '3': { name: "5'-OMe cap", tier: 0, tierBadge: "Tier 0: FDA Core", cost: "Standard ($)", costIndex: "$", domain: "Interpolation (Sense strand capping)", dataSupport: "Moderate (>350 points)" },
+  '4': { name: "GalNAc Cluster", tier: 0, tierBadge: "Tier 0: FDA Core", cost: "Specialty ($$)", costIndex: "$$", domain: "Interpolation (Targeted hepatic ASGPR delivery ligand)", dataSupport: "High (>600 clinical records)" },
+
+  'L': { name: "Locked Nucleic Acid (LNA)", tier: 1, tierBadge: "Tier 1: Preclinical", cost: "Specialty ($$)", costIndex: "$$", domain: "Transfer Prior (Steric Ago2 gate, heavy ASO clinical precedent)", dataSupport: "Moderate (>500 points)" },
+  'E': { name: "2'-O-Methoxyethyl (2'-MOE)", tier: 1, tierBadge: "Tier 1: Preclinical", cost: "Specialty ($$)", costIndex: "$$", domain: "Transfer Prior (Bulky steric channel clash, Spinraza precedent)", dataSupport: "Moderate (>450 points)" },
+  'Y': { name: "Ethylene-bridged (ENA)", tier: 1, tierBadge: "Tier 1: Preclinical", cost: "Specialty ($$)", costIndex: "$$", domain: "Transfer Prior (Conformationally restricted bicyclic)", dataSupport: "Preclinical (>180 points)" },
+
+  '6': { name: "Unlocked Nucleic Acid (UNA)", tier: 2, tierBadge: "Tier 2: Extrapolated", cost: "Exotic Custom ($$$)", costIndex: "$$$", domain: "Extrapolation (Thermodynamically bounded by ΔΔG°37 +4.0 kcal/mol)", dataSupport: "Sparse (<100 points, rule-bounded)" },
+  '8': { name: "Glycerol Nucleic Acid (GNA)", tier: 2, tierBadge: "Tier 2: Extrapolated", cost: "Exotic Custom ($$$)", costIndex: "$$$", domain: "Extrapolation (Seed-destabilizing, Alnylam ESC+ prior, ΔΔG°37 +2.8 kcal/mol)", dataSupport: "Sparse (<90 points, rule-bounded)" },
+  '9': { name: "Threose Nucleic Acid (TNA)", tier: 2, tierBadge: "Tier 2: Extrapolated", cost: "Exotic Custom ($$$)", costIndex: "$$$", domain: "Extrapolation (Backbone isomerism, helical pitch penalty)", dataSupport: "Sparse (<50 points, rule-bounded)" },
+  'Q': { name: "Abasic Site", tier: 2, tierBadge: "Tier 2: Extrapolated", cost: "Specialty ($$)", costIndex: "$$", domain: "Extrapolation (Missing nucleobase, entropic cavity penalty)", dataSupport: "Sparse (<80 points, rule-bounded)" },
+  'B': { name: "2'-O-Benzyl", tier: 2, tierBadge: "Tier 2: Extrapolated", cost: "Exotic Custom ($$$)", costIndex: "$$$", domain: "Extrapolation (Steric minor groove obstruction)", dataSupport: "Sparse (<60 points, rule-bounded)" },
+  'I': { name: "2'-F-ANA", tier: 2, tierBadge: "Tier 2: Extrapolated", cost: "Specialty ($$)", costIndex: "$$", domain: "Extrapolation (Arabino stereochemistry)", dataSupport: "Preclinical (<150 points)" },
+  'Z': { name: "2'-OMe-4'-thio", tier: 2, tierBadge: "Tier 2: Extrapolated", cost: "Exotic Custom ($$$)", costIndex: "$$$", domain: "Extrapolation (Sulfur ring substitution)", dataSupport: "Sparse (<40 points)" },
+  'X': { name: "2'-O-allyl", tier: 2, tierBadge: "Tier 2: Extrapolated", cost: "Specialty ($$)", costIndex: "$$", domain: "Extrapolation (Alkyl substituent)", dataSupport: "Sparse (<50 points)" },
+  '7': { name: "Altritol Nucleic Acid (ANA)", tier: 2, tierBadge: "Tier 2: Extrapolated", cost: "Exotic Custom ($$$)", costIndex: "$$$", domain: "Extrapolation (Six-membered pyranose ring)", dataSupport: "Sparse (<40 points)" },
+  'P': { name: "Boranophosphate", tier: 2, tierBadge: "Tier 2: Extrapolated", cost: "Exotic Custom ($$$)", costIndex: "$$$", domain: "Extrapolation (Neutral isosteric backbone)", dataSupport: "Sparse (<40 points)" },
+  'R': { name: "Methylphosphonate", tier: 2, tierBadge: "Tier 2: Extrapolated", cost: "Specialty ($$)", costIndex: "$$", domain: "Extrapolation (Non-ionic backbone linkage)", dataSupport: "Sparse (<70 points)" },
+  'H': { name: "Phosphoramidate", tier: 2, tierBadge: "Tier 2: Extrapolated", cost: "Specialty ($$)", costIndex: "$$", domain: "Extrapolation (Nitrogen backbone replacement)", dataSupport: "Sparse (<60 points)" },
+  '5': { name: "PEG Conjugate", tier: 2, tierBadge: "Tier 2: Extrapolated", cost: "Specialty ($$)", costIndex: "$$", domain: "Extrapolation (Steric shielding polymer conjugate)", dataSupport: "Moderate (>200 points)" },
+  'J': { name: "Inosine", tier: 2, tierBadge: "Tier 2: Extrapolated", cost: "Standard ($)", costIndex: "$", domain: "Extrapolation (Hypoxanthine wobble base, -1 H-bond)", dataSupport: "Moderate (>150 points)" },
+  'V': { name: "5-Methyl Cytidine (5mC)", tier: 2, tierBadge: "Tier 2: Extrapolated", cost: "Standard ($)", costIndex: "$", domain: "Extrapolation (Base stacking stabilization)", dataSupport: "Moderate (>220 points)" },
+  'W': { name: "Pseudouridine", tier: 2, tierBadge: "Tier 2: Extrapolated", cost: "Standard ($)", costIndex: "$", domain: "Extrapolation (TLR evasion, extra H-bond)", dataSupport: "Moderate (>250 points)" },
+  'K': { name: "2-thio Uridine", tier: 2, tierBadge: "Tier 2: Extrapolated", cost: "Specialty ($$)", costIndex: "$$", domain: "Extrapolation (Sulfur base modification)", dataSupport: "Sparse (<90 points)" },
+  'O': { name: "Dihydrouridine", tier: 2, tierBadge: "Tier 2: Extrapolated", cost: "Specialty ($$)", costIndex: "$$", domain: "Extrapolation (Non-planar ring destabilizer)", dataSupport: "Sparse (<50 points)" }
+};
+
+function getEvidenceLimitSummary(modSymbols) {
+  if (!modSymbols || modSymbols === '—' || modSymbols === 'multi' || modSymbols === '') {
+    return {
+      tier: 0,
+      tierBadge: 'Tier 0: FDA Core',
+      cost: 'Standard ($)',
+      costIndex: '$',
+      names: 'Standard Ribonucleotide / Unmodified',
+      domain: 'Dense Clinical In-Domain Prior',
+      dataSupport: 'High (>3,500 clinical & experimental points)',
+      badgeClass: 'conf-tier0',
+      isExotic: false
+    };
+  }
+  const clean = String(modSymbols).replace(/[^A-Za-z0-9]/g, '');
+  let maxTier = 0;
+  let maxCostIndex = '$';
+  let names = [];
+  let domains = [];
+  let supports = [];
+  
+  for (const char of clean) {
+    const info = MOD_EVIDENCE_MAP[char] || {
+      name: char, tier: 2, tierBadge: 'Tier 2: Extrapolated', cost: 'Exotic Custom ($$$)', costIndex: '$$$',
+      domain: 'Biophysical Extrapolation', dataSupport: 'Sparse (<50 points)'
+    };
+    if (info.tier > maxTier) maxTier = info.tier;
+    if (info.costIndex === '$$$' || (info.costIndex === '$$' && maxCostIndex === '$')) {
+      maxCostIndex = info.costIndex;
+    }
+    names.push(info.name);
+    domains.push(info.domain);
+    supports.push(info.dataSupport);
+  }
+
+  let badgeClass = 'conf-tier0';
+  let tierBadge = 'Tier 0: FDA Core';
+  if (maxTier === 1) {
+    badgeClass = 'conf-tier1';
+    tierBadge = 'Tier 1: Preclinical';
+  } else if (maxTier === 2) {
+    badgeClass = 'conf-tier2';
+    tierBadge = 'Tier 2: Extrapolated';
+  }
+
+  let costLabel = maxCostIndex === '$$$' ? 'Exotic Custom ($$$)' : (maxCostIndex === '$$' ? 'Specialty ($$)' : 'Standard ($)');
+
+  return {
+    tier: maxTier,
+    tierBadge: tierBadge,
+    cost: costLabel,
+    costIndex: maxCostIndex,
+    names: Array.from(new Set(names)).join(', '),
+    domain: maxTier === 0 ? 'Interpolation (Dense empirical clinical data)' : (maxTier === 1 ? 'Transfer Prior (Preclinical ASO/siRNA literature)' : 'Extrapolation (Thermodynamic & steric boundary bounded)'),
+    dataSupport: maxTier === 0 ? 'High (>3,000 clinical points)' : (maxTier === 1 ? 'Moderate (>400 points)' : 'Sparse (Rule-bounded extrapolation)'),
+    badgeClass: badgeClass,
+    isExotic: maxTier >= 2
+  };
+}
+
 function confidenceBadge(symbol) {
-  const mods = symbol.replace(/[+]/g, '').split('');
-  let hasExotic = false;
-  for (const m of mods) {
-    if (_EXOTIC_MODS.has(m)) { hasExotic = true; break; }
+  const ev = getEvidenceLimitSummary(symbol);
+  return `
+    <div style="display:flex;flex-direction:column;gap:3px;align-items:flex-start;">
+      <span class="conf-badge ${ev.badgeClass}" style="font-size:0.64rem;padding:2px 7px;" title="${ev.names} — ${ev.domain} | ${ev.dataSupport}">
+        ${ev.tierBadge}
+      </span>
+      <span class="cost-badge ${ev.costIndex === '$$$' ? 'cost-exotic' : (ev.costIndex === '$$' ? 'cost-spec' : 'cost-std')}" title="Synthesis reagent cost tier for experiment budget: ${ev.cost}">
+        Budget: ${ev.cost}
+      </span>
+    </div>`;
+}
+
+// ─── 1-Click Lab Handoff & Experiment Budget Dossier CSV Exporter ──────────
+function exportLabHandoffCSV(moduleType) {
+  let records = [];
+  let filename = 'helixzero_lab_handoff_experiment_budget_dossier.csv';
+  const nowStr = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+
+  // Helper: calculate GC%
+  const calcGC = (seq) => {
+    if (!seq) return '—';
+    const m = seq.match(/[GCgc]/g) || [];
+    return ((m.length / seq.length) * 100).toFixed(1) + '%';
+  };
+
+  // Helper: extract canonical seed hexamer (pos 2–7)
+  const extractSeedHexamer = (asSeq) => {
+    if (!asSeq || asSeq.length < 7) return '—';
+    return asSeq.slice(1, 7);
+  };
+
+  // Helper: format ordered modification summary in plain text
+  const summarizePlainMods = (r, pSense, pAnti) => {
+    const sMods = [];
+    const aMods = [];
+    const modNames = {
+      'M': "2'-OMe", 'F': "2'-F", 'S': 'PS', 'D': 'DNA', '1': "5'-VP",
+      'L': 'LNA', 'E': "2'-MOE", 'Y': 'ENA', 'Q': 'Abasic', 'V': '5mC',
+      'W': 'Ψ', 'K': '2thioU', '4': 'GalNAc', '6': 'UNA', '7': 'ANA',
+      '8': 'GNA', '9': 'TNA', '2': "2'OMe-PS", '3': "2'F-PS", 'N': "2'-Allyl",
+      'B': "2'-O-Benzyl", 'I': "2'-F-ANA", 'Z': "2'-OMe-4'-thio", 'P': "Boranophosphate"
+    };
+    if (pSense && r.sense) {
+      for (let i = 0; i < Math.min(r.sense.length, pSense.length); i++) {
+        if (r.sense[i] !== pSense[i]) {
+          const sym = r.sense[i];
+          sMods.push(`pos ${i+1} (${modNames[sym] || sym})`);
+        }
+      }
+    }
+    if (pAnti && r.antisense) {
+      for (let i = 0; i < Math.min(r.antisense.length, pAnti.length); i++) {
+        if (r.antisense[i] !== pAnti[i]) {
+          const sym = r.antisense[i];
+          aMods.push(`pos ${i+1} (${modNames[sym] || sym})`);
+        }
+      }
+    }
+    return {
+      senseDesc: sMods.length ? sMods.join('; ') : 'Unmodified',
+      antiDesc: aMods.length ? aMods.join('; ') : 'Unmodified',
+      totalCount: sMods.length + aMods.length
+    };
+  };
+
+  // Helper: find the bottleneck chemistry driving synthesis cost & lead time
+  const getBottleneckInfo = (symStr) => {
+    const clean = String(symStr || '').replace(/[^A-Za-z0-9]/g, '');
+    let highest = null;
+    for (const c of clean) {
+      const info = MOD_EVIDENCE_MAP[c];
+      if (info) {
+        if (!highest || info.tier > highest.tier || (info.tier === highest.tier && info.costIndex === '$$$' && highest.costIndex !== '$$$')) {
+          highest = info;
+        }
+      }
+    }
+    return highest ? `${highest.name} [${highest.cost}]` : 'Standard Phosphoramidites ($)';
+  };
+
+  if (moduleType === 'rank') {
+    const data = window.lastRankData;
+    if (!data || (!data.results?.length && !data.curated_leads?.length)) {
+      alert("No candidate data available to export. Run a sequence scan first.");
+      return;
+    }
+    const isLeads = (window.currentRankViewMode === 'leads' && data.curated_leads?.length);
+    const list = isLeads ? data.curated_leads : data.results;
+    filename = `helixzero_candidate_leads_handoff_${nowStr}.csv`;
+
+    records = list.map((r, i) => {
+      const s = r.sense ?? r.sequence ?? '';
+      const a = r.antisense ?? '';
+      const eff = r.efficacy_score ?? r.score ?? 0;
+      const tox = r.toxicity_score != null ? `${Number(r.toxicity_score).toFixed(1)}%` : '—';
+      const asym = r.asymmetry_ddg != null ? (Number(r.asymmetry_ddg) >= 0 ? '+' : '') + Number(r.asymmetry_ddg).toFixed(2) : '—';
+      const filterOk = r.func_ok !== false;
+
+      return {
+        "Lead_ID": isLeads ? `LEAD_${String(i+1).padStart(2,'0')}` : `CAND_${String(r.rank ?? i+1).padStart(3,'0')}`,
+        "Rank": r.rank ?? (i + 1),
+        "Transcript_Domain": r.domain || 'CDS',
+        "Transcript_Position": r.position ?? '',
+        "Sense_Sequence_5to3": s,
+        "Antisense_Guide_5to3": a,
+        "GC_Content_Pct": calcGC(s),
+        "Naked_Knockdown_Efficacy_Pct": typeof eff === 'number' ? `${eff.toFixed(2)}%` : eff,
+        "Activity_Tier": r.efficacy_label ?? r.label ?? 'Moderate',
+        "Seed_Hexamer_pos2_7": extractSeedHexamer(a),
+        "Seed_Viability_Score": tox,
+        "Seed_Safety_Class": r.toxicity_label ?? 'Unknown',
+        "Asymmetry_ddG_kcal_mol": asym,
+        "RISC_Loading_Preference": r.asymmetry_label || 'Optimal (Guide Preferred)',
+        "Biophysical_Filter_Status": filterOk ? "PASS" : "FAIL",
+        "Biophysical_Filter_Detail": r.func_reason || (filterOk ? "Cleared: 30-60% GC, no homopolymer run, no palindromic hairpin" : "Sequence Liability Detected"),
+        "Synthesis_Reagent_Cost_Tier": "Standard Unmodified RNA ($300-$450/duplex)",
+        "Lab_Progression_Recommendation": filterOk ? "Recommended Scaffold for Chemical Engineering" : "Hold: Address Sequence Liability"
+      };
+    });
+  } else if (moduleType === 'single') {
+    const data = window._lastSingleModData;
+    if (!data || !data.results?.length) {
+      alert("No single-modification scan data available to export. Run a positional scan first.");
+      return;
+    }
+    filename = `helixzero_positional_scan_budget_dossier_${nowStr}.csv`;
+    const parentS = data.parent_sense || '';
+    const parentA = data.parent_antisense || '';
+    const dose = data.target_dose_nM || 10.0;
+    const parentToxLabel = data.parent_toxicity?.label || 'Unknown';
+    const parentViab = data.parent_toxicity?.viability != null ? `${data.parent_toxicity.viability}%` : '';
+
+    records = data.results.map((r, i) => {
+      const sym = r.mod_symbol ?? r.modification ?? '';
+      const pos = r.mod_position ?? '';
+      const strand = r.mod_strand ?? '';
+      const s = r.sense ?? parentS;
+      const a = r.antisense ?? parentA;
+      const kd = r.efficacy_score != null ? r.efficacy_score : (r.predicted_knockdown_pct ?? 0);
+      const pic50 = r.estimated_pIC50 != null ? Number(r.estimated_pIC50).toFixed(4) : '—';
+      const ic50 = r.estimated_IC50_nM != null ? `${Number(r.estimated_IC50_nM).toFixed(2)} nM` : '—';
+      const delta = r.delta_score != null ? (r.delta_score >= 0 ? '+' : '') + Number(r.delta_score).toFixed(2) + '%' : '0.00%';
+      const ev = getEvidenceLimitSummary(sym);
+
+      let seedShift = 'Unchanged vs Parent';
+      if (r.toxicity_label === 'Mitigated') {
+        seedShift = `Mitigated by ${sym} (Rescued seed)`;
+      } else if (r.toxicity_label && r.toxicity_label !== parentToxLabel) {
+        seedShift = `${parentToxLabel} → ${r.toxicity_label}`;
+      } else {
+        seedShift = `${parentToxLabel} (${parentViab})`;
+      }
+
+      return {
+        "Variant_ID": `POS_SCAN_${String(r.rank ?? i+1).padStart(3,'0')}`,
+        "Rank": r.rank ?? (i + 1),
+        "Modified_Strand": strand.charAt(0).toUpperCase() + strand.slice(1),
+        "Modified_Position": pos,
+        "Modification_Code": sym,
+        "Chemical_Name": ev.names || sym,
+        "Modified_Sense_5to3": s,
+        "Modified_Antisense_5to3": a,
+        "Predicted_Knockdown_Pct": typeof kd === 'number' ? `${kd.toFixed(2)}%` : kd,
+        "Potency_Shift_Delta_Pct": delta,
+        "Estimated_IC50": ic50,
+        "Estimated_pIC50": pic50,
+        "Seed_Toxicity_Impact": seedShift,
+        "Evidence_Limit_Tier": ev.tierBadge,
+        "Synthesis_Budget_Tier": ev.cost,
+        "Screening_Dose_nM": `${dose} nM`,
+        "Lab_Handoff_Action": Number(r.delta_score || 0) > 5 ? "High-Efficacy Hit: Order for in vitro Validation" : (Number(r.delta_score || 0) >= 0 ? "Neutral/Tolerated: Combine in Multi-Mod" : "Detrimental: Avoid Position")
+      };
+    });
+  } else if (moduleType === 'multi' || moduleType === 'multi_targeted') {
+    const data = window.lastMultiModData;
+    if (!data || !data.results?.length) {
+      alert("No combinatorial beam search data available to export. Run Multi-Mod optimization first.");
+      return;
+    }
+    const isTargeted = moduleType === 'multi_targeted';
+    filename = isTargeted 
+      ? `helixzero_targeted_variant_budget_dossier_${nowStr}.csv`
+      : `helixzero_combinatorial_multimod_budget_dossier_${nowStr}.csv`;
+    const parentS = data.parent_sense || '';
+    const parentA = data.parent_antisense || '';
+    const dose = data.target_dose_nM || 10.0;
+    const list = isTargeted ? [data.results[0]] : data.results;
+
+    records = list.map((r, i) => {
+      const sym = r.mod_symbol ?? r.sense_mods ?? r.antisense_mods ?? '';
+      const s = r.sense ?? parentS;
+      const a = r.antisense ?? parentA;
+      const kd = r.efficacy_score != null ? r.efficacy_score : (r.predicted_knockdown_pct ?? 0);
+      const pic50 = r.estimated_pIC50 != null ? Number(r.estimated_pIC50).toFixed(4) : '—';
+      const ic50 = r.estimated_IC50_nM != null ? `${Number(r.estimated_IC50_nM).toFixed(2)} nM` : '—';
+      const delta = r.delta_score != null ? (r.delta_score >= 0 ? '+' : '') + Number(r.delta_score).toFixed(2) + '%' : '0.00%';
+      const ev = getEvidenceLimitSummary(sym);
+      const modSummary = summarizePlainMods(r, parentS, parentA);
+      const p = r.biophysics || r.penalties || {};
+      const totPen = r.total_penalty ?? PENALTY_CATEGORIES.reduce((sum, c) => sum + penaltyTotal(p, c.key), 0);
+      const duplexMFE = data.structural_properties?.duplex_mfe_kcal != null ? `${data.structural_properties.duplex_mfe_kcal} kcal/mol` : (r.duplex_mfe_kcal ? `${r.duplex_mfe_kcal} kcal/mol` : '—');
+
+      return {
+        "Lead_ID": isTargeted ? "TARGETED_LEAD_01" : `CM_BEAM_${String(r.rank ?? i+1).padStart(3,'0')}`,
+        "Rank": r.rank ?? (i + 1),
+        "Modified_Sense_5to3": s,
+        "Modified_Antisense_5to3": a,
+        "Sense_Modifications": modSummary.senseDesc,
+        "Antisense_Modifications": modSummary.antiDesc,
+        "Total_Modification_Count": modSummary.totalCount || r.num_mods || '—',
+        "Predicted_Knockdown_Pct": typeof kd === 'number' ? `${kd.toFixed(2)}%` : kd,
+        "Potency_Lift_Delta_Pct": delta,
+        "Predicted_IC50": ic50,
+        "Predicted_pIC50": pic50,
+        "ViennaRNA_Duplex_MFE": duplexMFE,
+        "Biophysical_Penalty_Score": `-${Number(totPen).toFixed(2)}%`,
+        "Seed_Toxicity_Rescue": r.toxicity_label === 'Mitigated' ? "Rescued (Mitigated)" : (r.toxicity_label || 'Safe'),
+        "Evidence_Limit_Tier": ev.tierBadge,
+        "Synthesis_Budget_Tier": ev.cost,
+        "Reagent_Bottleneck_Monomer": getBottleneckInfo(sym),
+        "Screening_Dose_nM": `${dose} nM`,
+        "Lab_Procurement_Recommendation": ev.tier === 0 
+          ? "Recommended Clinical Lead: Standard Synthesis ($300-$500/duplex)" 
+          : (ev.tier === 1 
+              ? "Recommended Preclinical Lead: Specialty Monomers Required ($800-$1500/duplex)" 
+              : "Pilot Mechanistic Study Only: Exotic Custom Monomers ($1800-$3500+/duplex)")
+      };
+    });
   }
-  const fullNames = mods.map(m => MOD_FULL_NAMES[m] || m).join(', ');
-  if (!hasExotic) {
-    return `<span class="conf-badge conf-high" title="Modifications: ${fullNames} — Established ESC/ESC+ chemistry with clinical precedent">FDA-Approved Standard Core</span>`;
+
+  if (!records.length) {
+    alert("No records to export.");
+    return;
   }
-  return `<span class="conf-badge conf-novel" title="Modifications: ${fullNames} — Includes specialized/novel modification chemistries">Novel / Experimental</span>`;
+
+  const headers = Object.keys(records[0]);
+  const csvRows = [headers.join(',')];
+
+  for (const row of records) {
+    const values = headers.map(header => {
+      const val = row[header] ?? '';
+      const str = String(val).replace(/"/g, '""');
+      return `"${str}"`;
+    });
+    csvRows.push(values.join(','));
+  }
+
+  const csvContent = '\uFEFF' + csvRows.join('\r\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', filename);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }
 
 // ─── Score Breakdown Popup ──────────────────────────────────────────────
@@ -2520,9 +2999,6 @@ function formatOrderedMods(r, parentSense, parentAntisense) {
 function buildExpandedDetail(sense, antisense, penalties, modSymbol, parentSense, parentAntisense) {
   const mods = new Map();
   const syms = modSymbol.replace(/[+]/g, '');
-  // Build position annotation based on mod symbol positions (not perfect without parent, but good enough)
-  // Count mods from symbol length — each unique symbol = one modification position
-  const modSet = new Set(syms);
 
   function ntClass(base, parentBase, pos, strand) {
     const classes = [];
@@ -2692,9 +3168,14 @@ function renderAutoMultiModResults(data) {
     <div class="results-box">
       <div class="results-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
         <div>Top <strong>${displayResults.length}</strong> of <strong>${total}</strong> combinatorial beam candidates — Model <strong>${modelLabel(data.model)}</strong></div>
-        <button type="button" class="mini-btn" style="background:linear-gradient(135deg, rgba(0,229,191,0.2), rgba(99,102,241,0.2));color:var(--accent);border:1px solid var(--accent);padding:6px 14px;border-radius:6px;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:6px;" onclick="triggerTop5Analysis()" title="Synthesize Top 5 clinical leads with AI dossier">
-          <span>🧬</span> AI Lead Progression (Top 5)
-        </button>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button type="button" class="export-btn" onclick="exportLabHandoffCSV('multi')" title="Export combinatorial beam search predictions, evidence limits, and synthesis budget tiers (.CSV)">
+            <span>📥</span> Export Lab Handoff &amp; Budget Dossier (.CSV)
+          </button>
+          <button type="button" class="mini-btn" style="background:linear-gradient(135deg, rgba(0,229,191,0.2), rgba(99,102,241,0.2));color:var(--accent);border:1px solid var(--accent);padding:6px 14px;border-radius:6px;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:6px;" onclick="triggerTop5Analysis()" title="Synthesize Top 5 clinical leads with AI dossier">
+            <span>🧬</span> AI Lead Progression (Top 5)
+          </button>
+        </div>
       </div>
       ${parentBadge}
       ${data.parent_safety ? `
@@ -2702,6 +3183,15 @@ function renderAutoMultiModResults(data) {
         <span style="font-size:0.7rem;color:var(--muted-bright);text-transform:uppercase;font-weight:600">Off-Target Safety (Parent)</span>
         <span style="color:${data.parent_safety.isSafe ? '#34d399' : '#f87171'};font-weight:bold;font-size:0.85rem">${data.parent_safety.status} (${data.parent_safety.overallSafetyScore}%)</span>
       </div>` : ''}
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 14px;background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.22);border-radius:var(--radius-sm);margin:8px 0 10px 0;font-size:0.73rem;color:var(--text-secondary);flex-wrap:wrap;gap:8px;">
+        <span style="display:flex;align-items:center;gap:6px;">
+          <span style="color:var(--accent);font-size:0.85rem">↔</span>
+          <strong>Combinatorial Architecture Table:</strong> Scroll horizontally for all modification patterns and biophysical properties.
+        </span>
+        <span style="display:flex;align-items:center;gap:6px;color:var(--accent);font-weight:600;font-size:0.72rem;background:rgba(0,229,191,0.08);padding:3px 8px;border-radius:4px;border:1px solid rgba(0,229,191,0.25);">
+          <span>📌</span> Actions Column Fixed On Right
+        </span>
+      </div>
       <div class="table-wrap">
         <table>
           <thead><tr>
@@ -2709,7 +3199,7 @@ function renderAutoMultiModResults(data) {
             <th>Modified Sense Strand (5'→3')</th>
             <th>Modified Antisense Strand (5'→3')</th>
             <th>Modification Architecture</th>
-            <th>Chemistries</th>
+            <th title="Clinical evidence maturity (FDA Core vs Preclinical vs Extrapolation) and synthesis cost tier for experiment budget">Evidence Limit &amp; Budget Tier</th>
             <th>Knockdown Efficacy (%) @ ${data.target_dose_nM || 10} nM</th>
             <th>Potency Gain (Δ%)</th>
             <th>Actions</th>
@@ -2891,77 +3381,75 @@ async function loadMods() {
     badge.style.setProperty('--dot-color', '#f87171');
     badge.innerHTML = badge.innerHTML.replace('style="', 'style="background:#f87171;');
   }
-
-
-  // ── Penalty Breakdown Modal ──────────────────────────────────────────────
-  window._penaltyData = {};
-
-  window.closePenaltyModal = function() {
-    const m = document.getElementById('penaltyModal');
-    m.style.opacity = '0';
-    m.style.transition = 'opacity 0.15s';
-    setTimeout(() => { m.style.display = 'none'; m.style.opacity = ''; m.style.transition = ''; }, 150);
-  };
-
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') closePenaltyModal(); });
-
-  window.showPenaltyDetails = function(penKey, title, icon) {
-    const data = window._penaltyData[penKey];
-    if (!data) return;
-    document.getElementById('penaltyModalTitle').innerText = title + ' Breakdown';
-    document.getElementById('penaltyModalIcon').innerText = icon;
-
-    const details = (data && data.details) ? data.details : {};
-    const total   = (data && data.total !== undefined) ? data.total : (typeof data === 'number' ? data : 0);
-
-    let html = '';
-    const entries = Object.entries(details);
-
-    if (entries.length === 0) {
-      html = `<div style="text-align:center; padding:32px 0; color:#6b7280;">
-        <div style="font-size:2rem; margin-bottom:12px;">✓</div>
-        <div style="font-size:0.9rem;">No specific violations detected.</div>
-      </div>`;
-    } else {
-      // Summary bar
-      const maxVal = Math.max(...entries.map(([,v]) => typeof v === 'number' ? v : 0), 0.1);
-      html += `<div style="margin-bottom:20px; padding:14px 16px; background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.2); border-radius:10px;">
-        <div style="font-size:0.72rem; color:#9ca3af; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:6px;">Total Penalty Score</div>
-        <div style="font-size:2rem; font-weight:800; color:#ef4444; line-height:1;">−${typeof total === 'number' ? total.toFixed(1) : total}</div>
-        <div style="font-size:0.7rem; color:#6b7280; margin-top:4px;">Applied to the raw ML efficacy score (either model) before final adjustment</div>
-      </div>`;
-
-      html += '<div style="display:flex; flex-direction:column; gap:10px;">';
-      for (const [key, val] of entries) {
-        const numVal = typeof val === 'number' ? val : 0;
-        const isNeg  = numVal < 0;
-        const pct    = Math.abs(numVal) / maxVal * 100;
-        const color  = isNeg ? '#34d399' : '#ef4444';
-        const bgBar  = isNeg ? 'rgba(52,211,153,0.2)' : 'rgba(239,68,68,0.2)';
-        const displayVal = typeof val === 'number' ? Math.abs(val).toFixed(1) : val;
-
-        html += `<div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-radius:10px; padding:12px 14px;">
-          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
-            <span style="color:#d1d5db; font-size:0.82rem; font-weight:500; flex:1; padding-right:12px;">${key}</span>
-            <span style="color:${color}; font-weight:700; font-size:0.95rem; white-space:nowrap;">${isNeg ? '+' : '−'}${displayVal}</span>
-          </div>
-          <div style="height:5px; background:rgba(255,255,255,0.06); border-radius:3px; overflow:hidden;">
-            <div style="height:100%; width:${pct}%; background:${color}; border-radius:3px; opacity:0.7; transition:width 0.4s;"></div>
-          </div>
-        </div>`;
-      }
-      html += '</div>';
-    }
-
-    document.getElementById('penaltyModalBody').innerHTML = html;
-    const modal = document.getElementById('penaltyModal');
-    modal.style.display = 'flex';
-    modal.style.opacity  = '';
-    modal.style.transition = '';
-  };
-
-
 })();
+
+// ─── Penalty Breakdown Modal ──────────────────────────────────────────────
+window._penaltyData = {};
+
+function closePenaltyModal() {
+  const m = document.getElementById('penaltyModal');
+  m.style.opacity = '0';
+  m.style.transition = 'opacity 0.15s';
+  setTimeout(() => { m.style.display = 'none'; m.style.opacity = ''; m.style.transition = ''; }, 150);
+}
+window.closePenaltyModal = closePenaltyModal;
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closePenaltyModal(); });
+
+function showPenaltyDetails(penKey, title, icon) {
+  const data = window._penaltyData[penKey];
+  if (!data) return;
+  document.getElementById('penaltyModalTitle').innerText = title + ' Breakdown';
+  document.getElementById('penaltyModalIcon').innerText = icon;
+
+  const details = (data && data.details) ? data.details : {};
+  const total   = (data && data.total !== undefined) ? data.total : (typeof data === 'number' ? data : 0);
+
+  let html = '';
+  const entries = Object.entries(details);
+
+  if (entries.length === 0) {
+    html = `<div style="text-align:center; padding:32px 0; color:#6b7280;">
+      <div style="font-size:2rem; margin-bottom:12px;">✓</div>
+      <div style="font-size:0.9rem;">No specific violations detected.</div>
+    </div>`;
+  } else {
+    // Summary bar
+    const maxVal = Math.max(...entries.map(([,v]) => typeof v === 'number' ? v : 0), 0.1);
+    html += `<div style="margin-bottom:20px; padding:14px 16px; background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.2); border-radius:10px;">
+      <div style="font-size:0.72rem; color:#9ca3af; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:6px;">Total Penalty Score</div>
+      <div style="font-size:2rem; font-weight:800; color:#ef4444; line-height:1;">−${typeof total === 'number' ? total.toFixed(1) : total}</div>
+      <div style="font-size:0.7rem; color:#6b7280; margin-top:4px;">Applied to the raw ML efficacy score (either model) before final adjustment</div>
+    </div>`;
+
+    html += '<div style="display:flex; flex-direction:column; gap:10px;">';
+    for (const [key, val] of entries) {
+      const numVal = typeof val === 'number' ? val : 0;
+      const isNeg  = numVal < 0;
+      const pct    = Math.abs(numVal) / maxVal * 100;
+      const color  = isNeg ? '#34d399' : '#ef4444';
+      const displayVal = typeof val === 'number' ? Math.abs(val).toFixed(1) : val;
+
+      html += `<div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-radius:10px; padding:12px 14px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+          <span style="color:#d1d5db; font-size:0.82rem; font-weight:500; flex:1; padding-right:12px;">${key}</span>
+          <span style="color:${color}; font-weight:700; font-size:0.95rem; white-space:nowrap;">${isNeg ? '+' : '−'}${displayVal}</span>
+        </div>
+        <div style="height:5px; background:rgba(255,255,255,0.06); border-radius:3px; overflow:hidden;">
+          <div style="height:100%; width:${pct}%; background:${color}; border-radius:3px; opacity:0.7; transition:width 0.4s;"></div>
+        </div>
+      </div>`;
+    }
+    html += '</div>';
+  }
+
+  document.getElementById('penaltyModalBody').innerHTML = html;
+  const modal = document.getElementById('penaltyModal');
+  modal.style.display = 'flex';
+  modal.style.opacity  = '';
+  modal.style.transition = '';
+}
+window.showPenaltyDetails = showPenaltyDetails;
 </script>
 
   <!-- Penalty Details Modal -->
@@ -3403,15 +3891,6 @@ async function loadMods() {
 
   </script>
 
-  <style>
-  @keyframes fadeInBg { from { opacity:0 } to { opacity:1 } }
-  @keyframes slideUp  { from { opacity:0; transform: translateY(24px) scale(0.96) } to { opacity:1; transform: translateY(0) scale(1) } }
-  #penaltyModal::-webkit-scrollbar { width:0 }
-  #penaltyModalBody::-webkit-scrollbar { width:5px }
-  #penaltyModalBody::-webkit-scrollbar-track { background: rgba(255,255,255,0.03) }
-  #penaltyModalBody::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.4); border-radius:3px }
-  </style>
-
   <!-- ─── HELIXZERO SCIENTIFIC CO-PILOT & VOICE ASSISTANT WIDGET ─── -->
   <div id="helix-assistant-toggle" onclick="toggleAssistant()" title="Open Helix Scientific Assistant">
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -3649,11 +4128,6 @@ async function loadMods() {
     if (win.classList.contains('active')) {
       setTimeout(() => document.getElementById('assistant-input').focus(), 150);
     }
-  }
-
-  function openAssistantWithTop5() {
-    toggleAssistant(true);
-    triggerTop5Analysis();
   }
 
   function toggleTts() {
