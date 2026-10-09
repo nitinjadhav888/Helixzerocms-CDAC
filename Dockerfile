@@ -48,14 +48,20 @@ COPY helixzero_ieee_v5/ /app/helixzero_ieee_v5/
 COPY MEG-mod-main/ /app/MEG-mod-main/
 
 # ---------------------------------------------------------------------------
-# Build-time verification: confirms idx.pkl (>800MB) is present in image
+# Build-time verification: confirms idx.pkl (>800MB) & rnafm (>50MB) & cbm (>1MB)
 # ---------------------------------------------------------------------------
 RUN python3 -c "\
 import os, sys; \
-path = '/app/smepred/data/human_transcriptome.idx.pkl'; \
-size = os.path.getsize(path); \
-assert size > 800_000_000, f'idx.pkl too small or corrupt: {size} bytes!'; \
-print(f'[BUILD VERIFY] idx.pkl OK: {size/1e6:.0f} MB confirmed in image.'); \
+idx_path = '/app/smepred/data/human_transcriptome.idx.pkl'; \
+idx_size = os.path.getsize(idx_path); \
+assert idx_size > 800_000_000, f'idx.pkl too small or corrupt: {idx_size} bytes!'; \
+fm_path = '/app/smepred/models/rnafm_embeddings.pkl'; \
+fm_size = os.path.getsize(fm_path) if os.path.exists(fm_path) else 0; \
+assert fm_size > 50_000_000, f'CRITICAL: rnafm_embeddings.pkl too small or LFS stub: {fm_size} bytes!'; \
+cbm_path = '/app/smepred/models/unified_dose_catboost.cbm'; \
+cbm_size = os.path.getsize(cbm_path) if os.path.exists(cbm_path) else 0; \
+assert cbm_size > 1_000_000, f'CRITICAL: unified_dose_catboost.cbm missing or corrupt: {cbm_size} bytes!'; \
+print(f'[BUILD VERIFY] idx.pkl: {idx_size/1e6:.0f} MB | rnafm: {fm_size/1e6:.1f} MB | cbm: {cbm_size/1e6:.2f} MB confirmed in image.'); \
 sys.exit(0)"
 
 # ---------------------------------------------------------------------------
