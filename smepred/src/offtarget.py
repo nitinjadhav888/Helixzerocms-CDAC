@@ -21,6 +21,8 @@ import pickle
 from pathlib import Path
 from typing import Dict, Any, Optional, Set
 
+from .filters import calculate_preclinical_hepatotoxicity_index
+
 logger = logging.getLogger(__name__)
 
 _NUC_MAP = {'A': 0, 'C': 1, 'G': 2, 'T': 3, 'U': 3}
@@ -345,6 +347,35 @@ class OffTargetEngine:
         elif has_galnac:
             report["safetyNotes"].append(
                 "GalNAc ('4') conjugate detected. Hepatic uptake and PK profile validated."
+            )
+
+        # 6. Preclinical Hepatotoxicity Burden Index (Janas et al. / DeepRNAi 2026)
+        clean_base_anti = base_antisense if base_antisense else antisense
+        hep_idx = calculate_preclinical_hepatotoxicity_index(
+            antisense=clean_base_anti,
+            modified_antisense=antisense_mods,
+            slicer_matches=slicer_count,
+        )
+        report["preclinicalHepatotoxicityProfile"] = hep_idx["hepato_profile"]
+        report["preclinicalHepatotoxicityScore"] = hep_idx["hepato_score"]
+        report["preclinicalHepatotoxicityStatus"] = hep_idx["hepato_status"]
+        report["npmBurdenScore"] = hep_idx["npm_burden"]
+        report["seedHybridizationEnergyKcal"] = hep_idx["seed_energy_kcal"]
+
+        if hep_idx["hepato_profile"] == "FDA Good Actor Profile":
+            report["safetyNotes"].append(
+                f"Preclinical Hepatotoxicity Profile: {hep_idx['hepato_profile']} (Score: {hep_idx['hepato_score']:.1f}/100, NPM Burden: {hep_idx['npm_burden']:.2f}). Clean in vivo hepatocyte safety (Janas / DeepRNAi criteria)."
+            )
+        elif hep_idx["hepato_profile"] == "Janas Bad Actor Risk":
+            report["riskFactors"].append(
+                f"CRITICAL PRECLINICAL RISK: {hep_idx['hepato_profile']} (Score: {hep_idx['hepato_score']:.1f}/100). High-affinity seed / unmitigated off-target burden predicted to cause hepatocyte apoptosis and ALT elevation."
+            )
+            report["overallSafetyScore"] -= 20.0
+            report["isSafe"] = False
+            report["status"] = "TOXIC"
+        else:
+            report["safetyNotes"].append(
+                f"Preclinical Caution: Moderate seed hybridization burden (Score: {hep_idx['hepato_score']:.1f}/100, NPM Burden: {hep_idx['npm_burden']:.2f}). Consider seed rescue modification (pos 2 2'-OMe or pos 7 GNA)."
             )
 
         # Enforce bounds

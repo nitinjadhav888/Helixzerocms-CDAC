@@ -42,7 +42,7 @@ from .parser import load_sequence
 from .sirna_generator import generate_candidates, generate_dsirna_candidate, SiRNACandidate
 from .features import extract_batch_v4, extract_phase2
 from .modification_engine import single_mod_scan, multimod_gen, CmSiRNA, _apply_mod
-from .filters import annotate_candidates, toxicity_for_modified
+from .filters import annotate_candidates, toxicity_for_modified, calculate_preclinical_hepatotoxicity_index
 from .calibrator import StrictlyMonotonicCalibrator
 from .biophysics import calculate_adjusted_efficacy
 from . import model_b_v4
@@ -259,9 +259,13 @@ class RankedSiRNA:
     is_curated_lead: bool = False
     asymmetry_ddg: Optional[float] = None
     asymmetry_label: str = "Unknown"
+    hepato_score: Optional[float] = None
+    hepato_profile: Optional[str] = None
+    hepato_status: Optional[str] = None
+    npm_burden: Optional[float] = None
 
     def to_dict(self) -> Dict[str, Any]:
-        return {
+        res = {
             "rank": self.rank,
             "position": self.position,
             "sense": self.sense,
@@ -277,6 +281,15 @@ class RankedSiRNA:
             "asymmetry_ddg": self.asymmetry_ddg,
             "asymmetry_label": self.asymmetry_label,
         }
+        if self.hepato_score is not None:
+            res["hepato_score"] = self.hepato_score
+        if self.hepato_profile is not None:
+            res["hepato_profile"] = self.hepato_profile
+        if self.hepato_status is not None:
+            res["hepato_status"] = self.hepato_status
+        if self.npm_burden is not None:
+            res["npm_burden"] = self.npm_burden
+        return res
 
 
 @dataclass
@@ -308,6 +321,9 @@ class RankedCmSiRNA:
     duplex_mfe_kcal: Optional[float] = None
     delta_duplex_dg: Optional[float] = None
     target_dose_nM: Optional[float] = None
+    hepato_score: Optional[float] = None
+    hepato_profile: Optional[str] = None
+    hepato_status: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         result = {
@@ -347,6 +363,12 @@ class RankedCmSiRNA:
             result["antisense_positions"] = self.antisense_positions
         if self.biophysics is not None:
             result["biophysics"] = self.biophysics
+        if self.hepato_score is not None:
+            result["hepato_score"] = self.hepato_score
+        if self.hepato_profile is not None:
+            result["hepato_profile"] = self.hepato_profile
+        if self.hepato_status is not None:
+            result["hepato_status"] = self.hepato_status
         return result
 
 
@@ -422,6 +444,10 @@ def rank_sirnas(
             func_reason=annotation["func_reason"],
             asymmetry_ddg=annotation.get("asymmetry_ddg"),
             asymmetry_label=annotation.get("asymmetry_label", "Unknown"),
+            hepato_score=annotation.get("hepato_score"),
+            hepato_profile=annotation.get("hepato_profile"),
+            hepato_status=annotation.get("hepato_status"),
+            npm_burden=annotation.get("npm_burden"),
         ))
 
     if top_n is not None:
@@ -814,6 +840,10 @@ def predict_modified(
             mode="targeted" if mode in ("scan", "single", "multimod") else "mod_ranking"
         )
         viability, tox_label, tox_note = toxicity_for_modified(variant.antisense, variant.parent_antisense)
+        hep_info = calculate_preclinical_hepatotoxicity_index(
+            variant.parent_antisense,
+            modified_antisense=variant.antisense
+        )
 
         final_score = adj_score
         final_delta = round(final_score - parent_adjusted_score, 2)
@@ -869,6 +899,9 @@ def predict_modified(
             antisense_positions=getattr(variant, 'antisense_positions', ''),
             duplex_mfe_kcal=var_duplex_mfe,
             delta_duplex_dg=var_delta_duplex_dg,
+            hepato_score=hep_info["hepato_score"],
+            hepato_profile=hep_info["hepato_profile"],
+            hepato_status=hep_info["hepato_status"],
         ))
 
     # Sort by efficacy score (descending)

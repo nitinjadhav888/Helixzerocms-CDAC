@@ -1799,6 +1799,30 @@ function asymBadge(ddg, label) {
 }
 
 
+// Preclinical Hepatotoxicity Profile Badge (Janas et al. 2018 / DeepRNAi 2026 paradigm)
+function hepatoBadge(score, profile, npm) {
+  const p = profile || (score >= 80 ? 'FDA Good Actor Profile' : (score >= 50 ? 'Preclinical Caution' : 'Janas Bad Actor Risk'));
+  const s = score != null ? `${Number(score).toFixed(1)}` : '—';
+  const npmTip = npm != null ? ` · NPM Wobble: ${npm}` : '';
+
+  if (p === 'FDA Good Actor Profile' || p.includes('Good Actor')) {
+    return `<span class="badge" style="background:rgba(16,185,129,0.12);color:var(--green-bright);border:1px solid rgba(16,185,129,0.35);font-size:0.75rem;padding:3px 8px;border-radius:6px;display:inline-flex;align-items:center;gap:4px;white-space:nowrap" title="FDA Good Actor Profile: Low in vivo liver toxicity risk (Janas et al. / DeepRNAi criteria). Seed score ${s}/100${npmTip}">
+      <span style="font-weight:700">✓ Good Actor</span>
+      <span style="font-size:0.68rem;opacity:0.85">${s}%</span>
+    </span>`;
+  } else if (p === 'Preclinical Caution' || p.includes('Caution')) {
+    return `<span class="badge" style="background:rgba(245,158,11,0.12);color:var(--yellow);border:1px solid rgba(245,158,11,0.35);font-size:0.75rem;padding:3px 8px;border-radius:6px;display:inline-flex;align-items:center;gap:4px;white-space:nowrap" title="Preclinical Caution: Moderate seed hybridization burden. Dose titration or pos 2/7 modification advised. Seed score ${s}/100${npmTip}">
+      <span style="font-weight:700">⚠ Caution</span>
+      <span style="font-size:0.68rem;opacity:0.85">${s}%</span>
+    </span>`;
+  } else {
+    return `<span class="badge" style="background:rgba(244,63,94,0.12);color:var(--red);border:1px solid rgba(244,63,94,0.35);font-size:0.75rem;padding:3px 8px;border-radius:6px;display:inline-flex;align-items:center;gap:4px;white-space:nowrap" title="Janas Bad Actor Risk: High-affinity seed off-target burden. Severe in vivo hepatocyte toxicity liability. Seed score ${s}/100${npmTip}">
+      <span style="font-weight:700">✗ Bad Actor</span>
+      <span style="font-size:0.68rem;opacity:0.85">${s}%</span>
+    </span>`;
+  }
+}
+
 function funcCell(ok, reason) {
   return ok
     ? '<span class="func-ok" title="Passes GC/run/palindrome checks">✓ Pass</span>'
@@ -1950,6 +1974,7 @@ function renderRankResults(data) {
       <td>${scoreBar(r.efficacy_score ?? r.score ?? 0)}</td>
       <td>${effBadge(r.efficacy_label ?? r.label ?? '—')}</td>
       <td>${toxBadge(r.toxicity_score, r.toxicity_label ?? 'Unknown')}</td>
+      <td>${hepatoBadge(r.hepato_score ?? r.toxicity_score, r.hepato_profile, r.npm_burden)}</td>
       <td>${asymBadge(r.asymmetry_ddg, r.asymmetry_label)}</td>
       <td>${funcCell(r.func_ok !== false, r.func_reason ?? '')}</td>
       <td style="display:flex;gap:5px;white-space:nowrap">
@@ -2017,6 +2042,7 @@ function renderRankResults(data) {
             <th title="Baseline unmodified siRNA knockdown efficacy percentage predicted by the model prior to chemical modification">Naked Efficacy (%)</th>
             <th>Activity Tier</th>
             <th title="Predicted cell viability score based on seed-mediated off-target liabilities (Janas et al. 2018 benchmark)">Seed Viability (%)</th>
+            <th title="Preclinical Hepatotoxicity Burden Index (Janas et al. 2018 / DeepRNAi 2026 paradigm): Categorizes candidates into FDA Good Actor Profile, Preclinical Caution, or Janas Bad Actor Risk">Preclinical Safety</th>
             <th title="Schwarz-Zamore terminal thermodynamic asymmetry (ΔΔG = ΔG_5'AS − ΔG_5'SS). Favorable: ≥ +1.5 kcal/mol for preferential guide strand RISC loading">Asymmetry (ΔΔG kcal/mol)</th>
             <th title="Sequence liability screening: GC content (30–60%), homopolymer runs (≤4), and secondary palindromic hairpins">Biophysical Filter</th>
             <th>Actions</th>
@@ -2766,6 +2792,9 @@ function exportLabHandoffCSV(moduleType) {
         "Seed_Hexamer_pos2_7": extractSeedHexamer(a),
         "Seed_Viability_Score": tox,
         "Seed_Safety_Class": r.toxicity_label ?? 'Unknown',
+        "Preclinical_Hepatotoxicity_Profile": r.hepato_profile || (r.toxicity_label === 'Toxic' ? 'Janas Bad Actor Risk' : (r.toxicity_label === 'Caution' ? 'Preclinical Caution' : 'FDA Good Actor Profile')),
+        "Preclinical_Hepato_Score": r.hepato_score != null ? `${Number(r.hepato_score).toFixed(1)}/100` : (r.toxicity_score != null ? `${Number(r.toxicity_score).toFixed(1)}/100` : '—'),
+        "NPM_Wobble_Burden": r.npm_burden != null ? `${Number(r.npm_burden).toFixed(2)}` : '—',
         "Asymmetry_ddG_kcal_mol": asym,
         "RISC_Loading_Preference": r.asymmetry_label || 'Optimal (Guide Preferred)',
         "Biophysical_Filter_Status": filterOk ? "PASS" : "FAIL",
@@ -2822,6 +2851,8 @@ function exportLabHandoffCSV(moduleType) {
         "Estimated_IC50": ic50,
         "Estimated_pIC50": pic50,
         "Seed_Toxicity_Impact": seedShift,
+        "Preclinical_Hepatotoxicity_Profile": r.hepato_profile || (r.toxicity_label === 'Mitigated' ? 'FDA Good Actor Profile' : (parentToxLabel === 'Toxic' ? 'Janas Bad Actor Risk' : 'FDA Good Actor Profile')),
+        "Preclinical_Hepato_Score": r.hepato_score != null ? `${Number(r.hepato_score).toFixed(1)}/100` : '—',
         "Evidence_Limit_Tier": ev.tierBadge,
         "Synthesis_Budget_Tier": ev.cost,
         "Screening_Dose_nM": `${dose} nM`,
@@ -2872,6 +2903,8 @@ function exportLabHandoffCSV(moduleType) {
         "ViennaRNA_Duplex_MFE": duplexMFE,
         "Biophysical_Penalty_Score": `-${Number(totPen).toFixed(2)}%`,
         "Seed_Toxicity_Rescue": r.toxicity_label === 'Mitigated' ? "Rescued (Mitigated)" : (r.toxicity_label || 'Safe'),
+        "Preclinical_Hepatotoxicity_Profile": r.hepato_profile || (r.toxicity_label === 'Mitigated' ? 'FDA Good Actor Profile' : 'FDA Good Actor Profile'),
+        "Preclinical_Hepato_Score": r.hepato_score != null ? `${Number(r.hepato_score).toFixed(1)}/100` : '—',
         "Evidence_Limit_Tier": ev.tierBadge,
         "Synthesis_Budget_Tier": ev.cost,
         "Reagent_Bottleneck_Monomer": getBottleneckInfo(sym),

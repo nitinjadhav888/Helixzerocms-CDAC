@@ -3,7 +3,8 @@ lead_selector.py — Deterministic Multi-Criteria Decision Analysis (MCDA)
 Ranks candidate siRNAs based on biophysical, thermodynamic, and safety criteria.
 """
 
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
+from .filters import calculate_preclinical_hepatotoxicity_index
 
 def score_and_rank_candidates(candidates: List[Dict[str, Any]], top_k: int = 5) -> List[Dict[str, Any]]:
     """
@@ -89,6 +90,21 @@ def score_and_rank_candidates(candidates: List[Dict[str, Any]], top_k: int = 5) 
         except (ValueError, TypeError):
             penalty = 0.0
 
+        # 6. Preclinical Hepatotoxicity & NPM Burden (Janas et al. / DeepRNAi 2026)
+        hep_score = c.get("hepato_score")
+        hep_prof = c.get("hepato_profile")
+        hep_stat = c.get("hepato_status")
+        npm_b = c.get("npm_burden")
+        if (hep_score is None or hep_prof is None) and c.get("antisense"):
+            hep_calc = calculate_preclinical_hepatotoxicity_index(
+                antisense=c["antisense"],
+                modified_antisense=c.get("antisense_mods") or c.get("anti_mods")
+            )
+            hep_score = hep_calc["hepato_score"]
+            hep_prof = hep_calc["hepato_profile"]
+            hep_stat = hep_calc["hepato_status"]
+            npm_b = hep_calc["npm_burden"]
+
         # Normalized component scores [0.0 to 1.0]
         s_eff = min(max(eff / 100.0, 0.0), 1.0)
         s_seed = min(max(seed_tox / 100.0, 0.0), 1.0)
@@ -113,6 +129,8 @@ def score_and_rank_candidates(candidates: List[Dict[str, Any]], top_k: int = 5) 
             composite *= 0.70
         if offtargets > 1:
             composite *= 0.60
+        if hep_prof == "Janas Bad Actor Risk":
+            composite *= 0.70
 
         entry = dict(c)
         entry["composite_rank_score"] = round(composite, 2)
@@ -121,6 +139,18 @@ def score_and_rank_candidates(candidates: List[Dict[str, Any]], top_k: int = 5) 
         entry["parsed_asymmetry_ddg"] = round(asym, 2)
         entry["parsed_offtargets"] = offtargets
         entry["parsed_penalty"] = round(penalty, 2)
+        if hep_score is not None:
+            entry["hepato_score"] = round(float(hep_score), 1)
+            entry["parsed_hepato_score"] = round(float(hep_score), 1)
+        if hep_prof:
+            entry["hepato_profile"] = hep_prof
+            entry["parsed_hepato_profile"] = hep_prof
+        if hep_stat:
+            entry["hepato_status"] = hep_stat
+            entry["parsed_hepato_status"] = hep_stat
+        if npm_b is not None:
+            entry["npm_burden"] = round(float(npm_b), 2)
+            entry["parsed_npm_burden"] = round(float(npm_b), 2)
         scored_list.append(entry)
 
     # Sort descending by composite rank score

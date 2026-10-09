@@ -89,6 +89,9 @@ jobs:
       - name: "🔬 Suite 7: FastAPI Production REST API Endpoints"
         run: python -m pytest smepred/tests/test_api.py -v --tb=short
 
+      - name: "🔬 Suite 8: Preclinical Hepatotoxicity & DeepRNAi Alignment"
+        run: python -m pytest smepred/tests/test_deeprnai_alignment.py -v --tb=short
+
   build-and-push:
     name: 🐳 Build & Push Docker Image to Docker Hub (CD)
     needs: test
