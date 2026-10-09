@@ -36,12 +36,13 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY --from=prebuilt_assets /app/smepred/data/human_transcriptome.idx.pkl /app/smepred/data/human_transcriptome.idx.pkl
 COPY --from=prebuilt_assets /app/data_pre/ /app/data_pre/
 COPY --from=prebuilt_assets /app/MEG-mod-main/Saved_Best_Models/ /app/MEG-mod-main/Saved_Best_Models/
+COPY --from=prebuilt_assets /app/smepred/models/ /app/smepred/models/
 
 # ---------------------------------------------------------------------------
 # Copy Fresh Application Code & Data
+# (Overwrites model binaries with latest Git-tracked versions)
 # ---------------------------------------------------------------------------
 COPY smepred/ /app/smepred/
-COPY --from=prebuilt_assets /app/smepred/models/ /app/smepred/models/
 COPY helixzero/ /app/helixzero/
 COPY helixzero_ieee_v5/ /app/helixzero_ieee_v5/
 COPY MEG-mod-main/ /app/MEG-mod-main/
