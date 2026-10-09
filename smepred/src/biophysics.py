@@ -714,20 +714,23 @@ def calculate_target_complementarity_gate(
     best_details["gate_status"] = "applied" if f_gate < 0.99 else "passed"
     return f_gate, best_details
 
-# Set of FDA/Clinical-de-risked Tier 0 modifications (Patisiran / Vutrisiran / Givosiran / Lumasiran / Inclisiran standard)
-_TIER_0_FDA_CORE: FrozenSet[str] = frozenset("MFDS14acgtuACGTU.")
+# Set of FDA/Clinical-de-risked Tier 0 modifications (Patisiran / Vutrisiran / Givosiran / Lumasiran / Inclisiran / Wainua standard)
+_TIER_0_FDA_CORE: FrozenSet[str] = frozenset("MFDS1234EacgtuACGTU.")
 
-# Set of Tier 1 modifications with published preclinical in-vivo RISC activity (LNA, 2'-MOE, ENA)
-_TIER_1_PRECLINICAL: FrozenSet[str] = frozenset("LEY")
+# Set of Tier 1 modifications with published preclinical in-vivo RISC activity (LNA 'L', ENA 'Y', UNA '6')
+_TIER_1_PRECLINICAL: FrozenSet[str] = frozenset("LY6")
 
 def calculate_experimental_chemistry_penalty(sense: str, antisense: str) -> Tuple[float, Dict[str, float]]:
     """
     Calculates 3-Tier chemistry risk penalties and non-linear combinatorial stacking penalties
     for unvalidated, exotic novel chemical modifications (TNA, ANA, FANA, DihydroU, Abasic, etc.).
     
-    Tier 0 (Penalty = 0): FDA-Approved Clinical Core (2'-OMe 'M', 2'-F 'F', 2'-deoxy 'D', PS 'S', GalNAc '4')
-    Tier 1 (Penalty = 2.0): Preclinical in-vivo data (LNA 'L', 2'-MOE 'E', ENA 'Y')
-    Tier 2 (Penalty = 6.0): Unvalidated/Exotic (TNA '9', ANA '7', FANA 'I', DihydroU 'O', Inosine 'J', Abasic 'Q', etc.)
+    Tier 0 (Penalty = 0): FDA-Approved Clinical Core (2'-OMe 'M', 2'-F 'F', 2'-deoxy 'D', PS 'S', 
+                          GalNAc '4', 5'-VP '1', 3'-P '2', 5'-OMe '3', 2'-MOE 'E', 
+                          and (S)-GNA '8' at Antisense Seed Positions 6-8 [Amvuttra ESC+ standard]).
+    Tier 1 (Penalty = 2.0): Preclinical in-vivo data (LNA 'L', ENA 'Y', UNA '6')
+    Tier 2 (Penalty = 6.0): Unvalidated/Exotic (TNA '9', ANA '7', FANA 'I', DihydroU 'O', Inosine 'J', Abasic 'Q', etc.,
+                            or GNA '8' placed outside the antisense seed region).
     
     Combinatorial Stacking Penalty:
     If N >= 2 non-Tier-0 mods are stacked together, applies a non-linear penalty multiplier: 4.0 * (N - 1)^1.5
@@ -735,9 +738,31 @@ def calculate_experimental_chemistry_penalty(sense: str, antisense: str) -> Tupl
     total_penalty = 0.0
     details = {}
 
-    combined = sense + antisense
-    t1_mods = [c for c in combined if c in _TIER_1_PRECLINICAL]
-    t2_mods = [c for c in combined if c not in _TIER_0_FDA_CORE and c not in _TIER_1_PRECLINICAL]
+    t1_mods = []
+    t2_mods = []
+
+    # Process sense strand
+    for c in sense:
+        if c in _TIER_1_PRECLINICAL:
+            t1_mods.append(c)
+        elif c not in _TIER_0_FDA_CORE:
+            t2_mods.append(c)
+
+    # Process antisense strand with positional awareness for (S)-GNA ('8')
+    # Clinical prior: (S)-GNA at antisense positions 6, 7, 8 is the FDA-approved ESC+ standard (Vutrisiran 2022).
+    # If placed in antisense seed positions 6-8 (0-indexed indices 5, 6, 7), it is Tier 0 Clinical Core (0.0 penalty).
+    # If placed outside the seed region (e.g. cleavage site pos 10), it incurs a Tier 2 catalytic penalty.
+    for i, c in enumerate(antisense):
+        if c in _TIER_1_PRECLINICAL:
+            t1_mods.append(c)
+        elif c == '8':
+            if i in (5, 6, 7):
+                # Clinically proven FDA Tier 0 seed armor (Amvuttra ESC+ standard) -> 0.0 penalty
+                continue
+            else:
+                t2_mods.append(c)
+        elif c not in _TIER_0_FDA_CORE:
+            t2_mods.append(c)
     
     n_t1 = len(t1_mods)
     n_t2 = len(t2_mods)

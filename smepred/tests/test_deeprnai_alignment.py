@@ -134,3 +134,58 @@ def test_dto_serialization_invariance():
     assert cd["hepato_score"] == 84.0
     assert cd["hepato_profile"] == "FDA Good Actor Profile"
     assert cd["hepato_status"] == "Safe"
+
+
+def test_gna_pos7_is_fda_core_zero_penalty():
+    """
+    Verify (S)-GNA at antisense position 7 (Alnylam ESC+ / Vutrisiran standard)
+    is recognized as Tier 0 FDA Core with 0.0 penalty, while GNA outside the seed
+    (e.g., pos 10 catalytic site) correctly incurs a Tier 2 penalty.
+    """
+    from src.biophysics import calculate_experimental_chemistry_penalty
+    sense = "UGGGAUUUCAUGUAACCAAGA"
+    
+    # 1. Antisense with GNA at position 7 (0-indexed index 6)
+    anti_pos7_gna = "UCUUGG8ACAUGAAAUCCCAU"
+    pen_pos7, details_pos7 = calculate_experimental_chemistry_penalty(sense, anti_pos7_gna)
+    assert pen_pos7 == 0.0
+    assert len(details_pos7) == 0
+
+    # 2. Antisense with GNA at position 10 (catalytic slicer cleavage site)
+    anti_pos10_gna = "UCUUGGUUA8AUGAAAUCCCA"
+    pen_pos10, details_pos10 = calculate_experimental_chemistry_penalty(sense, anti_pos10_gna)
+    assert pen_pos10 >= 6.0
+    assert any("Tier 2" in k for k in details_pos10.keys())
+
+
+def test_modification_codes_json_sync_and_fda_core():
+    """Verify modification_codes.json correctly classifies GNA and aligns with FDA Core."""
+    import json
+    from pathlib import Path
+    from src.modification_engine import FDA_CORE_SYMBOLS
+
+    mod_file = Path(__file__).resolve().parent.parent / "data" / "modification_codes.json"
+    assert mod_file.exists()
+    with open(mod_file, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    mods_by_symbol = {m["symbol"]: m for m in data["modifications"]}
+    
+    # Verify (S)-GNA ('8')
+    assert "8" in mods_by_symbol
+    assert "Glycol Nucleic Acid" in mods_by_symbol["8"]["name"]
+    assert mods_by_symbol["8"]["type"] == "fda_core"
+
+    # Verify UNA ('6')
+    assert "6" in mods_by_symbol
+    assert "Unlocked Nucleic Acid" in mods_by_symbol["6"]["name"]
+
+    # Verify GalNAc ('4')
+    assert "4" in mods_by_symbol
+    assert "GalNAc" in mods_by_symbol["4"]["name"]
+
+    # Verify FDA_CORE_SYMBOLS contains modern clinical monomers
+    assert "8" in FDA_CORE_SYMBOLS
+    assert "4" in FDA_CORE_SYMBOLS
+    assert "1" in FDA_CORE_SYMBOLS
+    assert "E" in FDA_CORE_SYMBOLS

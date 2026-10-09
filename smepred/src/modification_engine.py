@@ -47,6 +47,9 @@ else:
     CANONICAL_SYMBOLS: Set[str] = {"A", "C", "G", "U", "T"}
     MODIFICATION_SYMBOLS: Set[str] = {"M", "F", "D", "X", "8", "2", "4", "m", "f", "s", "p", "a", "c", "g", "u"}
 
+# Set of FDA-Approved & Clinically Proven Core Monomers (Patisiran, Givlaari, Leqvio, Amvuttra, Wainua standard)
+FDA_CORE_SYMBOLS: Set[str] = {'M', 'F', 'D', 'S', '1', '2', '3', '4', '8', 'E'}
+
 
 # ─── Data Transfer Objects ────────────────────────────────────────────────────
 
@@ -234,7 +237,7 @@ def single_mod_scan(
     Generates an exhaustive single-modification combinatorial library.
     """
     if target_symbols is None:
-        clinical_standard = ["F", "M", "D", "S", "1", "E", "L"]
+        clinical_standard = ["F", "M", "D", "S", "1", "2", "3", "4", "8", "E", "L"]
         exotic = [s for s in sorted(MODIFICATION_SYMBOLS) if s not in clinical_standard]
         target_symbols = clinical_standard + exotic
 
@@ -432,8 +435,8 @@ def multi_mod_scan(
     elif parent_score is None:
         raise ValueError("parent_score must be provided when single_results is pre-calculated.")
 
-    # Filter to FDA-Approved Core Palette (2'-OMe 'M', 2'-F 'F', 2'-deoxy 'D', PS 'S', 5'-Phos '1')
-    FDA_CORE_SYMBOLS = {'M', 'F', 'D', 'S', '1'}
+    # Filter to FDA-Approved Core Palette (2'-OMe 'M', 2'-F 'F', 2'-deoxy 'D', PS 'S', 5'-Phos '1', 3'-P '2', 5'-OMe '3', GalNAc '4', (S)-GNA '8', 2'-MOE 'E')
+    FDA_CORE_SYMBOLS = {'M', 'F', 'D', 'S', '1', '2', '3', '4', '8', 'E'}
     if fda_core_only and single_results:
         fda_filtered = [r for r in single_results if all(c in FDA_CORE_SYMBOLS for c in r.mod_symbol.replace('+', ''))]
         if fda_filtered:
