@@ -2151,7 +2151,7 @@ async function loadMultiModFromSingleModBatch() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         sense, antisense, model,
-        max_mods: 21,
+        max_mods: 42,
         beam_width: 25,
         full_scan: true,
         fda_core_only: document.getElementById('sm-fda-core')?.checked ?? true,
@@ -2391,7 +2391,7 @@ async function runMultiMod(forceBeamSearch = false) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           sense, antisense, model,
-          max_mods: 21,
+          max_mods: 42,
           beam_width: 25,
           full_scan: true,
           fda_core_only: fdaCore,

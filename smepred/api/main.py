@@ -131,7 +131,7 @@ class MultiModScanRequest(BaseModel):
     sense: str
     antisense: str
     model: Literal["Unified_v5", "IEEE_v5", "Ensemble_v4", "GNN_v2", "B_v4"] = DEFAULT_MODEL_B_KEY
-    max_mods: int = Field(21, ge=2, le=21)
+    max_mods: int = Field(42, ge=2, le=42)
     beam_width: int = Field(20, ge=5, le=100)
     full_scan: bool = False
     fda_core_only: bool = True
@@ -141,7 +141,7 @@ class MultiModFromSingleRequest(BaseModel):
     sense: str
     antisense: str
     model: Literal["Unified_v5", "IEEE_v5", "Ensemble_v4", "GNN_v2", "B_v4"] = DEFAULT_MODEL_B_KEY
-    max_mods: int = Field(21, ge=2, le=21)
+    max_mods: int = Field(42, ge=2, le=42)
     beam_width: int = Field(25, ge=5, le=100)
     full_scan: bool = True
     fda_core_only: bool = True
