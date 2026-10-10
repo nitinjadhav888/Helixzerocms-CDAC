@@ -189,6 +189,16 @@ def _get_calibrator(key: str) -> Any:
         path = _CALIBRATOR_FILES.get(key)
         if path is not None and path.exists():
             try:
+                # Ensure module namespace aliases exist for unpickling custom calibrator classes across environments
+                import sys
+                try:
+                    from . import calibrator as cal_mod
+                    if "smepred.src.calibrator" not in sys.modules:
+                        sys.modules["smepred.src.calibrator"] = cal_mod
+                    if "src.calibrator" not in sys.modules:
+                        sys.modules["src.calibrator"] = cal_mod
+                except Exception:
+                    pass
                 _loaded_calibrators[key] = joblib.load(path)
                 logger.info(f"Loaded isotonic calibrator for: {key}")
             except Exception as e:

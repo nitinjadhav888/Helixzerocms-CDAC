@@ -539,11 +539,35 @@ def multi_mod_scan_endpoint(req: MultiModScanRequest):
                 },
             })
 
-        # Sort with rigorous tie-breaking: adjusted score -> raw score -> lowest penalty
-        formatted_results.sort(
-            key=lambda x: (x["efficacy_score"], x["raw_efficacy_score"], -x["total_penalty"]),
-            reverse=True
-        )
+        # Sort and rank results: if fda_core_only is False, Pareto-interleave innovative chemistries
+        if not req.fda_core_only:
+            INNOVATIVE_SYMBOLS = {'L', 'E', 'Y', '6', '9', 'Q', 'B', 'I', 'Z', 'X', '7', 'P', 'R', 'H', '5', 'J', 'V', 'W', 'K', 'O'}
+            innovative_list = [
+                r for r in formatted_results
+                if any(c in INNOVATIVE_SYMBOLS for c in (r.get("sense_mods", "") + r.get("antisense_mods", "") + r.get("mod_symbol", "")))
+            ]
+            core_list = [
+                r for r in formatted_results
+                if not any(c in INNOVATIVE_SYMBOLS for c in (r.get("sense_mods", "") + r.get("antisense_mods", "") + r.get("mod_symbol", "")))
+            ]
+            innovative_list.sort(key=lambda x: (x["efficacy_score"], x["raw_efficacy_score"], -x["total_penalty"]), reverse=True)
+            core_list.sort(key=lambda x: (x["efficacy_score"], x["raw_efficacy_score"], -x["total_penalty"]), reverse=True)
+            
+            interleaved = []
+            c_i, i_i = 0, 0
+            while c_i < len(core_list) or i_i < len(innovative_list):
+                if c_i < len(core_list):
+                    interleaved.append(core_list[c_i])
+                    c_i += 1
+                if i_i < len(innovative_list):
+                    interleaved.append(innovative_list[i_i])
+                    i_i += 1
+            formatted_results = interleaved
+        else:
+            formatted_results.sort(
+                key=lambda x: (x["efficacy_score"], x["raw_efficacy_score"], -x["total_penalty"]),
+                reverse=True
+            )
         for idx, res in enumerate(formatted_results):
             res["rank"] = idx + 1
 
@@ -679,6 +703,10 @@ def multi_mod_from_single_endpoint(req: MultiModFromSingleRequest):
                 "mod_position": var.mod_position,
                 "mod_strand": var.mod_strand,
                 "mod_positions": var.mod_positions or str(var.mod_position),
+                "sense_mods": getattr(var, 'sense_mods', ''),
+                "sense_positions": getattr(var, 'sense_positions', ''),
+                "antisense_mods": getattr(var, 'antisense_mods', ''),
+                "antisense_positions": getattr(var, 'antisense_positions', ''),
                 "raw_efficacy_score": raw_score,
                 "efficacy_score": adjusted_score,
                 "gnn_score": gnn_val,
@@ -698,11 +726,35 @@ def multi_mod_from_single_endpoint(req: MultiModFromSingleRequest):
                 },
             })
 
-        # Sort with rigorous tie-breaking: adjusted score -> raw score -> lowest penalty
-        formatted_results.sort(
-            key=lambda x: (x["efficacy_score"], x["raw_efficacy_score"], -x["total_penalty"]),
-            reverse=True
-        )
+        # Sort and rank results: if fda_core_only is False, Pareto-interleave innovative chemistries
+        if not req.fda_core_only:
+            INNOVATIVE_SYMBOLS = {'L', 'E', 'Y', '6', '9', 'Q', 'B', 'I', 'Z', 'X', '7', 'P', 'R', 'H', '5', 'J', 'V', 'W', 'K', 'O'}
+            innovative_list = [
+                r for r in formatted_results
+                if any(c in INNOVATIVE_SYMBOLS for c in (r.get("sense_mods", "") + r.get("antisense_mods", "") + r.get("mod_symbol", "")))
+            ]
+            core_list = [
+                r for r in formatted_results
+                if not any(c in INNOVATIVE_SYMBOLS for c in (r.get("sense_mods", "") + r.get("antisense_mods", "") + r.get("mod_symbol", "")))
+            ]
+            innovative_list.sort(key=lambda x: (x["efficacy_score"], x["raw_efficacy_score"], -x["total_penalty"]), reverse=True)
+            core_list.sort(key=lambda x: (x["efficacy_score"], x["raw_efficacy_score"], -x["total_penalty"]), reverse=True)
+            
+            interleaved = []
+            c_i, i_i = 0, 0
+            while c_i < len(core_list) or i_i < len(innovative_list):
+                if c_i < len(core_list):
+                    interleaved.append(core_list[c_i])
+                    c_i += 1
+                if i_i < len(innovative_list):
+                    interleaved.append(innovative_list[i_i])
+                    i_i += 1
+            formatted_results = interleaved
+        else:
+            formatted_results.sort(
+                key=lambda x: (x["efficacy_score"], x["raw_efficacy_score"], -x["total_penalty"]),
+                reverse=True
+            )
         for idx, res in enumerate(formatted_results):
             res["rank"] = idx + 1
 

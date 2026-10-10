@@ -1,0 +1,7 @@
+construct_id,construct_name,category,raw_catboost_pct,biophys_deduction_pct,adj_score_pct,f_ago2_multiplier,final_gated_score_pct,derived_pIC50,derived_IC50_nM,violations,expected_phenotype
+CONSTRUCT_1,Authentic Inclisiran Chemistry,Clinically Optimized (ESC),76.68,2.6,74.08,1.0,74.08,8.46,3.5,None (Permitted A-form),Top-Tier Clinical Efficacy (≥ 70%)
+CONSTRUCT_2,Seed Region Jamming (Pos 2-8 All 2'-OMe),Seed Steric Clash,77.86,1.75,76.11,0.25,19.03,7.37,42.55,Seed Steric Jamming (7 consec 2'-OMe): 75% nucleation discount,Lethal Nucleation Block (≤ 20%)
+CONSTRUCT_3,PIWI Cleavage Window Clash (Pos 10 2'-OMe),Catalytic Cleavage Abort,78.01,2.05,75.96,0.2,15.19,7.25,55.83,PIWI Pos 10 Catalytic Clash (M): 80% slicing suppression,Slicing Abortion (≤ 20%)
+CONSTRUCT_4,5'-Antisense Anchor Abort (Pos 1 LNA),MID Domain Pocket Rejection,76.86,4.17,72.69,0.15,10.9,7.09,81.74,Lethal 5'-AS Rigid Anchor (L): 85% MID pocket rejection,Loading Failure (≤ 15%)
+CONSTRUCT_5,Hyper-Rigidified All-2'-OMe Duplex,Helicase Unwinding Barrier,73.58,4.25,69.33,0.005,0.35,6.0,990.0,PIWI Pos 10 Catalytic Clash (M): 80% slicing suppression; Seed Steric Jamming (7 consec 2'-OMe): 75% nucleation discount; Duplex Hyper-Rigidification (42 2'-OMe): Helicase unwinding barrier,Inert / Dead Duplex (≤ 5%)
+CONSTRUCT_6,Unshielded Canonical Naked RNA,Unmodified Baseline,74.78,0.0,74.78,1.0,74.78,8.47,3.37,None (Permitted A-form),"Active In Vitro (70-75%), Zero In Vivo"

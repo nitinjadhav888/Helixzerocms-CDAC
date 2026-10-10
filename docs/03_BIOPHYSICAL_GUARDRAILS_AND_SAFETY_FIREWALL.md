@@ -97,12 +97,13 @@ Slicer-Mediated Check             Seed-Mediated Check
 To distinguish between clinically proven chemical modifications and high-risk biophysical extrapolations, HelixZero partitions all 30 chemical building blocks into three deterministic evidence tiers:
 
 #### 4.1 Tier 0: FDA Clinical Core (Dense Interpolation Domain)
-- **Included Monomers:** `M` (2'-OMe), `F` (2'-F), `D` (2'-deoxy / DNA), `S` (Phosphorothioate), `1` (5'-Vinylphosphonate / 5'-VP), `2` (3'-Phosphate), `3` (5'-OMe cap), `4` (GalNAc Cluster), and `8` ((S)-GNA at antisense position 7).
+- **Included Monomers:** `M` (2'-OMe), `F` (2'-F), `D` (2'-deoxy / DNA), `S` (Phosphorothioate), `1` (5'-Vinylphosphonate / 5'-VP), `2` (3'-Phosphate), `3` (5'-OMe cap), `4` (GalNAc Cluster), and `8` ((S)-GNA strictly at antisense position 7).
 - **Data Support:** $>3,500$ clinical and experimental data points across all 6 FDA-approved siRNA therapeutics (Patisiran, Givosiran, Lumasiran, Inclisiran, Vutrisiran, Nedosiran).
-- **Special Pharmacological Role of (S)-GNA (`8`):**
+- **Special Pharmacological Role & Strict Positional Guardrail for (S)-GNA (`8`):**
   - Employed in the Alnylam ESC+ (Enhanced Stability Chemistry Plus) architecture (Vutrisiran / AMVUTTRA®, FDA approved 2022).
-  - Positioned specifically at **antisense position 7** within the seed region. Its flexible acyclic propylene glycol backbone thermally destabilizes base pairing with unintended microRNA-like off-target mRNAs ($\Delta\Delta G^\circ_{37} \approx +2.5\,\text{kcal/mol}$ local penalty) while retaining high-potency on-target Ago2 endonucleolytic cleavage.
-  - Automatically seeded in combinatorial beam search designs.
+  - **Strict Positional Constraint**: Positioned exclusively at **antisense position 7** within the seed region. Its flexible acyclic propylene glycol backbone thermally destabilizes base pairing with unintended microRNA-like off-target mRNAs ($\Delta\Delta G^\circ_{37} \approx +2.5\,\text{kcal/mol}$ local penalty) while preserving on-target Ago2 catalytic cleavage.
+  - **Firewall Enforcement**: In `_is_positionally_valid` and `_is_chemically_viable`, (S)-GNA is strictly forbidden on the sense strand and rejected at any antisense position other than 7. In `biophysics.py`, placement at any non-pos-7 coordinate incurs a Tier 2 exotic catalytic penalty.
+  - Tagged with **Specialty ($$)** budget classification, matching commercial phosphoramidite synthesis costs.
 
 #### 4.2 Tier 1: Innovative / Preclinical (Transfer Prior Domain)
 - **Included Monomers:** `E` (2'-O-Methoxyethyl / 2'-MOE), `L` (Locked Nucleic Acid / LNA), `Y` (Ethylene-bridged Nucleic Acid / ENA), `6` (Unlocked Nucleic Acid / UNA).
@@ -113,4 +114,12 @@ To distinguish between clinically proven chemical modifications and high-risk bi
 #### 4.3 Tier 2: Extrapolated / Novel Chemistries (Rule-Bounded Domain)
 - **Included Monomers:** `9` (TNA), `Q` (Abasic Site), `B` (2'-O-Benzyl), `I` (2'-F-ANA), `Z` (2'-OMe-4'-thio), `X` (2'-O-allyl), `7` (ANA), `P` (Boranophosphate), `R` (Methylphosphonate), `H` (Phosphoramidate), `5` (PEG), `J` (Inosine), `V` (5mC), `W` ($\Psi$), `K` (2-thio U), `O` (Dihydrouridine).
 - **Data Support:** Sparse experimental points ($<80$ per chemistry); predictions operate under thermodynamic penalty boundaries and are tagged with explicit synthesis budget warnings (`Exotic Custom ($$$)`).
+
+#### 4.4 Multi-Objective Pareto Beam Search for Novel Chemistries
+- When users uncheck `fda_core_only` to explore innovative chemistries, zero-penalty FDA Core monomers (`M`, `F`, `D`, `S`) naturally achieve higher raw efficacy scores than novel monomers carrying Tier 1 ($-2.0$) or Tier 2 ($-6.0$) biophysical penalties.
+- Without active preservation, greedy beam search would prematurely purge all innovative candidates by expansion round 2.
+- **HelixZero resolves this via a 40% Innovative Candidate Quota**:
+  1. **Pairing Pool Diversification**: Top innovative single modifications (`L`, `E`, `Y`, `6`, `9`, etc.) are explicitly guaranteed slots in the candidate pairing pool alongside position-specific top modifications.
+  2. **Beam Search Partitioning**: During each iteration, 40% of beam slots are reserved specifically for the highest-performing duplexes incorporating innovative chemistries.
+  3. **Pareto Interleaving**: Final returned candidates interleave top-ranked FDA Core anchors with the best-in-class innovative architectures, ensuring users discover viable novel modification patterns without sacrificing core benchmark references.
 

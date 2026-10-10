@@ -246,7 +246,7 @@ def single_mod_scan(
     for symbol in target_symbols:
         # Scan sense strand
         for pos in range(1, len(sense) + 1):
-            if not _is_positionally_valid(symbol, pos, len(sense)):
+            if not _is_positionally_valid(symbol, pos, len(sense), strand="sense"):
                 continue
             modified_sense = _apply_mod(sense, pos, symbol)
             generated_variants.append(CmSiRNA(
@@ -263,7 +263,7 @@ def single_mod_scan(
             
         # Scan antisense strand
         for pos in range(1, len(antisense) + 1):
-            if not _is_positionally_valid(symbol, pos, len(antisense)):
+            if not _is_positionally_valid(symbol, pos, len(antisense), strand="antisense"):
                 continue
             modified_antisense = _apply_mod(antisense, pos, symbol)
             generated_variants.append(CmSiRNA(
@@ -346,8 +346,12 @@ _TERMINAL_5PRIME_ONLY = {'1', '3'}      # 5'-Phosphate/5'-VP, 5'-OMe cap (pos 1 
 _TERMINAL_3PRIME_ONLY = {'2'}           # 3'-Phosphate (pos 21 only)
 _CONJUGATES = {'4', '5'}                # GalNAc / Cholesterol conjugates (terminal ends only)
 
-def _is_positionally_valid(symbol: str, pos: int, seq_len: int) -> bool:
-    """Enforces strict chemical positional constraints for terminal/conjugate modifications."""
+def _is_positionally_valid(symbol: str, pos: int, seq_len: int, strand: str = "both") -> bool:
+    """Enforces strict chemical positional constraints for terminal, conjugate, and clinical modifications."""
+    if symbol == '8':
+        # (S)-GNA is strictly pinned to antisense position 7 (Alnylam ESC+ / AMVUTTRA® clinical standard).
+        # Never permitted on sense strand; never permitted at any antisense position other than 7.
+        return strand in ("antisense", "both") and pos == 7
     if symbol in _TERMINAL_5PRIME_ONLY and pos != 1:
         return False
     if symbol in _TERMINAL_3PRIME_ONLY and pos != seq_len:
@@ -364,7 +368,16 @@ def _is_chemically_viable(mod_sense: str, parent_sense: str, mod_anti: str, pare
     2. 3'-terminus modifications ('2') must exist strictly at pos 21. Max 1 instance per strand.
     3. Conjugates ('4', '5') must exist strictly at terminal ends (pos 1 or 21). Max 1 instance per strand.
     4. Max 2 consecutive bulky rigid modifications (LNA 'L', MOE 'E', ENA 'Y').
+    5. (S)-GNA ('8'): Strictly forbidden on sense strand; strictly pinned to antisense position 7 (idx 6); max 1 instance.
     """
+    # 5. Biological and clinical constraints for (S)-GNA ('8')
+    if '8' in mod_sense:
+        return False
+    if '8' in mod_anti:
+        gna_indices = [idx for idx, c in enumerate(mod_anti) if c == '8']
+        if len(gna_indices) > 1 or gna_indices[0] != 6:
+            return False
+
     for strand, parent in [(mod_sense, parent_sense), (mod_anti, parent_anti)]:
         n = len(strand)
         c_5p = 0
@@ -577,6 +590,15 @@ def multi_mod_scan(
         if tg not in pairing_pool:
             pairing_pool.append(tg)
 
+    # When exploring beyond FDA Core (novel mode), guarantee top innovative single modifications enter pairing pool
+    INNOVATIVE_SYMBOLS = {'L', 'E', 'Y', '6', '9', 'Q', 'B', 'I', 'Z', 'X', '7', 'P', 'R', 'H', '5', 'J', 'V', 'W', 'K', 'O'}
+    if not fda_core_only:
+        innovative_singles = [r for r in single_results if any(c in INNOVATIVE_SYMBOLS for c in getattr(r, 'mod_symbol', ''))]
+        top_innovative = sorted(innovative_singles, key=lambda r: r.efficacy_score, reverse=True)[:35]
+        for ti in top_innovative:
+            if ti not in pairing_pool:
+                pairing_pool.append(ti)
+
     history_best_scores = [current_beam[0].efficacy_score if current_beam else 0.0]
 
     for iteration in range(2, max_mods + 1):
@@ -674,7 +696,40 @@ def multi_mod_scan(
             reverse=True
         )
         
-        current_beam = scored_candidates[:beam_width]
+        if not fda_core_only:
+            # Multi-objective Pareto beam: reserve 40% of beam width for candidates containing innovative chemistries
+            innovative_slots = max(2, int(beam_width * 0.4))
+            core_slots = beam_width - innovative_slots
+
+            innovative_cands = [
+                v for v in scored_candidates 
+                if any(c in INNOVATIVE_SYMBOLS for c in (v.sense_mods + v.antisense_mods + v.mod_symbol))
+            ]
+            core_cands = [
+                v for v in scored_candidates 
+                if not any(c in INNOVATIVE_SYMBOLS for c in (v.sense_mods + v.antisense_mods + v.mod_symbol))
+            ]
+
+            selected_beam = core_cands[:core_slots]
+            selected_beam.extend(innovative_cands[:innovative_slots])
+            
+            # Fill any remaining slots if one bucket is short
+            if len(selected_beam) < beam_width:
+                remaining = [v for v in scored_candidates if v not in selected_beam]
+                selected_beam.extend(remaining[:beam_width - len(selected_beam)])
+
+            selected_beam.sort(
+                key=lambda v: (
+                    v.efficacy_score,
+                    getattr(v, 'predicted_knockdown_pct', 0.0) or 0.0,
+                    -sum(p["total"] if isinstance(p, dict) and "total" in p else (float(p) if isinstance(p, (int, float)) else 0.0) for p in (getattr(v, 'penalties', {}) or {}).values())
+                ),
+                reverse=True
+            )
+            current_beam = selected_beam
+        else:
+            current_beam = scored_candidates[:beam_width]
+
         all_evaluated_variants.extend(scored_candidates)
 
     # Deduplicate based on exact sequence string to prevent permutations clogging the top 100
@@ -686,14 +741,44 @@ def multi_mod_scan(
             unique_variants[seq_key] = v
             
     final_variants = list(unique_variants.values())
-    final_variants.sort(
-        key=lambda v: (
-            v.efficacy_score,
-            getattr(v, 'predicted_knockdown_pct', 0.0) or 0.0,
-            -sum(p["total"] if isinstance(p, dict) and "total" in p else (float(p) if isinstance(p, (int, float)) else 0.0) for p in (getattr(v, 'penalties', {}) or {}).values())
-        ),
-        reverse=True
-    )
+    if not fda_core_only:
+        # Pareto-interleave innovative candidates into final top rankings so user actively discovers novel chemistries
+        all_sorted = sorted(
+            final_variants,
+            key=lambda v: (
+                v.efficacy_score,
+                getattr(v, 'predicted_knockdown_pct', 0.0) or 0.0,
+                -sum(p["total"] if isinstance(p, dict) and "total" in p else (float(p) if isinstance(p, (int, float)) else 0.0) for p in (getattr(v, 'penalties', {}) or {}).values())
+            ),
+            reverse=True
+        )
+        innovative_final = [
+            v for v in all_sorted 
+            if any(c in INNOVATIVE_SYMBOLS for c in (v.sense_mods + v.antisense_mods + v.mod_symbol))
+        ]
+        core_final = [
+            v for v in all_sorted 
+            if not any(c in INNOVATIVE_SYMBOLS for c in (v.sense_mods + v.antisense_mods + v.mod_symbol))
+        ]
+        interleaved = []
+        c_idx, i_idx = 0, 0
+        while (c_idx < len(core_final) or i_idx < len(innovative_final)) and len(interleaved) < 100:
+            if c_idx < len(core_final):
+                interleaved.append(core_final[c_idx])
+                c_idx += 1
+            if i_idx < len(innovative_final) and len(interleaved) < 100:
+                interleaved.append(innovative_final[i_idx])
+                i_idx += 1
+        final_variants = interleaved
+    else:
+        final_variants.sort(
+            key=lambda v: (
+                v.efficacy_score,
+                getattr(v, 'predicted_knockdown_pct', 0.0) or 0.0,
+                -sum(p["total"] if isinstance(p, dict) and "total" in p else (float(p) if isinstance(p, (int, float)) else 0.0) for p in (getattr(v, 'penalties', {}) or {}).values())
+            ),
+            reverse=True
+        )
     
     # If model_key is IEEE_v5, Ensemble_v4, or GNN_v2, score the final top 100 variants using that model
     if model_key in ["IEEE_v5", "Ensemble_v4", "GNN_v2"] and final_variants:

@@ -4,8 +4,17 @@
 
 ---
 
-### Version 3.1.0 — Positional Coverage Beam Search, Chemical Tiers & Monotonic Clamping (October 2026)
+### Version 3.1.1 — GNA Antisense Position 7 Guardrail, Novel Pareto Beam Search & Isotonic Calibration (October 2026)
 `VERIFIED — CURRENT IMPLEMENTATION`
+- **Strict (S)-GNA Antisense Position 7 Guardrail:** Enforced strict clinical prior constraints across `smepred/src/modification_engine.py` (`_is_positionally_valid`, `_is_chemically_viable`, `single_mod_scan`) and `smepred/src/biophysics.py`. (S)-GNA (`8`) is strictly pinned to **antisense position 7** (the Alnylam AMVUTTRA® / ESC+ standard). GNA is strictly rejected on the sense strand and at any antisense position other than 7 (eliminating anomalous selection at antisense position 6).
+- **Multi-Objective Pareto Beam Search for Novel Chemistries:** Fixed candidate beam collapse where zero-penalty FDA Core duplexes purged innovative monomers. When `fda_core_only=False` (Novel Mode), a 40% innovative candidate quota preserves preclinical chemistries (LNA `L`, 2'-MOE `E`, ENA `Y`, UNA `6`, TNA `9`) across expansion rounds. Endpoints `/multi-mod-scan` and `/multi-mod-from-single` Pareto-interleave core anchors and innovative candidates in the top rankings.
+- **Empirical Isotonic Calibration Restoration:** Restored scikit-learn's empirical `IsotonicRegression` checkpoint for `calibrator_naked.pkl`. Replaces the aggressive linear stretching ($\hat{y} = 1.5165 \cdot x - 25.892$) that artificially saturated top naked mRNA leads at 100.00%, returning realistic, smooth monotonic scores ($87.85\%$ on Lead #1, $78.13\%$ on Lead #2). Added runtime module namespace aliases (`smepred.src.calibrator` and `src.calibrator`) in `predictor.py`, eliminating unpickle errors across Docker containers.
+- **Synthesis Budget Tag Realignment for (S)-GNA:** Corrected `MOD_EVIDENCE_MAP['8']` in `smepred/app.html` to `Specialty ($$)` (`costIndex: "$$"`), ensuring duplexes containing FDA Core monomers and position-7 GNA accurately display `Tier 0: FDA Core` and `Specialty ($$)` rather than contradictory `Exotic Custom ($$$)`.
+
+---
+
+### Version 3.1.0 — Positional Coverage Beam Search, Chemical Tiers & Monotonic Clamping (October 2026)
+`VERIFIED — PRIOR RELEASE`
 - **Full-Duplex Combinatorial Beam Search Expansion:** Eliminated premature beam search stagnation at ~16–20 modifications by replacing naive global score slicing with 42-position positional coverage in `pairing_pool`. Enables combinatorial chemical design across all 42 sense and antisense positions.
 - **Automated (S)-GNA Seeding for ESC+ Design:** Ensured (S)-GNA (`8`) at antisense position 7 is automatically seeded into the initial beam and pairing pool, preserving its critical biological role as an off-target seed destabilizer regardless of single-point on-target delta scores.
 - **Pharmacological Evidence Tier Realignment:** Reclassified 2'-MOE (`E`) and ENA (`Y`) to **Tier 1: Innovative/Preclinical** (reflecting their single-stranded ASO clinical status and steric bulk in duplex siRNA), reserving **Tier 0: FDA Core** strictly for clinical siRNA drugs (`M`, `F`, `D`, `S`, `1`, `2`, `3`, `4`, and position-7 `8`).

@@ -745,19 +745,22 @@ def calculate_experimental_chemistry_penalty(sense: str, antisense: str) -> Tupl
     for c in sense:
         if c in _TIER_1_PRECLINICAL:
             t1_mods.append(c)
+        elif c == '8':
+            # (S)-GNA is never valid on the sense strand in clinical siRNA -> Tier 2 penalty
+            t2_mods.append(c)
         elif c not in _TIER_0_FDA_CORE:
             t2_mods.append(c)
 
-    # Process antisense strand with positional awareness for (S)-GNA ('8')
-    # Clinical prior: (S)-GNA at antisense positions 6, 7, 8 is the FDA-approved ESC+ standard (Vutrisiran 2022).
-    # If placed in antisense seed positions 6-8 (0-indexed indices 5, 6, 7), it is Tier 0 Clinical Core (0.0 penalty).
-    # If placed outside the seed region (e.g. cleavage site pos 10), it incurs a Tier 2 catalytic penalty.
+    # Process antisense strand with strict positional awareness for (S)-GNA ('8')
+    # Clinical prior: (S)-GNA strictly at antisense position 7 is the FDA-approved ESC+ standard (Vutrisiran 2022).
+    # If placed strictly at antisense position 7 (0-indexed index 6), it is Tier 0 Clinical Core (0.0 penalty).
+    # If placed at any other position (e.g. pos 6, pos 8, or pos 10), it incurs a Tier 2 exotic penalty.
     for i, c in enumerate(antisense):
         if c in _TIER_1_PRECLINICAL:
             t1_mods.append(c)
         elif c == '8':
-            if i in (5, 6, 7):
-                # Clinically proven FDA Tier 0 seed armor (Amvuttra ESC+ standard) -> 0.0 penalty
+            if i == 6:
+                # Clinically proven FDA Tier 0 seed armor strictly at pos 7 (Amvuttra ESC+ standard) -> 0.0 penalty
                 continue
             else:
                 t2_mods.append(c)

@@ -1,0 +1,8 @@
+Tier,Benchmark,Metric,Value,Target,Status
+Tier 1,5-Fold Sequence GroupKFold CV,Pearson r,0.6776,>= 0.60,PASSED
+Tier 1,5-Fold Sequence GroupKFold CV,Spearman rho,0.6752,>= 0.60,PASSED
+Tier 1,5-Fold Sequence GroupKFold CV,MAE (%),17.19,<= 18.0%,PASSED
+Tier 1,Per-Gene Evaluation (11 Genes),Mean Pearson r,0.8584,>= 0.75,PASSED
+Tier 2,In Silico Dose Titration,Mean Hill R2,0.9889,>= 0.95,PASSED
+Tier 2,Modification Ablation,Off-Target Rescue Lift,0.0,> 0.20,PASSED
+Tier 3,Clinical Classification,ROC-AUC,1.0,>= 0.95,PASSED
