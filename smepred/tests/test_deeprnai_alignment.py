@@ -184,8 +184,9 @@ def test_modification_codes_json_sync_and_fda_core():
     assert "4" in mods_by_symbol
     assert "GalNAc" in mods_by_symbol["4"]["name"]
 
-    # Verify FDA_CORE_SYMBOLS contains modern clinical monomers
+    # Verify FDA_CORE_SYMBOLS contains modern clinical siRNA monomers (E / 2'-MOE is Tier 1 Preclinical)
     assert "8" in FDA_CORE_SYMBOLS
     assert "4" in FDA_CORE_SYMBOLS
     assert "1" in FDA_CORE_SYMBOLS
-    assert "E" in FDA_CORE_SYMBOLS
+    assert "E" not in FDA_CORE_SYMBOLS
+

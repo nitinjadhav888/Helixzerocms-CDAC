@@ -1662,9 +1662,10 @@ async function runMultiModFromRank(sense, antisense) {
   showError('rank-error', '');
   document.getElementById('mm-sense').value = sense;
   document.getElementById('mm-antisense').value = antisense;
-  const mm = 21;
+  const mm = 42;
+  const fdaCore = document.getElementById('mm-fda-core')?.checked ?? true;
   const model = document.getElementById('mm-model')?.value || DEFAULT_MODEL;
-  document.getElementById('mm-results').innerHTML = `<div class="mm-loading"><div class="bar"></div><div class="label">Multi-mod beam search (max_mods=${mm})…</div><div class="hint">Recalibrating baseline for chemical space (Model ${model}) — then scanning 1260 single variants</div></div>`;
+  document.getElementById('mm-results').innerHTML = `<div class="mm-loading"><div class="bar"></div><div class="label">Multi-mod beam search (max_mods=${mm}, FDA Core: ${fdaCore ? 'YES' : 'NO (All 30 Chemistries)'})…</div><div class="hint">Recalibrating baseline for chemical space (Model ${model}) — expanding full duplex optimization up to 42 modifications</div></div>`;
   const mmTabBtn = document.querySelectorAll('nav button')[2];
   switchTab('multimod', mmTabBtn);
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1678,8 +1679,9 @@ async function runMultiModFromRank(sense, antisense) {
         sense, antisense,
         model,
         max_mods: mm,
-        beam_width: 100,
+        beam_width: 25,
         full_scan: true,
+        fda_core_only: fdaCore,
         conc_nM: concVal,
       })
     });
@@ -1837,22 +1839,23 @@ function scoreColor(s) {
 }
 
 function scoreBar(score) {
-  const pct = Math.min(100, Math.max(0, score));
+  const pct = Math.min(100, Math.max(0, Number(score) || 0));
   return `<div class="score-bar">
-    <span style="min-width:50px;color:${scoreColor(score)};font-weight:700">${score.toFixed(2)}</span>
-    <div class="bar-bg"><div class="bar-fill" style="width:${pct}%;background:${scoreColor(score)}"></div></div>
+    <span style="min-width:50px;color:${scoreColor(pct)};font-weight:700">${pct.toFixed(2)}</span>
+    <div class="bar-bg"><div class="bar-fill" style="width:${pct}%;background:${scoreColor(pct)}"></div></div>
   </div>`;
 }
 
 function scoreBarSmall(score) {
-  const pct = Math.min(100, Math.max(0, score));
+  const pct = Math.min(100, Math.max(0, Number(score) || 0));
   return `<div style="display:inline-flex;align-items:center;gap:6px">
-    <span style="color:${scoreColor(score)};font-weight:700">${score.toFixed(2)}</span>
+    <span style="color:${scoreColor(pct)};font-weight:700">${pct.toFixed(2)}</span>
     <div style="width:60px;height:6px;background:var(--border);border-radius:4px;overflow:hidden">
-      <div style="width:${pct}%;height:100%;background:${scoreColor(score)};border-radius:4px"></div>
+      <div style="width:${pct}%;height:100%;background:${scoreColor(pct)};border-radius:4px"></div>
     </div>
   </div>`;
 }
+
 
 // ─── INPUT TYPE TOGGLE ─────────────────────────────────────────────────────────
 let currentInputType = 'gene';
@@ -2597,7 +2600,7 @@ const MOD_EVIDENCE_MAP = {
   '4': { name: "GalNAc Cluster", tier: 0, tierBadge: "Tier 0: FDA Core", cost: "Specialty ($$)", costIndex: "$$", domain: "Interpolation (Targeted hepatic ASGPR delivery ligand)", dataSupport: "High (>600 clinical records)" },
 
   'L': { name: "Locked Nucleic Acid (LNA)", tier: 1, tierBadge: "Tier 1: Preclinical", cost: "Specialty ($$)", costIndex: "$$", domain: "Transfer Prior (Steric Ago2 gate, heavy ASO clinical precedent)", dataSupport: "Moderate (>500 points)" },
-  'E': { name: "2'-O-Methoxyethyl (2'-MOE)", tier: 0, tierBadge: "Tier 0: FDA Core", cost: "Specialty ($$)", costIndex: "$$", domain: "Clinical Core (Wainua FDA 2023, Spinraza FDA 2016)", dataSupport: "High (>1,500 clinical & assay points)" },
+  'E': { name: "2'-O-Methoxyethyl (2'-MOE)", tier: 1, tierBadge: "Tier 1: Preclinical", cost: "Specialty ($$)", costIndex: "$$", domain: "Innovative Core (Clinical ASO standard; Preclinical in siRNA)", dataSupport: "Moderate (>450 points)" },
   'Y': { name: "Ethylene-bridged (ENA)", tier: 1, tierBadge: "Tier 1: Preclinical", cost: "Specialty ($$)", costIndex: "$$", domain: "Transfer Prior (Conformationally restricted bicyclic)", dataSupport: "Preclinical (>180 points)" },
 
   '6': { name: "Unlocked Nucleic Acid (UNA)", tier: 1, tierBadge: "Tier 1: Preclinical", cost: "Specialty ($$$)", costIndex: "$$$", domain: "Transfer Prior (Acyclic seed destabilizer, Arcturus platform)", dataSupport: "Preclinical (>250 points, rule-bounded)" },
@@ -2642,6 +2645,8 @@ function getEvidenceLimitSummary(modSymbols) {
   let supports = [];
   
   for (const char of clean) {
+    // Skip canonical unmodified bases (A, U, C, G, T)
+    if ('AUCGTaucgt'.includes(char)) continue;
     const info = MOD_EVIDENCE_MAP[char] || {
       name: char, tier: 2, tierBadge: 'Tier 2: Extrapolated', cost: 'Exotic Custom ($$$)', costIndex: '$$$',
       domain: 'Biophysical Extrapolation', dataSupport: 'Sparse (<50 points)'
@@ -2654,6 +2659,21 @@ function getEvidenceLimitSummary(modSymbols) {
     domains.push(info.domain);
     supports.push(info.dataSupport);
   }
+
+  if (names.length === 0) {
+    return {
+      tier: 0,
+      tierBadge: 'Tier 0: FDA Core',
+      cost: 'Standard ($)',
+      costIndex: '$',
+      names: 'Standard Ribonucleotide / FDA Clinical Backbone',
+      domain: 'Dense Clinical In-Domain Prior',
+      dataSupport: 'High (>3,500 clinical & experimental points)',
+      badgeClass: 'conf-tier0',
+      isExotic: false
+    };
+  }
+
 
   let badgeClass = 'conf-tier0';
   let tierBadge = 'Tier 0: FDA Core';
@@ -3174,8 +3194,23 @@ function renderAutoMultiModResults(data) {
     // Score column with breakdown popup (shows adjusted efficacy in progress bar, with raw model KD breakdown on hover)
     const scoreHtml = `<div class="score-cell">${scoreBar(adjKdPct)}${scoreBreakdownPopup(r, data.model)}</div>`;
 
-    // Confidence badge
-    const confHtml = confidenceBadge(r.mod_symbol);
+    // Confidence badge (aggregating all modifications across sense and antisense strands)
+    const pSense = data.parent_sense || '';
+    const pAnti = data.parent_antisense || '';
+    let modCodes = '';
+    if (pSense && r.sense) {
+      for (let idx = 0; idx < Math.min(r.sense.length, pSense.length); idx++) {
+        if (r.sense[idx] !== pSense[idx]) modCodes += r.sense[idx];
+      }
+    }
+    if (pAnti && r.antisense) {
+      for (let idx = 0; idx < Math.min(r.antisense.length, pAnti.length); idx++) {
+        if (r.antisense[idx] !== pAnti[idx]) modCodes += r.antisense[idx];
+      }
+    }
+    if (!modCodes && r.mod_symbol) modCodes = r.mod_symbol;
+    const confHtml = confidenceBadge(modCodes);
+
 
     // Expandable row data
     const detailHtml = buildExpandedDetail(r.sense, r.antisense, p, r.mod_symbol, data.parent_sense, data.parent_antisense);

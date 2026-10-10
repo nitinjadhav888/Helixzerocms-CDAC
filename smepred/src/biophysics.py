@@ -714,11 +714,11 @@ def calculate_target_complementarity_gate(
     best_details["gate_status"] = "applied" if f_gate < 0.99 else "passed"
     return f_gate, best_details
 
-# Set of FDA/Clinical-de-risked Tier 0 modifications (Patisiran / Vutrisiran / Givosiran / Lumasiran / Inclisiran / Wainua standard)
-_TIER_0_FDA_CORE: FrozenSet[str] = frozenset("MFDS1234EacgtuACGTU.")
+# Set of FDA/Clinical-de-risked Tier 0 modifications (Patisiran / Vutrisiran / Givosiran / Lumasiran / Inclisiran standard)
+_TIER_0_FDA_CORE: FrozenSet[str] = frozenset("MFDS1234acgtuACGTU.")
 
-# Set of Tier 1 modifications with published preclinical in-vivo RISC activity (LNA 'L', ENA 'Y', UNA '6')
-_TIER_1_PRECLINICAL: FrozenSet[str] = frozenset("LY6")
+# Set of Tier 1 modifications with published preclinical in-vivo RISC activity (LNA 'L', ENA 'Y', UNA '6', MOE 'E')
+_TIER_1_PRECLINICAL: FrozenSet[str] = frozenset("LY6E")
 
 def calculate_experimental_chemistry_penalty(sense: str, antisense: str) -> Tuple[float, Dict[str, float]]:
     """

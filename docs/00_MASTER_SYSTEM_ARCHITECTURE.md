@@ -17,9 +17,10 @@ HelixZero-CMS is a production-grade oligonucleotide design, chemical modificatio
 ===================================================================================================
   [Step 1: Target mRNA Scanning & Naked Candidate Selection]
     │  Input: Full-length mRNA transcript (FASTA / raw sequence)
-    │  Engine: Model A (Naked LightGBM GBDT)
+    │  Engine: Model A (Naked LightGBM GBDT) + StrictlyMonotonicCalibrator
     │  Features: Thermodynamic asymmetry (Schwarz/Zamore), Reynolds rules, GC balance
     │  Validation: Pearson r = 0.8044 – 0.8788 across Huesken, Takayuki, and Mixset gold standards
+    │  Output Bounds: Mathematically calibrated and strictly clamped in [0.0%, 100.0%]
     └─ Output: Ranked top-N 21-mer naked siRNA duplexes (19-bp core + 2-nt 3' overhangs)
 
   [Step 2: Unified Dose-Aware Chemical Modification Optimization]
@@ -30,7 +31,8 @@ HelixZero-CMS is a production-grade oligonucleotide design, chemical modificatio
     │    • 64 RNA-FM Evolutionary Foundation Embeddings (Live rna_fm_t12)
     │    • 5 ViennaRNA Duplex & MFE Thermodynamic Constants
     │    • 4 Dynamic Covariates: log10(Dose_nM), Relative Dose, Duration, Hepatic Cell Lineage
-    │  Algorithms: Single-mod scan (812 variants < 0.1s) & Multi-mod Beam Search (top 100 designs)
+    │  Algorithms: Single-mod scan (812 variants < 0.1s) & Positional Coverage Beam Search (up to 42 mods, W=25)
+    │  Chemical Tiers: Tier 0 (FDA Core + AS pos-7 GNA), Tier 1 (Preclinical: MOE, LNA, ENA), Tier 2 (Extrapolated)
     └─ Output: Predicted biological knockdown % + mathematically derived intrinsic pIC50 and IC50 (nM)
 
   [Step 3: Deterministic Biophysical Guardrails & Clinical Viability Filtering]
@@ -90,6 +92,14 @@ To eliminate all ambiguity and ensure 100% clarity across scientific publication
   From the predicted biological knockdown at concentration $C$, the engine derives intrinsic binding affinity metrics via the Hill equation inversion:
   $$\text{Estimated } IC_{50} = C \times \left(\frac{100 - \text{Knockdown}}{\text{Knockdown}}\right)$$
   $$\text{Estimated } pIC_{50} = 9.0 - \log_{10}\left(\max\left(10^{-4}, \text{Estimated } IC_{50}\right)\right)$$
+- **Combinatorial Optimization Engine (Positional Coverage Beam Search)**:
+  - Explores combinatorial modification configurations across both strands up to 42 duplex positions ($W = 25$, depth up to 42).
+  - To prevent naive score-based pools from clustering on the same 15–20 positions and prematurely stagnating, the engine enforces **full positional coverage** (top candidates per position across all 42 duplex coordinates) plus top global variants.
+  - Automatically seeds (S)-GNA (`8`) at antisense position 7 (Alnylam ESC+ standard) for microRNA off-target seed abrogation.
+  - Segregates modifications into clinical evidence tiers:
+    - **Tier 0 (FDA Core)**: `M` (2'-OMe), `F` (2'-F), `D` (DNA), `S` (PS), `1` (5'-VP), `2` (3'-P), `3` (5'-OMe), `4` (GalNAc), and `8` (AS pos-7 GNA). Clinically validated across all 6 FDA-approved siRNA therapeutics.
+    - **Tier 1 (Innovative / Preclinical)**: `E` (2'-MOE), `L` (LNA), `Y` (ENA), `6` (UNA). ASO clinical standards and preclinical siRNA platforms.
+    - **Tier 2 (Extrapolated)**: `9` (TNA), `Q` (Abasic), `B` (2'-O-Benzyl), `I` (2'-F-ANA), etc. Rule-bounded thermodynamic extrapolations.
 
 #### 3.3 Subsystem 3: Deterministic Biophysical Guardrails
 - **Role**: Applies non-linear penalizations to candidate siRNAs based on established structural and clinical pharmacological constraints:

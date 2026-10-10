@@ -51,7 +51,7 @@ Measured on standard 8-core CPU hardware (No GPU required):
 | **Model Pre-Warming** | LightGBM + CatBoost Checkpoints | $< 0.45\text{ s}$ | `api/main.py:startup_warmup()` |
 | **Full Transcript Scanning** | 3,000 candidate 21-mers along mRNA | $< 0.05\text{ s}$ | `src/features.py` + Model A |
 | **Exhaustive Single-Mod Scan** | 812 single-point permutations | $< 0.10\text{ s}$ | `src/modification_engine.py:single_mod_scan()` |
-| **Combinatorial Beam Search** | $W = 20$, depth 21 (100 evaluated designs) | $< 1.50\text{ s}$ | `src/modification_engine.py:multi_mod_scan()` |
+| **Combinatorial Beam Search** | $W = 25$, positional coverage, depth up to 42 mods | $< 1.80\text{ s}$ | `src/modification_engine.py:multi_mod_scan()` |
 | **Whole-Transcriptome Off-Target** | 2-bit SIMD hash query across 94M 15-mers | $< 0.02\text{ s}$ | `src/offtarget.py:validate_safety()` |
 | **Continuous 3D PDB Generation** | 504 atoms, B-factor mapping | $< 0.01\text{ s}$ | `src/pdb_generator.py:generate_sirna_pdb()` |
 
@@ -61,5 +61,8 @@ Measured on standard 8-core CPU hardware (No GPU required):
 
 - **Invalid Nucleotides:** Input sequences containing characters outside `[A, C, G, T, U]` are rejected at ingestion with `HTTP 422 Unprocessable Entity`.
 - **Short Sequences:** Sequences shorter than 21 nucleotides are rejected with descriptive length errors.
+- **Model Calibration & Range Clamping:** `calibrator_naked.pkl` performs strictly monotonic variance-matching on raw LightGBM scores. All output scores are strictly bounded via `np.clip(score, 0.0, 100.0)` in `predictor.py` and UI components, preventing mathematical values $>100.00\%$. If the calibrator file is missing or an unexpanded Git LFS text pointer, the system falls back to uncalibrated clipping while emitting a descriptive warning.
+- **Beam Search Positional Diversity:** The beam search pairing pool enforces positional coverage across all 42 sense and antisense coordinates, preventing candidate pool exhaustion and permitting full duplex chemical shielding up to 42 modifications.
 - **ViennaRNA C-Extension Absence:** If ViennaRNA native binaries are missing on Windows, fallback nearest-neighbor Turner tables execute transparently without throwing exceptions (`smepred/src/features_v4.py:215-226`).
 - **Transcriptome Index Availability:** If `human_transcriptome.idx.pkl` is absent, the system logs a non-fatal warning and provides localized heuristic off-target warnings rather than crashing the API.
+

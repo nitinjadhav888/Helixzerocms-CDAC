@@ -89,3 +89,28 @@ Slicer-Mediated Check             Seed-Mediated Check
 
 - **Binary Representation**: Transcripts are encoded using 2 bits per nucleotide (`A=00`, `C=01`, `G=10`, `U=11`), reducing the human transcriptome memory footprint from multiple gigabytes to < 120 MB in RAM.
 - **Slicer Veto Rule**: If an antisense candidate contains $\ge 15$ contiguous nucleotides identical to any unintended transcript, it can mediate off-target endonucleolytic slicing by Ago2. Such candidates are **immediately disqualified** (`status: TOXIC`, `isSafe: false`).
+
+---
+
+### 4. Chemical Evidence Limits & Pharmacological Applicability Domains
+
+To distinguish between clinically proven chemical modifications and high-risk biophysical extrapolations, HelixZero partitions all 30 chemical building blocks into three deterministic evidence tiers:
+
+#### 4.1 Tier 0: FDA Clinical Core (Dense Interpolation Domain)
+- **Included Monomers:** `M` (2'-OMe), `F` (2'-F), `D` (2'-deoxy / DNA), `S` (Phosphorothioate), `1` (5'-Vinylphosphonate / 5'-VP), `2` (3'-Phosphate), `3` (5'-OMe cap), `4` (GalNAc Cluster), and `8` ((S)-GNA at antisense position 7).
+- **Data Support:** $>3,500$ clinical and experimental data points across all 6 FDA-approved siRNA therapeutics (Patisiran, Givosiran, Lumasiran, Inclisiran, Vutrisiran, Nedosiran).
+- **Special Pharmacological Role of (S)-GNA (`8`):**
+  - Employed in the Alnylam ESC+ (Enhanced Stability Chemistry Plus) architecture (Vutrisiran / AMVUTTRA®, FDA approved 2022).
+  - Positioned specifically at **antisense position 7** within the seed region. Its flexible acyclic propylene glycol backbone thermally destabilizes base pairing with unintended microRNA-like off-target mRNAs ($\Delta\Delta G^\circ_{37} \approx +2.5\,\text{kcal/mol}$ local penalty) while retaining high-potency on-target Ago2 endonucleolytic cleavage.
+  - Automatically seeded in combinatorial beam search designs.
+
+#### 4.2 Tier 1: Innovative / Preclinical (Transfer Prior Domain)
+- **Included Monomers:** `E` (2'-O-Methoxyethyl / 2'-MOE), `L` (Locked Nucleic Acid / LNA), `Y` (Ethylene-bridged Nucleic Acid / ENA), `6` (Unlocked Nucleic Acid / UNA).
+- **Data Support:** Moderate preclinical literature support ($>450$ data points).
+- **Distinction for 2'-MOE (`E`):**
+  - While 2'-MOE is fully FDA-approved in single-stranded antisense oligonucleotides (ASOs, e.g. Nusinersen/Spinraza), in double-stranded siRNA duplexes its bulky methoxyethyl side chain can clash with the narrow human Ago2 catalytic binding channel if placed across positions 1–13 of the guide strand. It is thus classified as **Tier 1 (Innovative/Preclinical)** in siRNA platforms rather than Tier 0.
+
+#### 4.3 Tier 2: Extrapolated / Novel Chemistries (Rule-Bounded Domain)
+- **Included Monomers:** `9` (TNA), `Q` (Abasic Site), `B` (2'-O-Benzyl), `I` (2'-F-ANA), `Z` (2'-OMe-4'-thio), `X` (2'-O-allyl), `7` (ANA), `P` (Boranophosphate), `R` (Methylphosphonate), `H` (Phosphoramidate), `5` (PEG), `J` (Inosine), `V` (5mC), `W` ($\Psi$), `K` (2-thio U), `O` (Dihydrouridine).
+- **Data Support:** Sparse experimental points ($<80$ per chemistry); predictions operate under thermodynamic penalty boundaries and are tagged with explicit synthesis budget warnings (`Exotic Custom ($$$)`).
+

@@ -1,0 +1,237 @@
+<svg viewBox="0 0 1320 740" fill="none" xmlns="http://www.w3.org/2000/svg" style="background:#ffffff; font-family:'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+  <defs>
+    <style>
+      .zone-bg { fill: #f8fafc; stroke: #e2e8f0; stroke-width: 1.2; }
+      .zone-tag-bg { fill: #ffffff; stroke: #cbd5e1; stroke-width: 1; }
+      .node-bg { fill: #ffffff; stroke: #cbd5e1; stroke-width: 1.2; }
+      .node-title { fill: #0f172a; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 12px; font-weight: 700; }
+      .node-sub { fill: #64748b; font-size: 8.5px; font-family: 'Inter', sans-serif; }
+      .node-mono { fill: #475569; font-size: 8.5px; font-family: 'JetBrains Mono', monospace; }
+      .accent-teal { fill: #0d9488; }
+      .accent-indigo { fill: #4f46e5; }
+      .accent-amber { fill: #d97706; }
+      .accent-rose { fill: #e11d48; }
+    </style>
+    <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#94a3b8" />
+    </marker>
+    <marker id="arr-teal" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#0d9488" />
+    </marker>
+    <marker id="arr-indigo" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#4f46e5" />
+    </marker>
+    <marker id="arr-amber" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#d97706" />
+    </marker>
+    <marker id="arr-rose" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#e11d48" />
+    </marker>
+  </defs>
+
+  <!-- Title Banner -->
+  <text x="24" y="24" fill="#0f172a" font-family="'Plus Jakarta Sans', sans-serif" font-size="16" font-weight="800" letter-spacing="-0.02em">FIGURE 1 | HelixZero Unified System Architecture</text>
+  <text x="440" y="24" fill="#64748b" font-family="'Inter', sans-serif" font-size="10">Decoupled Sequence Prior • 517-D Orthogonal Chemistry • Unified CatBoost Core • 4 Biophysical Guardrails</text>
+
+  <!-- Zones -->
+  <rect x="24" y="44" width="270" height="660" rx="10" class="zone-bg" />
+  <rect x="40" y="34" width="180" height="20" rx="4" class="zone-tag-bg" />
+  <text x="130" y="48" fill="#0d9488" font-family="'JetBrains Mono', monospace" font-size="8.5" font-weight="700" text-anchor="middle" letter-spacing="0.08em">STAGE 1: SEQUENCE PRIOR</text>
+
+  <rect x="318" y="44" width="310" height="660" rx="10" class="zone-bg" />
+  <rect x="334" y="34" width="220" height="20" rx="4" class="zone-tag-bg" />
+  <text x="444" y="48" fill="#4f46e5" font-family="'JetBrains Mono', monospace" font-size="8.5" font-weight="700" text-anchor="middle" letter-spacing="0.08em">STAGE 2: 517-D MULTI-MODAL VECTOR</text>
+
+  <rect x="652" y="44" width="350" height="660" rx="10" class="zone-bg" />
+  <rect x="668" y="34" width="250" height="20" rx="4" class="zone-tag-bg" />
+  <text x="793" y="48" fill="#d97706" font-family="'JetBrains Mono', monospace" font-size="8.5" font-weight="700" text-anchor="middle" letter-spacing="0.08em">STAGE 3: UNIFIED ML DECISION CORE</text>
+
+  <rect x="1026" y="44" width="270" height="660" rx="10" class="zone-bg" />
+  <rect x="1042" y="34" width="220" height="20" rx="4" class="zone-tag-bg" />
+  <text x="1152" y="48" fill="#e11d48" font-family="'JetBrains Mono', monospace" font-size="8.5" font-weight="700" text-anchor="middle" letter-spacing="0.08em">STAGE 4: GUARDRAILS &amp; HANDOFF</text>
+
+  <!-- Connectors -->
+  <path d="M 159 146 V 178" stroke="#cbd5e1" stroke-width="1.5" marker-end="url(#arr)" />
+  <path d="M 159 292 V 324" stroke="#cbd5e1" stroke-width="1.5" marker-end="url(#arr)" />
+  <path d="M 159 450 V 482" stroke="#cbd5e1" stroke-width="1.5" marker-end="url(#arr)" />
+  <path d="M 274 544 H 296 Q 306 544 306 320 Q 306 110 318 110 H 336" fill="none" stroke="#0d9488" stroke-width="1.8" marker-end="url(#arr-teal)" />
+
+  <path d="M 473 206 V 232" stroke="#cbd5e1" stroke-width="1.5" marker-end="url(#arr)" />
+  <path d="M 473 344 V 370" stroke="#cbd5e1" stroke-width="1.5" marker-end="url(#arr)" />
+  <path d="M 473 476 V 502" stroke="#cbd5e1" stroke-width="1.5" marker-end="url(#arr)" />
+  <path d="M 608 570 H 632 Q 644 570 644 320 Q 644 140 656 140 H 670" fill="none" stroke="#4f46e5" stroke-width="1.8" marker-end="url(#arr-indigo)" />
+
+  <path d="M 827 236 V 268" stroke="#cbd5e1" stroke-width="1.5" marker-end="url(#arr)" />
+  <path d="M 827 400 V 432" stroke="#cbd5e1" stroke-width="1.5" marker-end="url(#arr)" />
+  <path d="M 827 554 V 584" stroke="#cbd5e1" stroke-width="1.5" marker-end="url(#arr)" />
+  <path d="M 982 638 H 1006 Q 1016 638 1016 340 Q 1016 140 1028 140 H 1044" fill="none" stroke="#d97706" stroke-width="1.8" marker-end="url(#arr-amber)" />
+
+  <path d="M 1161 216 V 246" stroke="#cbd5e1" stroke-width="1.5" marker-end="url(#arr)" />
+  <path d="M 1161 386 V 416" stroke="#cbd5e1" stroke-width="1.5" marker-end="url(#arr)" />
+  <path d="M 1161 544 V 574" stroke="#cbd5e1" stroke-width="1.5" marker-end="url(#arr)" />
+
+  <!-- Stage 1 Nodes -->
+  <g id="s1-transcript">
+    <rect x="44" y="68" width="230" height="78" rx="8" class="node-bg" />
+    <text x="58" y="92" class="node-title">mRNA Target Sequence</text>
+    <text x="58" y="110" class="node-mono">Full-length human transcript (FASTA)</text>
+    <text x="58" y="128" class="node-mono accent-teal" font-weight="700">e.g., TTR (3,500 nt), PCSK9, ALAS1</text>
+  </g>
+
+  <g id="s1-sliding">
+    <rect x="44" y="178" width="230" height="114" rx="8" class="node-bg" />
+    <text x="58" y="202" class="node-title">Sliding Window Dissection</text>
+    <text x="58" y="220" class="node-sub">Extracts all candidate 21-nt duplexes</text>
+    <text x="58" y="238" class="node-mono">Nearest-Neighbor Free Energy (ΔG°_37)</text>
+    <text x="58" y="256" class="node-sub">Reynolds, Ui-Tei rule conformance</text>
+    <text x="58" y="276" class="node-mono accent-teal" font-weight="700">3,480 candidates • ΔΔG Asymmetry</text>
+  </g>
+
+  <g id="s1-modela">
+    <rect x="44" y="324" width="230" height="126" rx="8" fill="#ffffff" stroke="#0d9488" stroke-width="1.6" />
+    <rect x="44" y="324" width="230" height="4" fill="#0d9488" />
+    <text x="58" y="348" class="node-title">Model A: Naked Sequence GBDT</text>
+    <text x="58" y="366" class="node-mono accent-teal" font-weight="700">LightGBM • 214 Descriptors</text>
+    <text x="58" y="386" class="node-mono">• Takayuki Screen (N=702): r = 0.8788</text>
+    <text x="58" y="402" class="node-mono">• Mixset 7-Studies (N=472): r = 0.8291</text>
+    <text x="58" y="418" class="node-mono">• Huesken Held-Out (N=2,361): r = 0.8044</text>
+    <text x="58" y="438" class="node-mono">Throughput: &gt;3,700 candidates/sec</text>
+  </g>
+
+  <g id="s1-negcontrol">
+    <rect x="44" y="482" width="230" height="126" rx="8" fill="#ffffff" stroke="#e11d48" stroke-width="1.4" />
+    <text x="58" y="506" class="node-title" fill="#e11d48">Negative Control Audit</text>
+    <text x="58" y="524" class="node-sub">Model A tested on modified RNA:</text>
+    <text x="58" y="544" class="node-mono accent-rose" font-weight="700">r = 0.1771 • R² = −0.0901</text>
+    <text x="58" y="564" class="node-sub">Proves sequence-only models collapse</text>
+    <text x="58" y="580" class="node-sub">due to non-linear chemical epistasis.</text>
+    <text x="58" y="598" class="node-mono accent-teal" font-weight="700">Chemistry-awareness is mandatory.</text>
+  </g>
+
+  <!-- Stage 2 Nodes -->
+  <g id="s2-chem">
+    <rect x="336" y="68" width="274" height="138" rx="8" fill="#ffffff" stroke="#4f46e5" stroke-width="1.6" />
+    <rect x="336" y="68" width="274" height="4" fill="#4f46e5" />
+    <text x="350" y="92" class="node-title">1. Positional Chemistry (444-D)</text>
+    <text x="350" y="110" class="node-sub">42 Duplex Slots × 10 Orthogonal Flags = 420-D:</text>
+    <text x="350" y="128" class="node-mono accent-indigo">• is_2F, is_2OMe, is_bulky_rigid (LNA/MOE)</text>
+    <text x="350" y="144" class="node-mono accent-indigo">• is_flexible (UNA/GNA), is_PS, is_dna, is_abasic</text>
+    <text x="350" y="162" class="node-sub">+ 24 Global Structural Descriptors:</text>
+    <text x="350" y="180" class="node-sub">• Seed rigidity, 5'-VP mimic, terminal PS density</text>
+    <text x="350" y="196" class="node-sub">• Sense 3' GalNAc conjugate, GC asymmetry</text>
+  </g>
+
+  <g id="s2-rnafm">
+    <rect x="336" y="232" width="274" height="112" rx="8" class="node-bg" />
+    <text x="350" y="256" class="node-title">2. Foundation Embeddings (64-D)</text>
+    <text x="350" y="274" class="node-mono accent-indigo" font-weight="700">RNA-FM Transformer (rna_fm_t12)</text>
+    <text x="350" y="292" class="node-sub">12-layer, 100M parameter foundation model</text>
+    <text x="350" y="308" class="node-sub">trained on 23M non-coding RNA sequences</text>
+    <text x="350" y="326" class="node-mono accent-indigo">Sense (32-D) + Antisense (32-D) PCA projection</text>
+  </g>
+
+  <g id="s2-thermo">
+    <rect x="336" y="370" width="274" height="106" rx="8" class="node-bg" />
+    <text x="350" y="394" class="node-title">3. Biophysical Thermodynamics (5-D)</text>
+    <text x="350" y="412" class="node-sub">ViennaRNA Package 2.6 Evaluator:</text>
+    <text x="350" y="430" class="node-sub">• ΔG_MFE (sense self-folding) • ΔG_MFE (anti)</text>
+    <text x="350" y="446" class="node-sub">• Inter-molecular duplex binding free energy (ΔG)</text>
+    <text x="350" y="462" class="node-sub">• Partition function ensemble diversity • GC %</text>
+  </g>
+
+  <g id="s2-covars">
+    <rect x="336" y="502" width="274" height="136" rx="8" fill="#ffffff" stroke="#4f46e5" stroke-width="1.6" />
+    <text x="350" y="526" class="node-title">4. Dynamic Dose Covariates (4-D)</text>
+    <text x="350" y="544" class="node-mono accent-indigo" font-weight="700">Pharmacokinetic Conditioning Vector:</text>
+    <text x="350" y="562" class="node-mono">• log10(Dose_nM) [Range: −4.0 to +4.0]</text>
+    <text x="350" y="578" class="node-mono">• Relative dose ratio against standard 10 nM</text>
+    <text x="350" y="594" class="node-mono">• Incubation duration (normalized to 24h)</text>
+    <text x="350" y="610" class="node-mono">• Hepatic cellular lineage flag (HepG2 / Huh7)</text>
+    <text x="350" y="628" class="node-mono accent-indigo" font-weight="700">Total Representation = 517 Dimensions</text>
+  </g>
+
+  <!-- Stage 3 Nodes -->
+  <g id="s3-catboost">
+    <rect x="670" y="68" width="314" height="168" rx="8" fill="#ffffff" stroke="#d97706" stroke-width="1.8" />
+    <rect x="670" y="68" width="314" height="4" fill="#d97706" />
+    <text x="686" y="94" class="node-title" font-size="13">Unified Dose-Aware CatBoost Regressor</text>
+    <text x="686" y="112" class="node-mono accent-amber" font-weight="700">Symmetric Oblivious Trees • 517-D Core</text>
+    <text x="686" y="132" class="node-sub">Trained directly on continuous log10(Dose_nM) using RMSE.</text>
+    <text x="686" y="148" class="node-mono accent-amber" font-weight="700">Zero Target Leakage • Single-Stage Non-Cascading</text>
+    <text x="686" y="168" class="node-mono">5-Fold GroupKFold CV (N=17,761): r = 0.6776, R² = 0.4497</text>
+    <text x="686" y="186" class="node-mono">Homo Multi-Dose Held-Out (N=472): r = 0.8359, ROC = 0.9312</text>
+    <text x="686" y="204" class="node-mono">Hetero Multi-Dose Held-Out (N=1,796): r = 0.8334, ROC = 0.9291</text>
+    <text x="686" y="224" class="node-mono">Eliminated cascading error of retired IEEE v5 &amp; GNN models</text>
+  </g>
+
+  <g id="s3-groupkfold">
+    <rect x="670" y="268" width="314" height="132" rx="8" class="node-bg" />
+    <text x="686" y="292" class="node-title">Strict Sequence GroupKFold Partitioning</text>
+    <text x="686" y="310" class="node-mono accent-teal" font-weight="700">Zero Sequence-Identity Contamination (0.0%)</text>
+    <text x="686" y="328" class="node-sub">Locks 5,251 disjoint core antisense sequence clusters.</text>
+    <text x="686" y="344" class="node-sub">All chemical variants, multi-mods, and dose titration points</text>
+    <text x="686" y="360" class="node-sub">for a given 19-mer core are grouped into the same fold.</text>
+    <text x="686" y="380" class="node-mono accent-teal" font-weight="700">Eliminates 96% sequence leakage in prior literature</text>
+  </g>
+
+  <g id="s3-hill">
+    <rect x="670" y="432" width="314" height="122" rx="8" fill="#ffffff" stroke="#d97706" stroke-width="1.6" />
+    <text x="686" y="456" class="node-title">Analytical Closed-Form Hill Inversion</text>
+    <text x="686" y="474" class="node-mono accent-amber" font-weight="700">Pharmacodynamic Hill-Langmuir Derivation:</text>
+    <text x="686" y="494" class="node-mono" font-size="9.5">IC50 = C × ((100 − y) / y)^(1/h)</text>
+    <text x="686" y="514" class="node-mono" font-size="9.5">pIC50 = 9 − log10(IC50 [nM])</text>
+    <text x="686" y="534" class="node-sub">Evaluates intrinsic pharmacological affinity in &lt;1 μs</text>
+  </g>
+
+  <g id="s3-scan">
+    <rect x="670" y="584" width="314" height="96" rx="8" class="node-bg" />
+    <text x="686" y="608" class="node-title">Combinatorial Optimization Core</text>
+    <text x="686" y="626" class="node-sub">• Single-Site Scan: 812 variants evaluated in &lt;0.1s</text>
+    <text x="686" y="642" class="node-sub">• 16 Clinical ESC / ESC+ Templates (GNA at AS7)</text>
+    <text x="686" y="658" class="node-mono accent-indigo" font-weight="700">• Combinatorial Beam Search (W=20, SPOS Filter)</text>
+  </g>
+
+  <!-- Stage 4 Nodes -->
+  <g id="s4-guardrails">
+    <rect x="1042" y="68" width="238" height="148" rx="8" fill="#ffffff" stroke="#e11d48" stroke-width="1.8" />
+    <rect x="1042" y="68" width="238" height="4" fill="#e11d48" />
+    <text x="1056" y="92" class="node-title">4 Biophysical Penalty Domains</text>
+    <text x="1056" y="110" class="node-mono accent-rose" font-weight="700">DETERMINISTIC CLINICAL GATING</text>
+    <text x="1056" y="128" class="node-sub">• Domain 1: Helicase unwinding (ΔΔG &lt; −35)</text>
+    <text x="1056" y="144" class="node-sub">• Domain 2: Exonuclease shield (Alnylam AT3 6-PS)</text>
+    <text x="1056" y="160" class="node-sub">• Domain 3: TLR7/8 immunostimulatory hexamers</text>
+    <text x="1056" y="176" class="node-sub">• Domain 4: Janas 4,096-hexamer seed toxicity</text>
+    <text x="1056" y="196" class="node-mono accent-rose" font-weight="700">Calibrated scaling penalty (γ = 0.12)</text>
+  </g>
+
+  <g id="s4-simd">
+    <rect x="1042" y="246" width="238" height="140" rx="8" class="node-bg" />
+    <text x="1056" y="270" class="node-title">2-Bit SIMD Off-Target Firewall</text>
+    <text x="1056" y="288" class="node-mono accent-teal" font-weight="700">Whole-Transcriptome Register Scan</text>
+    <text x="1056" y="306" class="node-sub">• 15-mer Slicer Hash Check: queries 94M</text>
+    <text x="1056" y="320" class="node-sub">  human 15-mers (&gt;6 hits = −40 pt penalty)</text>
+    <text x="1056" y="336" class="node-sub">• Seed 6/7/8-mer popcount frequency</text>
+    <text x="1056" y="352" class="node-sub">• Hardware bitwise XOR / popcount</text>
+    <text x="1056" y="372" class="node-mono accent-teal" font-weight="700">Latency: &lt;12 ms per candidate</text>
+  </g>
+
+  <g id="s4-pdb">
+    <rect x="1042" y="416" width="238" height="128" rx="8" class="node-bg" />
+    <text x="1056" y="440" class="node-title">Continuous A-Form 3D PDB</text>
+    <text x="1056" y="458" class="node-sub">Automated Double Helix Generator</text>
+    <text x="1056" y="476" class="node-mono">• 2.81 Å rise • 32.7° twist • 9.8 Å radius</text>
+    <text x="1056" y="492" class="node-sub">• B-factor encoded modifications (Pink=2'-F,</text>
+    <text x="1056" y="506" class="node-sub">  Gold=2'-OMe, Green=PS, Blue=DNA)</text>
+    <text x="1056" y="526" class="node-mono accent-indigo" font-weight="700">Instant 3Dmol.js in-browser rendering</text>
+  </g>
+
+  <g id="s4-fda">
+    <rect x="1042" y="574" width="238" height="106" rx="8" fill="#ffffff" stroke="#0d9488" stroke-width="1.6" />
+    <rect x="1042" y="574" width="238" height="4" fill="#0d9488" />
+    <text x="1056" y="598" class="node-title">FDA Therapeutics Validation</text>
+    <text x="1056" y="616" class="node-mono accent-teal" font-weight="700">100% Sensitivity (6/6 FDA Drugs)</text>
+    <text x="1056" y="634" class="node-mono">Inclisiran: 76.7% • Patisiran: 73.7%</text>
+    <text x="1056" y="650" class="node-mono">Mean Cohort KD: 65.04% at 10 nM</text>
+    <text x="1056" y="666" class="node-mono accent-teal" font-weight="700">1-Click CSV Synthesis Budget Dossier</text>
+  </g>
+</svg>

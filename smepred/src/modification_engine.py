@@ -47,8 +47,8 @@ else:
     CANONICAL_SYMBOLS: Set[str] = {"A", "C", "G", "U", "T"}
     MODIFICATION_SYMBOLS: Set[str] = {"M", "F", "D", "X", "8", "2", "4", "m", "f", "s", "p", "a", "c", "g", "u"}
 
-# Set of FDA-Approved & Clinically Proven Core Monomers (Patisiran, Givlaari, Leqvio, Amvuttra, Wainua standard)
-FDA_CORE_SYMBOLS: Set[str] = {'M', 'F', 'D', 'S', '1', '2', '3', '4', '8', 'E'}
+# Set of FDA-Approved & Clinically Proven Core Monomers (Patisiran, Givlaari, Leqvio, Amvuttra standard)
+FDA_CORE_SYMBOLS: Set[str] = {'M', 'F', 'D', 'S', '1', '2', '3', '4', '8'}
 
 
 # ─── Data Transfer Objects ────────────────────────────────────────────────────
@@ -435,8 +435,8 @@ def multi_mod_scan(
     elif parent_score is None:
         raise ValueError("parent_score must be provided when single_results is pre-calculated.")
 
-    # Filter to FDA-Approved Core Palette (2'-OMe 'M', 2'-F 'F', 2'-deoxy 'D', PS 'S', 5'-Phos '1', 3'-P '2', 5'-OMe '3', GalNAc '4', (S)-GNA '8', 2'-MOE 'E')
-    FDA_CORE_SYMBOLS = {'M', 'F', 'D', 'S', '1', '2', '3', '4', '8', 'E'}
+    # Filter to FDA-Approved Core Palette (2'-OMe 'M', 2'-F 'F', 2'-deoxy 'D', PS 'S', 5'-Phos '1', 3'-P '2', 5'-OMe '3', GalNAc '4', (S)-GNA '8')
+    FDA_CORE_SYMBOLS = {'M', 'F', 'D', 'S', '1', '2', '3', '4', '8'}
     if fda_core_only and single_results:
         fda_filtered = [r for r in single_results if all(c in FDA_CORE_SYMBOLS for c in r.mod_symbol.replace('+', ''))]
         if fda_filtered:
@@ -519,6 +519,14 @@ def multi_mod_scan(
         if len(diversified_beam) >= beam_width:
             break
 
+    # Guarantee (S)-GNA at antisense position 7 is present in initial beam if available (Alnylam ESC+ benchmark)
+    gna_as7_matches = [r for r in single_results if getattr(r, 'mod_strand', '') == "antisense" and getattr(r, 'mod_position', 0) == 7 and getattr(r, 'mod_symbol', '') == "8"]
+    if gna_as7_matches and not any(getattr(r, 'mod_strand', '') == "antisense" and getattr(r, 'mod_position', 0) == 7 and getattr(r, 'mod_symbol', '') == "8" for r in diversified_beam):
+        if len(diversified_beam) >= beam_width:
+            diversified_beam[-1] = gna_as7_matches[0]
+        else:
+            diversified_beam.append(gna_as7_matches[0])
+
     initial_beam: List[CmSiRNA] = []
     if seed_variant is not None:
         initial_beam.append(seed_variant)
@@ -548,8 +556,26 @@ def multi_mod_scan(
     current_beam.sort(key=lambda x: x.efficacy_score, reverse=True)
     all_evaluated_variants = list(current_beam)
 
-    # Pairing pool drawn from single-mod scan results across all 21 positions
-    pairing_pool = sorted(single_results, key=lambda r: r.efficacy_score, reverse=True)[:beam_width * 3]
+    # Pairing pool: construct with full 42-position duplex coverage so beam search can expand up to 42 modifications
+    by_pos: Dict[Tuple[str, int], List[Any]] = defaultdict(list)
+    for r in single_results:
+        by_pos[(r.mod_strand, r.mod_position)].append(r)
+
+    pairing_pool = []
+    # Include top 2 modifications per unique position across both strands
+    for (st, pos), p_variants in by_pos.items():
+        p_variants.sort(key=lambda v: v.efficacy_score, reverse=True)
+        pairing_pool.extend(p_variants[:2])
+
+    # Guarantee (S)-GNA at antisense position 7 (Alnylam ESC+ standard) is available in pairing pool
+    if gna_as7_matches and gna_as7_matches[0] not in pairing_pool:
+        pairing_pool.append(gna_as7_matches[0])
+
+    # Also include the top 35 globally highest-efficacy single modifications
+    top_global = sorted(single_results, key=lambda r: r.efficacy_score, reverse=True)[:35]
+    for tg in top_global:
+        if tg not in pairing_pool:
+            pairing_pool.append(tg)
 
     history_best_scores = [current_beam[0].efficacy_score if current_beam else 0.0]
 

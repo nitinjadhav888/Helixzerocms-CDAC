@@ -428,7 +428,7 @@ def rank_sirnas(
     ranked_results = []
     for rank_idx, original_idx in enumerate(sort_order):
         cand = candidates[original_idx]
-        score = float(sorted_scores[rank_idx])
+        score = round(float(np.clip(sorted_scores[rank_idx], 0.0, 100.0)), 2)
         annotation = annotations[original_idx]
         
         ranked_results.append(RankedSiRNA(

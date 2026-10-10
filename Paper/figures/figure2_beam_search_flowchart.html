@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Figure 2: Combinatorial Beam Search & Chemical Optimization Flowchart</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-page: #f8fafc;
+    --paper: #ffffff;
+    --paper-2: #f1f5f9;
+    --ink: #0f172a;
+    --ink-secondary: #334155;
+    --muted: #64748b;
+    --soft: #94a3b8;
+    --border: #e2e8f0;
+    --border-strong: #cbd5e1;
+    --accent-indigo: #4f46e5;
+    --accent-indigo-bg: rgba(79, 70, 229, 0.08);
+    --accent-teal: #0d9488;
+    --accent-teal-bg: rgba(13, 148, 136, 0.08);
+    --accent-rose: #e11d48;
+    --accent-amber: #d97706;
+    --font-heading: 'Plus Jakarta Sans', sans-serif;
+    --font-body: 'Inter', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg-page: #090d16;
+      --paper: #0f172a;
+      --paper-2: #1e293b;
+      --ink: #f8fafc;
+      --ink-secondary: #e2e8f0;
+      --muted: #94a3b8;
+      --soft: #64748b;
+      --border: #1e293b;
+      --border-strong: #334155;
+      --accent-indigo: #818cf8;
+      --accent-indigo-bg: rgba(129, 140, 248, 0.14);
+      --accent-teal: #14b8a6;
+      --accent-teal-bg: rgba(20, 184, 166, 0.14);
+      --accent-rose: #f43f5e;
+      --accent-amber: #fbbf24;
+    }
+  }
+
+  body[data-theme="dark"] {
+    --bg-page: #090d16;
+    --paper: #0f172a;
+    --paper-2: #1e293b;
+    --ink: #f8fafc;
+    --ink-secondary: #e2e8f0;
+    --muted: #94a3b8;
+    --soft: #64748b;
+    --border: #1e293b;
+    --border-strong: #334155;
+    --accent-indigo: #818cf8;
+    --accent-indigo-bg: rgba(129, 140, 248, 0.14);
+    --accent-teal: #14b8a6;
+    --accent-teal-bg: rgba(20, 184, 166, 0.14);
+    --accent-rose: #f43f5e;
+    --accent-amber: #fbbf24;
+  }
+
+  body[data-theme="light"] {
+    --bg-page: #f8fafc;
+    --paper: #ffffff;
+    --paper-2: #f1f5f9;
+    --ink: #0f172a;
+    --ink-secondary: #334155;
+    --muted: #64748b;
+    --soft: #94a3b8;
+    --border: #e2e8f0;
+    --border-strong: #cbd5e1;
+    --accent-indigo: #4f46e5;
+    --accent-indigo-bg: rgba(79, 70, 229, 0.08);
+    --accent-teal: #0d9488;
+    --accent-teal-bg: rgba(13, 148, 136, 0.08);
+    --accent-rose: #e11d48;
+    --accent-amber: #d97706;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background-color: var(--bg-page);
+    color: var(--ink);
+    font-family: var(--font-body);
+    padding: 32px 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+  }
+
+  .header-bar {
+    max-width: 1280px;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .title-group h1 {
+    font-family: var(--font-heading);
+    font-size: 1.55rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .title-group p {
+    font-size: 0.88rem;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  .badge-tag {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: var(--accent-indigo-bg);
+    color: var(--accent-indigo);
+    border: 1px solid var(--accent-indigo);
+  }
+
+  .controls { display: flex; gap: 12px; }
+  .btn {
+    background: var(--paper);
+    color: var(--ink-secondary);
+    border: 1px solid var(--border-strong);
+    padding: 7px 14px;
+    border-radius: 6px;
+    font-family: var(--font-body);
+    font-size: 0.82rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .btn:hover { background: var(--paper-2); border-color: var(--accent-indigo); }
+
+  .diagram-wrapper {
+    max-width: 1280px;
+    width: 100%;
+    background: var(--paper);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+    overflow-x: auto;
+    padding: 24px;
+  }
+
+  svg {
+    width: 100%;
+    height: auto;
+    min-width: 1220px;
+    display: block;
+  }
+
+  .caption-footer {
+    max-width: 1280px;
+    width: 100%;
+    margin-top: 20px;
+    padding: 16px 20px;
+    background: var(--paper);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 0.84rem;
+    line-height: 1.55;
+    color: var(--ink-secondary);
+  }
+
+  .caption-footer strong { color: var(--ink); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div class="header-bar">
+  <div class="title-group">
+    <h1>
+      <span class="badge-tag">Figure 2</span>
+      Combinatorial Beam Search & Chemical Optimization Flowchart
+    </h1>
+    <p>Navigating the 30^42 Chemical Search Space via Single-Mod Screening, SPOS Filtering, and Multi-Objective Pareto Optimization</p>
+  </div>
+  <div class="controls">
+    <button class="btn" onclick="toggleTheme()">🌓 Toggle Dark/Light</button>
+    <button class="btn" onclick="window.print()">🖨️ Export PDF / Print</button>
+  </div>
+</div>
+
+<div class="diagram-wrapper">
+  <svg viewBox="0 0 1200 640" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="var(--soft)" />
+      </marker>
+      <marker id="arr-indigo" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="var(--accent-indigo)" />
+      </marker>
+      <marker id="arr-teal" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="var(--accent-teal)" />
+      </marker>
+      <marker id="arr-rose" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="var(--accent-rose)" />
+      </marker>
+    </defs>
+
+    <!-- Zone Backgrounds -->
+    <rect x="24" y="24" width="250" height="590" rx="10" fill="var(--paper-2)" stroke="var(--border)" />
+    <text x="149" y="46" fill="var(--muted)" font-family="var(--font-mono)" font-size="8.5" font-weight="700" text-anchor="middle" letter-spacing="0.1em">PHASE 1: PERMUTATION SCAN</text>
+
+    <rect x="298" y="24" width="580" height="590" rx="10" fill="var(--paper-2)" stroke="var(--border)" />
+    <text x="588" y="46" fill="var(--accent-indigo)" font-family="var(--font-mono)" font-size="8.5" font-weight="700" text-anchor="middle" letter-spacing="0.1em">PHASE 2: COMBINATORIAL BEAM EXPANSION LOOP</text>
+
+    <rect x="902" y="24" width="274" height="590" rx="10" fill="var(--paper-2)" stroke="var(--border)" />
+    <text x="1039" y="46" fill="var(--accent-teal)" font-family="var(--font-mono)" font-size="8.5" font-weight="700" text-anchor="middle" letter-spacing="0.1em">PHASE 3: PARETO SELECTION</text>
+
+    <!-- Connectors -->
+    <path d="M 149 140 V 172" stroke="var(--border-strong)" stroke-width="1.5" marker-end="url(#arr)" />
+    <path d="M 149 276 V 308" stroke="var(--border-strong)" stroke-width="1.5" marker-end="url(#arr)" />
+    <path d="M 149 414 V 446" stroke="var(--border-strong)" stroke-width="1.5" marker-end="url(#arr)" />
+
+    <!-- Phase 1 to Phase 2 Initial Beam -->
+    <path d="M 254 494 H 280 Q 290 494 290 320 Q 290 110 318 110 H 330" fill="none" stroke="var(--accent-indigo)" stroke-width="1.8" marker-end="url(#arr-indigo)" />
+
+    <!-- Beam Loop Internal Flow -->
+    <path d="M 450 156 V 188" stroke="var(--border-strong)" stroke-width="1.5" marker-end="url(#arr)" />
+    <path d="M 450 286 V 318" stroke="var(--border-strong)" stroke-width="1.5" marker-end="url(#arr)" />
+    <path d="M 450 436 V 468" stroke="var(--border-strong)" stroke-width="1.5" marker-end="url(#arr)" />
+
+    <!-- Rejection path from Biophysical Gate -->
+    <path d="M 580 376 H 700" stroke="var(--accent-rose)" stroke-width="1.5" marker-end="url(#arr-rose)" />
+
+    <!-- Loop Back Connector (Iterative Expansion) -->
+    <path d="M 330 520 H 312 Q 304 520 304 350 Q 304 236 322 236 H 330" fill="none" stroke="var(--accent-indigo)" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arr-indigo)" />
+
+    <!-- Convergence -> Phase 3 -->
+    <path d="M 580 520 H 902" stroke="var(--accent-teal)" stroke-width="1.8" marker-end="url(#arr-teal)" />
+
+    <!-- Phase 3 Internal Flow -->
+    <path d="M 1039 220 V 264" stroke="var(--border-strong)" stroke-width="1.5" marker-end="url(#arr)" />
+    <path d="M 1039 394 V 438" stroke="var(--border-strong)" stroke-width="1.5" marker-end="url(#arr)" />
+
+    <!-- Nodes: Phase 1 -->
+    <g id="p1-n1">
+      <rect x="44" y="68" width="210" height="72" rx="8" fill="var(--paper)" stroke="var(--border)" stroke-width="1.2" />
+      <text x="58" y="92" fill="var(--ink)" font-family="var(--font-heading)" font-size="11.5" font-weight="700">Naked 21-mer Duplex</text>
+      <text x="58" y="108" fill="var(--muted)" font-family="var(--font-mono)" font-size="9">Input Target Sequence Lead</text>
+      <text x="58" y="124" fill="var(--muted)" font-family="var(--font-mono)" font-size="8.5">42 Unmodified Nucleotides</text>
+    </g>
+
+    <g id="p1-n2">
+      <rect x="44" y="172" width="210" height="104" rx="8" fill="var(--paper)" stroke="var(--border)" stroke-width="1.2" />
+      <text x="58" y="194" fill="var(--ink)" font-family="var(--font-heading)" font-size="11.5" font-weight="700">Single-Site Scan</text>
+      <text x="58" y="212" fill="var(--muted)" font-family="var(--font-body)" font-size="9">Evaluates 812 single variants</text>
+      <text x="58" y="230" fill="var(--accent-indigo)" font-family="var(--font-mono)" font-size="9" font-weight="700">Latency: &lt; 0.1 seconds</text>
+      <text x="58" y="248" fill="var(--muted)" font-family="var(--font-mono)" font-size="8.5">Exhaustive substitution across</text>
+      <text x="58" y="262" fill="var(--muted)" font-family="var(--font-mono)" font-size="8.5">both sense and antisense strands</text>
+    </g>
+
+    <g id="p1-n3">
+      <rect x="44" y="308" width="210" height="106" rx="8" fill="var(--paper)" stroke="var(--border)" stroke-width="1.2" />
+      <text x="58" y="330" fill="var(--ink)" font-family="var(--font-heading)" font-size="11.5" font-weight="700">Pairing Pool Assembly</text>
+      <text x="58" y="348" fill="var(--muted)" font-family="var(--font-body)" font-size="8.5">• Top 2 mods per unique position</text>
+      <text x="58" y="364" fill="var(--muted)" font-family="var(--font-body)" font-size="8.5">• Top 35 global single-mod winners</text>
+      <text x="58" y="380" fill="var(--accent-teal)" font-family="var(--font-mono)" font-size="8.5" font-weight="700">• AS pos 7 (S)-GNA guarantee</text>
+      <text x="58" y="398" fill="var(--muted)" font-family="var(--font-mono)" font-size="8">Full 42-position duplex coverage</text>
+    </g>
+
+    <g id="p1-n4">
+      <rect x="44" y="446" width="210" height="96" rx="8" fill="var(--paper)" stroke="var(--accent-indigo)" stroke-width="1.6" />
+      <rect x="44" y="446" width="210" height="4" fill="var(--accent-indigo)" />
+      <text x="58" y="468" fill="var(--ink)" font-family="var(--font-heading)" font-size="11.5" font-weight="700">Diverse Initial Beam</text>
+      <text x="58" y="486" fill="var(--accent-indigo)" font-family="var(--font-mono)" font-size="9.5" font-weight="700">Beam Width (W) = 20</text>
+      <text x="58" y="504" fill="var(--muted)" font-family="var(--font-mono)" font-size="8.5">Divergent positions across seed,</text>
+      <text x="58" y="520" fill="var(--muted)" font-family="var(--font-mono)" font-size="8.5">cleavage, and flanking wings</text>
+    </g>
+
+    <!-- Nodes: Phase 2 -->
+    <g id="p2-n1">
+      <rect x="330" y="68" width="250" height="88" rx="8" fill="var(--paper)" stroke="var(--border)" stroke-width="1.2" />
+      <text x="346" y="92" fill="var(--ink)" font-family="var(--font-heading)" font-size="12" font-weight="700">Combinatorial Expansion</text>
+      <text x="346" y="110" fill="var(--muted)" font-family="var(--font-body)" font-size="9">Pairs beam candidates with pool</text>
+      <text x="346" y="130" fill="var(--accent-indigo)" font-family="var(--font-mono)" font-size="9" font-weight="700">Generates ~1,680 child variants</text>
+      <text x="346" y="146" fill="var(--muted)" font-family="var(--font-mono)" font-size="8">Prevents duplicate positional edits</text>
+    </g>
+
+    <g id="p2-n2">
+      <rect x="330" y="188" width="250" height="98" rx="8" fill="var(--paper)" stroke="var(--accent-indigo)" stroke-width="1.6" />
+      <rect x="330" y="188" width="250" height="4" fill="var(--accent-indigo)" />
+      <text x="346" y="212" fill="var(--ink)" font-family="var(--font-heading)" font-size="12" font-weight="700">CatBoost Scoring Core</text>
+      <text x="346" y="230" fill="var(--muted)" font-family="var(--font-body)" font-size="9">Unified 517-D Feature Space</text>
+      <text x="346" y="248" fill="var(--muted)" font-family="var(--font-mono)" font-size="8.5">Dose-conditioned continuous regression</text>
+      <text x="346" y="268" fill="var(--accent-indigo)" font-family="var(--font-mono)" font-size="9" font-weight="700">Throughput: &gt;12,000 variants/sec</text>
+    </g>
+
+    <g id="p2-n3">
+      <rect x="330" y="318" width="250" height="118" rx="8" fill="var(--paper)" stroke="var(--accent-rose)" stroke-width="1.6" />
+      <rect x="330" y="318" width="250" height="4" fill="var(--accent-rose)" />
+      <text x="346" y="342" fill="var(--ink)" font-family="var(--font-heading)" font-size="12" font-weight="700">Biophysical &amp; SPOS Filters</text>
+      <text x="346" y="360" fill="var(--accent-rose)" font-family="var(--font-mono)" font-size="8.5" font-weight="700">CLINICAL &amp; SYNTHESIS CONSTRAINTS</text>
+      <text x="346" y="376" fill="var(--muted)" font-family="var(--font-body)" font-size="8.5">• Slicing window (9–11) catalytic preservation</text>
+      <text x="346" y="392" fill="var(--muted)" font-family="var(--font-body)" font-size="8.5">• SPOS Filter: ≥4 Gs or ≥3 bulky LNAs rejected</text>
+      <text x="346" y="408" fill="var(--muted)" font-family="var(--font-body)" font-size="8.5">• Seed region Tm destabilization checks</text>
+      <text x="346" y="424" fill="var(--muted)" font-family="var(--font-body)" font-size="8.5">• Helicase barrier (ΔΔG &lt; −35 kcal/mol)</text>
+    </g>
+
+    <!-- Pruned box -->
+    <g id="p2-pruned">
+      <rect x="700" y="340" width="156" height="74" rx="6" fill="var(--paper)" stroke="var(--border)" stroke-width="1" />
+      <text x="714" y="364" fill="var(--accent-rose)" font-family="var(--font-mono)" font-size="8.5" font-weight="700">Prune &amp; Discard</text>
+      <text x="714" y="382" fill="var(--muted)" font-family="var(--font-body)" font-size="8">Inviable steric clashes</text>
+      <text x="714" y="396" fill="var(--muted)" font-family="var(--font-body)" font-size="8">SPOS synthesis blockers</text>
+    </g>
+
+    <g id="p2-n4">
+      <rect x="330" y="468" width="250" height="102" rx="8" fill="var(--paper)" stroke="var(--border)" stroke-width="1.2" />
+      <text x="346" y="492" fill="var(--ink)" font-family="var(--font-heading)" font-size="12" font-weight="700">Beam Pruning &amp; Check</text>
+      <text x="346" y="510" fill="var(--muted)" font-family="var(--font-body)" font-size="9">Retain top W = 20 surviving variants</text>
+      <text x="346" y="528" fill="var(--accent-indigo)" font-family="var(--font-mono)" font-size="8.5" font-weight="700">Stopping: Max Depth (8) OR ΔE &lt; 0.05</text>
+      <text x="346" y="546" fill="var(--muted)" font-family="var(--font-mono)" font-size="8.5">Loop back for iterative multi-mod</text>
+    </g>
+
+    <!-- Nodes: Phase 3 -->
+    <g id="p3-n1">
+      <rect x="922" y="100" width="234" height="120" rx="8" fill="var(--paper)" stroke="var(--border)" stroke-width="1.2" />
+      <text x="938" y="124" fill="var(--ink)" font-family="var(--font-heading)" font-size="12" font-weight="700">Multi-Dose Potency Profiling</text>
+      <text x="938" y="142" fill="var(--muted)" font-family="var(--font-body)" font-size="9">Unified CatBoost Evaluation:</text>
+      <text x="938" y="162" fill="var(--accent-teal)" font-family="var(--font-mono)" font-size="9" font-weight="700">Full titration curve (0.01 to 100 nM)</text>
+      <text x="938" y="180" fill="var(--muted)" font-family="var(--font-mono)" font-size="8.5">Closed-form analytical Hill inversion</text>
+      <text x="938" y="198" fill="var(--accent-teal)" font-family="var(--font-mono)" font-size="8.5">Computes pIC50 and IC50 in &lt;1 μs</text>
+    </g>
+
+    <g id="p3-n2">
+      <rect x="922" y="264" width="234" height="130" rx="8" fill="var(--paper)" stroke="var(--accent-teal)" stroke-width="1.6" />
+      <rect x="922" y="264" width="234" height="4" fill="var(--accent-teal)" />
+      <text x="938" y="288" fill="var(--ink)" font-family="var(--font-heading)" font-size="12" font-weight="700">Pareto Frontier Ranking</text>
+      <text x="938" y="306" fill="var(--muted)" font-family="var(--font-body)" font-size="9">Tri-Objective Optimization Trade-offs:</text>
+      <text x="938" y="326" fill="var(--accent-teal)" font-family="var(--font-mono)" font-size="8.5" font-weight="700">1. Maximum Knockdown (≥80% at 10 nM)</text>
+      <text x="938" y="344" fill="var(--muted)" font-family="var(--font-mono)" font-size="8.5">2. High Serum Nuclease Stability (t1/2)</text>
+      <text x="938" y="362" fill="var(--muted)" font-family="var(--font-mono)" font-size="8.5">3. Minimal Synthetic Cost ($ Index)</text>
+      <text x="938" y="380" fill="var(--accent-teal)" font-family="var(--font-mono)" font-size="8.5">Ranks top non-dominated leads</text>
+    </g>
+
+    <g id="p3-n3">
+      <rect x="922" y="438" width="234" height="142" rx="8" fill="var(--paper)" stroke="var(--accent-teal)" stroke-width="1.4" />
+      <text x="938" y="462" fill="var(--ink)" font-family="var(--font-heading)" font-size="12" font-weight="700">Final Clinical Deliverables</text>
+      <text x="938" y="480" fill="var(--accent-teal)" font-family="var(--font-mono)" font-size="9" font-weight="700">Top 3 Clinical-Grade Candidates</text>
+      <text x="938" y="498" fill="var(--muted)" font-family="var(--font-mono)" font-size="8.5">• Fully specified 42-nt chemical string</text>
+      <text x="938" y="514" fill="var(--muted)" font-family="var(--font-mono)" font-size="8.5">• Continuous A-form 3D PDB model</text>
+      <text x="938" y="530" fill="var(--muted)" font-family="var(--font-mono)" font-size="8.5">• Evidence limits (Tier 0 FDA Core)</text>
+      <text x="938" y="546" fill="var(--accent-teal)" font-family="var(--font-mono)" font-size="8.5" font-weight="700">• 1-Click Synthesis Budget CSV Dossier</text>
+      <text x="938" y="564" fill="var(--muted)" font-family="var(--font-mono)" font-size="8">Export ready for oligo synthesizer</text>
+    </g>
+  </svg>
+</div>
+
+<div class="caption-footer">
+  <strong>Figure 2 | Combinatorial Beam Search and Chemical Optimization Flowchart.</strong>
+  Algorithmic execution pipeline for searching the astronomical 42-position chemical modification state space ($30^{42}$ configurations).
+  <strong>Phase 1 (Permutation Scan):</strong> A candidate unmodified 21-mer siRNA duplex is exhaustively screened across all 42 positions with available modifications (812 single variants evaluated in &lt; 0.1 s) to establish position-specific delta potency. A pairing pool is assembled ensuring complete 42-position duplex coverage and incorporating the Alnylam ESC+ benchmark ((S)-GNA at antisense position 7). The initial beam is seeded with $W = 20$ diverse candidates.
+  <strong>Phase 2 (Combinatorial Beam Expansion):</strong> At each expansion round ($D = 1 \dots 8$), child variants are generated and evaluated at &gt;12,000 variants/sec using the Unified 517-D CatBoost Regressor. Concurrently, Solid-Phase Oligonucleotide Synthesis (SPOS) constraints and biophysical gates filter out G-quadruplexes, consecutive bulky LNA blocks, and catalytic slicing window violations. Surviving variants are pruned to the top $W = 20$ until convergence ($\Delta\text{Score} &lt; 0.05$ or max depth).
+  <strong>Phase 3 (Pareto Selection):</strong> Surviving candidates are evaluated across multi-dose titrations with analytical closed-form Hill inversion ($p\text{IC}_{50}$, $\text{IC}_{50}$) and ranked along a tri-objective Pareto frontier (in vitro knockdown efficacy vs. serum nuclease stability vs. solid-phase synthesis cost), outputting the top 3 clinical lead configurations with 3D PDB models and exportable synthesis budget dossiers.
+</div>
+
+<script>
+  function toggleTheme() {
+    const currentTheme = document.body.getAttribute('data-theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    document.body.setAttribute('data-theme', newTheme);
+  }
+</script>
+
+</body>
+</html>

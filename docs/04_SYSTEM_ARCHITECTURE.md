@@ -25,7 +25,7 @@ flowchart TD
         Parser --> Gen[sirna_generator.py: Sliding 21-mer Generator]
         Gen --> FeatA[features.py: 214-D Asymmetry & Reynolds Rules]
         FeatA --> ModelA[Model A: LightGBM GBDT Booster]
-        ModelA --> CalibA[calibrator.py: Isotonic Calibration]
+        ModelA --> CalibA[calibrator.py: Monotonic Calibration & Clamping 0-100%]
         CalibA --> Domain[Domain Detection: 5' UTR, CDS, 3' UTR]
         Domain --> LeadSel[predictor.py: Curated Lead Selector]
     end
@@ -94,3 +94,9 @@ flowchart TD
 #### 3.7 Continuous A-Form 3D PDB Structural Generator (`pdb_generator.py`)
 - Generates 504-atom PDB models based on ideal A-form geometry ($2.81\text{ \AA}$ rise, $32.7^\circ$ twist).
 - Encodes chemical modifications directly into the crystallographic B-factor column ($90.0=2'\text{-F}, 80.0=2'\text{-OMe}, 70.0=\text{PS}$, etc.) for interactive 3Dmol.js rendering.
+
+#### 3.8 Positional Coverage Beam Search Optimizer (`modification_engine.py`)
+- Executes multi-round beam search ($W = 25$, depth up to 42) to assemble optimal combinatorial chemical patterns across sense and antisense strands.
+- Enforces full positional coverage in the candidate pairing pool across all 42 duplex positions, preventing premature search stagnation and allowing full chemical shielding across the entire duplex.
+- Automatically seeds (S)-GNA at antisense position 7 for ESC+ microRNA off-target suppression, and enforces strict boundary clamping $[0.00\%, 100.00\%]$ across all predicted candidates.
+

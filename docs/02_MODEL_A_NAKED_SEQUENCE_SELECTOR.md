@@ -66,3 +66,21 @@ The catastrophic failure of Model A on modified siRNAs ($r = 0.1771$, $R^2 = -0.
 1. **Chemical modifications fundamentally re-write the rules of oligonucleotide thermodynamics and Ago2 interactions.**
 2. A sequence-only model, regardless of how deep or well-trained, is completely blind to chemical substitutions.
 3. Model A serves as an essential **upstream filter** to identify functional naked sequences, which are then optimized by the **Unified Dose-Aware CatBoost Engine**.
+
+---
+
+### 5. Strictly Monotonic Probability Calibration & Output Clamping
+
+Raw leaf outputs from gradient-boosted regression trees trained with Huber loss naturally compress towards the empirical sample mean (~45% to 65% knockdown). To map raw tree predictions onto physically interpretable, assay-aligned percentage knockdown distributions, Model A utilizes an explicit out-of-fold monotonic calibrator (`smepred/models/calibrator_naked.pkl`).
+#### 5.1 Mathematical Calibration Formulation
+- The calibration engine (`smepred/src/calibrator.py`) applies a **Strictly Monotonic Variance-Matching Transformation**:
+  $$\hat{y}_{\text{calibrated}} = m \cdot x_{\text{raw}} + c$$
+  where $m = 1.5165$ and $c = -25.892$ were empirically derived via out-of-fold variance expansion on validated screening benchmarks.
+- Monotonicity is guaranteed ($\frac{\partial \hat{y}}{\partial x} > 0$), ensuring that sequence rank orders established by the thermodynamic feature tree ensemble are strictly preserved without rank inversion.
+
+#### 5.2 Deterministic Boundary Clamping
+- Because linear calibration of extreme high-affinity sequences ($x_{\text{raw}} > 83.0\%$) can mathematically exceed 100.0%, strict biological boundary clamping is enforced:
+  $$\hat{y}_{\text{final}} = \text{np.clip}(\hat{y}_{\text{calibrated}}, 0.0, 100.0)$$
+- Enforced in both the core prediction backend ([`smepred/src/predictor.py`](file:///d:/Helixx/smepred/src/predictor.py)) and UI visualization layers ([`smepred/app.html`](file:///d:/Helixx/smepred/app.html)), guaranteeing that candidate knockdown efficacy is bounded strictly within $[0.00\%, 100.00\%]$.
+
+

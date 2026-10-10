@@ -20,7 +20,7 @@
     {"symbol": "1", "name": "5'-Vinylphosphonate (5'-VP) / 5'-P", "type": "fda_core", "description": "Metabolically non-hydrolyzable 5'-phosphate mimic; locks antisense 5' end into human Ago2 MID domain (Mivelsiran/ALN-APP standard)."},
     {"symbol": "2", "name": "3'-Terminal Phosphate (3'-P)", "type": "fda_core", "description": "Terminal 3' phosphorylation; blocks exonuclease degradation and terminal transferase extension."},
     {"symbol": "3", "name": "5'-O-Methyl Cap (5'-OMe)", "type": "fda_core", "description": "Terminal 5' blocking group on passenger/sense strand; prevents non-specific RISC loading of the sense strand."},
-    {"symbol": "E", "name": "2'-O-Methoxyethyl (2'-MOE)", "type": "fda_core", "description": "Bulky nuclease-resistant modification; FDA-approved in Wainua (2023) and Spinraza (2016)."},
+    {"symbol": "E", "name": "2'-O-Methoxyethyl (2'-MOE)", "type": "innovative", "description": "Bulky nuclease-resistant modification; FDA-approved in ASOs (Wainua 2023, Spinraza 2016), preclinical candidate in siRNA."},
 
     {"symbol": "4", "name": "GalNAc Conjugate (Triantennary L96)", "type": "delivery", "description": "High-affinity ASGPR-targeting ligand; enables subcutaneous receptor-mediated hepatocyte uptake (Givlaari, Oxlumo, Leqvio, Amvuttra)."},
     {"symbol": "5", "name": "PEG Delivery Conjugate", "type": "delivery", "description": "Polyethylene glycol steric stealth conjugate for prolonged systemic circulation."},

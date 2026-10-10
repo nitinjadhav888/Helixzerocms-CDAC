@@ -24,7 +24,7 @@ The workbench organizes oligonucleotide drug design into five specialized resear
 #### Module 01: Sequence Ingestion & Naked siRNA Discovery (`tab-input`)
 - Ingests raw mRNA strings, gene accession symbols, or FASTA files.
 - Provides one-click quick-load presets for clinically validated therapeutic genes (*PCSK9*, *TTR*, *ALAS1*, *HAO1*, *LDHA*).
-- Displays candidate 21-mers in real-time tables with sorting by efficacy, biological transcript domain, thermodynamic asymmetry ($\Delta\Delta G$), and Janas toxicity.
+- Displays candidate 21-mers in real-time tables with sorting by efficacy, biological transcript domain, thermodynamic asymmetry ($\Delta\Delta G$), and Janas toxicity. Efficacy scores and score bars are strictly bounded in $[0.00\%, 100.00\%]$.
 
 #### Module 02: Positional Chemistry Permutation Scanner (`tab-single`)
 - Takes any selected candidate siRNA duplex and executes an exhaustive single-modification scan across all 42 positions.
@@ -32,9 +32,12 @@ The workbench organizes oligonucleotide drug design into five specialized resear
 - Features embedded 3D structural previews highlighting the modified residue.
 
 #### Module 03: Combinatorial Multi-Mod Beam Search Optimizer (`tab-multi`)
-- Explores combinatorial modification configurations using an autonomous beam search ($W = 20$, depth 21).
-- Allows scientists to constrain the search space to **FDA-Approved Clinical Core Chemistries** (Patisiran / Vutrisiran standards: 2'-OMe, 2'-F, DNA, PS, 5'-VP) or explore all 30 innovative modifications.
+- Explores combinatorial modification configurations using an autonomous beam search with complete 42-position positional coverage ($W = 25$, depth up to 42 duplex modifications).
+- Allows scientists to constrain the search space to **Tier 0: FDA Clinical Core Chemistries** (Patisiran, Givlaari, Leqvio, Amvuttra standards: 2'-OMe `M`, 2'-F `F`, DNA `D`, PS `S`, 5'-VP `1`, and position-7 GNA `8`), or uncheck to explore all 30 innovative modifications including **Tier 1 Preclinical** (2'-MOE `E`, LNA `L`, ENA `Y`, UNA `6`) and **Tier 2 Extrapolated** chemistries.
+- Displays dynamic Chemical Evidence Badges (`Tier 0: FDA Core`, `Tier 1: Preclinical`, `Tier 2: Extrapolated`) and Reagent Synthesis Budget Tiers (`$`, `$$`, `$$$`) by aggregating modified positions across both strands while ignoring canonical ribonucleotides.
 - Displays real-time radar charts and bar breakdowns of biophysical penalty deductions (Helicase, Nuclease, TLR7/8, Seed Cytotoxicity).
+- Enforces strict $[0.00\%, 100.00\%]$ visual bounds on all progress bars (`scoreBar`, `scoreBarSmall`).
+
 
 #### Module 04: Standardized Nucleic Acid Modification Ontology (`tab-mods`)
 - Comprehensive interactive directory of all 30 supported chemical modifications.

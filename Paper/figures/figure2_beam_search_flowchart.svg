@@ -1,0 +1,167 @@
+<svg viewBox="0 0 1200 640" fill="none" xmlns="http://www.w3.org/2000/svg" style="background:#ffffff; font-family:'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+  <defs>
+    <style>
+      .zone-bg { fill: #f8fafc; stroke: #e2e8f0; stroke-width: 1.2; }
+      .node-bg { fill: #ffffff; stroke: #cbd5e1; stroke-width: 1.2; }
+      .node-title { fill: #0f172a; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 11.5px; font-weight: 700; }
+      .node-sub { fill: #64748b; font-size: 8.5px; font-family: 'Inter', sans-serif; }
+      .node-mono { fill: #475569; font-size: 8.5px; font-family: 'JetBrains Mono', monospace; }
+      .accent-teal { fill: #0d9488; }
+      .accent-indigo { fill: #4f46e5; }
+      .accent-rose { fill: #e11d48; }
+    </style>
+    <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#94a3b8" />
+    </marker>
+    <marker id="arr-indigo" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#4f46e5" />
+    </marker>
+    <marker id="arr-teal" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#0d9488" />
+    </marker>
+    <marker id="arr-rose" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#e11d48" />
+    </marker>
+  </defs>
+
+  <!-- Title Banner -->
+  <text x="24" y="18" fill="#0f172a" font-family="'Plus Jakarta Sans', sans-serif" font-size="15" font-weight="800" letter-spacing="-0.02em">FIGURE 2 | Combinatorial Beam Search &amp; Chemical Optimization Flowchart</text>
+
+  <!-- Zones -->
+  <rect x="24" y="32" width="250" height="580" rx="10" class="zone-bg" />
+  <text x="149" y="52" fill="#64748b" font-family="'JetBrains Mono', monospace" font-size="8.5" font-weight="700" text-anchor="middle" letter-spacing="0.1em">PHASE 1: PERMUTATION SCAN</text>
+
+  <rect x="298" y="32" width="580" height="580" rx="10" class="zone-bg" />
+  <text x="588" y="52" fill="#4f46e5" font-family="'JetBrains Mono', monospace" font-size="8.5" font-weight="700" text-anchor="middle" letter-spacing="0.1em">PHASE 2: BEAM EXPANSION LOOP</text>
+
+  <rect x="902" y="32" width="274" height="580" rx="10" class="zone-bg" />
+  <text x="1039" y="52" fill="#0d9488" font-family="'JetBrains Mono', monospace" font-size="8.5" font-weight="700" text-anchor="middle" letter-spacing="0.1em">PHASE 3: PARETO SELECTION</text>
+
+  <!-- Connectors -->
+  <path d="M 149 140 V 172" stroke="#cbd5e1" stroke-width="1.5" marker-end="url(#arr)" />
+  <path d="M 149 276 V 308" stroke="#cbd5e1" stroke-width="1.5" marker-end="url(#arr)" />
+  <path d="M 149 414 V 446" stroke="#cbd5e1" stroke-width="1.5" marker-end="url(#arr)" />
+  <path d="M 254 494 H 280 Q 290 494 290 320 Q 290 110 318 110 H 330" fill="none" stroke="#4f46e5" stroke-width="1.8" marker-end="url(#arr-indigo)" />
+
+  <path d="M 450 156 V 188" stroke="#cbd5e1" stroke-width="1.5" marker-end="url(#arr)" />
+  <path d="M 450 286 V 318" stroke="#cbd5e1" stroke-width="1.5" marker-end="url(#arr)" />
+  <path d="M 450 436 V 468" stroke="#cbd5e1" stroke-width="1.5" marker-end="url(#arr)" />
+  <path d="M 580 376 H 700" stroke="#e11d48" stroke-width="1.5" marker-end="url(#arr-rose)" />
+
+  <path d="M 330 520 H 312 Q 304 520 304 350 Q 304 236 322 236 H 330" fill="none" stroke="#4f46e5" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arr-indigo)" />
+  <path d="M 580 520 H 902" stroke="#0d9488" stroke-width="1.8" marker-end="url(#arr-teal)" />
+
+  <path d="M 1039 220 V 264" stroke="#cbd5e1" stroke-width="1.5" marker-end="url(#arr)" />
+  <path d="M 1039 394 V 438" stroke="#cbd5e1" stroke-width="1.5" marker-end="url(#arr)" />
+
+  <!-- Nodes: Phase 1 -->
+  <g id="p1-n1">
+    <rect x="44" y="68" width="210" height="72" rx="8" class="node-bg" />
+    <text x="58" y="92" class="node-title">Naked 21-mer Duplex</text>
+    <text x="58" y="108" class="node-mono">Input Target Sequence Lead</text>
+    <text x="58" y="124" class="node-mono">42 Unmodified Nucleotides</text>
+  </g>
+
+  <g id="p1-n2">
+    <rect x="44" y="172" width="210" height="104" rx="8" class="node-bg" />
+    <text x="58" y="194" class="node-title">Single-Site Scan</text>
+    <text x="58" y="212" class="node-sub">Evaluates 812 single variants</text>
+    <text x="58" y="230" class="node-mono accent-indigo" font-weight="700">Latency: &lt; 0.1 seconds</text>
+    <text x="58" y="248" class="node-sub">Exhaustive substitution across</text>
+    <text x="58" y="262" class="node-sub">both sense and antisense strands</text>
+  </g>
+
+  <g id="p1-n3">
+    <rect x="44" y="308" width="210" height="106" rx="8" class="node-bg" />
+    <text x="58" y="330" class="node-title">Pairing Pool Assembly</text>
+    <text x="58" y="348" class="node-sub">• Top 2 mods per unique position</text>
+    <text x="58" y="364" class="node-sub">• Top 35 global single-mod winners</text>
+    <text x="58" y="380" class="node-mono accent-teal" font-weight="700">• AS pos 7 (S)-GNA guarantee</text>
+    <text x="58" y="398" class="node-mono">Full 42-position duplex coverage</text>
+  </g>
+
+  <g id="p1-n4">
+    <rect x="44" y="446" width="210" height="96" rx="8" fill="#ffffff" stroke="#4f46e5" stroke-width="1.6" />
+    <rect x="44" y="446" width="210" height="4" fill="#4f46e5" />
+    <text x="58" y="468" class="node-title">Diverse Initial Beam</text>
+    <text x="58" y="486" class="node-mono accent-indigo" font-weight="700">Beam Width (W) = 20</text>
+    <text x="58" y="504" class="node-mono">Divergent positions across seed,</text>
+    <text x="58" y="520" class="node-mono">cleavage, and flanking wings</text>
+  </g>
+
+  <!-- Nodes: Phase 2 -->
+  <g id="p2-n1">
+    <rect x="330" y="68" width="250" height="88" rx="8" class="node-bg" />
+    <text x="346" y="92" class="node-title">Combinatorial Expansion</text>
+    <text x="346" y="110" class="node-sub">Pairs beam candidates with pool</text>
+    <text x="346" y="130" class="node-mono accent-indigo" font-weight="700">Generates ~1,680 child variants</text>
+    <text x="346" y="146" class="node-mono">Prevents duplicate positional edits</text>
+  </g>
+
+  <g id="p2-n2">
+    <rect x="330" y="188" width="250" height="98" rx="8" fill="#ffffff" stroke="#4f46e5" stroke-width="1.6" />
+    <rect x="330" y="188" width="250" height="4" fill="#4f46e5" />
+    <text x="346" y="212" class="node-title">CatBoost Scoring Core</text>
+    <text x="346" y="230" class="node-sub">Unified 517-D Feature Space</text>
+    <text x="346" y="248" class="node-mono">Dose-conditioned continuous regression</text>
+    <text x="346" y="268" class="node-mono accent-indigo" font-weight="700">Throughput: &gt;12,000 variants/sec</text>
+  </g>
+
+  <g id="p2-n3">
+    <rect x="330" y="318" width="250" height="118" rx="8" fill="#ffffff" stroke="#e11d48" stroke-width="1.6" />
+    <rect x="330" y="318" width="250" height="4" fill="#e11d48" />
+    <text x="346" y="342" class="node-title">Biophysical &amp; SPOS Filters</text>
+    <text x="346" y="360" class="node-mono accent-rose" font-weight="700">CLINICAL &amp; SYNTHESIS CONSTRAINTS</text>
+    <text x="346" y="376" class="node-sub">• Slicing window (9–11) catalytic preservation</text>
+    <text x="346" y="392" class="node-sub">• SPOS Filter: ≥4 Gs or ≥3 bulky LNAs rejected</text>
+    <text x="346" y="408" class="node-sub">• Seed region Tm destabilization checks</text>
+    <text x="346" y="424" class="node-sub">• Helicase barrier (ΔΔG &lt; −35 kcal/mol)</text>
+  </g>
+
+  <g id="p2-pruned">
+    <rect x="700" y="340" width="156" height="74" rx="6" class="node-bg" />
+    <text x="714" y="364" class="node-mono accent-rose" font-weight="700">Prune &amp; Discard</text>
+    <text x="714" y="382" class="node-sub">Inviable steric clashes</text>
+    <text x="714" y="396" class="node-sub">SPOS synthesis blockers</text>
+  </g>
+
+  <g id="p2-n4">
+    <rect x="330" y="468" width="250" height="102" rx="8" class="node-bg" />
+    <text x="346" y="492" class="node-title">Beam Pruning &amp; Check</text>
+    <text x="346" y="510" class="node-sub">Retain top W = 20 surviving variants</text>
+    <text x="346" y="528" class="node-mono accent-indigo" font-weight="700">Stopping: Max Depth (8) OR ΔE &lt; 0.05</text>
+    <text x="346" y="546" class="node-mono">Loop back for iterative multi-mod</text>
+  </g>
+
+  <!-- Nodes: Phase 3 -->
+  <g id="p3-n1">
+    <rect x="922" y="100" width="234" height="120" rx="8" class="node-bg" />
+    <text x="938" y="124" class="node-title">Multi-Dose Potency Profiling</text>
+    <text x="938" y="142" class="node-sub">Unified CatBoost Evaluation:</text>
+    <text x="938" y="162" class="node-mono accent-teal" font-weight="700">Full titration curve (0.01 to 100 nM)</text>
+    <text x="938" y="180" class="node-mono">Closed-form analytical Hill inversion</text>
+    <text x="938" y="198" class="node-mono accent-teal">Computes pIC50 and IC50 in &lt;1 μs</text>
+  </g>
+
+  <g id="p3-n2">
+    <rect x="922" y="264" width="234" height="130" rx="8" fill="#ffffff" stroke="#0d9488" stroke-width="1.6" />
+    <rect x="922" y="264" width="234" height="4" fill="#0d9488" />
+    <text x="938" y="288" class="node-title">Pareto Frontier Ranking</text>
+    <text x="938" y="306" class="node-sub">Tri-Objective Optimization Trade-offs:</text>
+    <text x="938" y="326" class="node-mono accent-teal" font-weight="700">1. Maximum Knockdown (≥80% at 10 nM)</text>
+    <text x="938" y="344" class="node-mono">2. High Serum Nuclease Stability (t1/2)</text>
+    <text x="938" y="362" class="node-mono">3. Minimal Synthetic Cost ($ Index)</text>
+    <text x="938" y="380" class="node-mono accent-teal">Ranks top non-dominated leads</text>
+  </g>
+
+  <g id="p3-n3">
+    <rect x="922" y="438" width="234" height="142" rx="8" class="node-bg" />
+    <text x="938" y="462" class="node-title">Final Clinical Deliverables</text>
+    <text x="938" y="480" class="node-mono accent-teal" font-weight="700">Top 3 Clinical-Grade Candidates</text>
+    <text x="938" y="498" class="node-mono">• Fully specified 42-nt chemical string</text>
+    <text x="938" y="514" class="node-mono">• Continuous A-form 3D PDB model</text>
+    <text x="938" y="530" class="node-mono">• Evidence limits (Tier 0 FDA Core)</text>
+    <text x="938" y="546" class="node-mono accent-teal" font-weight="700">• 1-Click Synthesis Budget CSV Dossier</text>
+    <text x="938" y="564" class="node-mono">Export ready for oligo synthesizer</text>
+  </g>
+</svg>

@@ -4,14 +4,25 @@
 
 ---
 
-### Version 3.0.0 — Production Release (October 2026)
+### Version 3.1.0 — Positional Coverage Beam Search, Chemical Tiers & Monotonic Clamping (October 2026)
 `VERIFIED — CURRENT IMPLEMENTATION`
+- **Full-Duplex Combinatorial Beam Search Expansion:** Eliminated premature beam search stagnation at ~16–20 modifications by replacing naive global score slicing with 42-position positional coverage in `pairing_pool`. Enables combinatorial chemical design across all 42 sense and antisense positions.
+- **Automated (S)-GNA Seeding for ESC+ Design:** Ensured (S)-GNA (`8`) at antisense position 7 is automatically seeded into the initial beam and pairing pool, preserving its critical biological role as an off-target seed destabilizer regardless of single-point on-target delta scores.
+- **Pharmacological Evidence Tier Realignment:** Reclassified 2'-MOE (`E`) and ENA (`Y`) to **Tier 1: Innovative/Preclinical** (reflecting their single-stranded ASO clinical status and steric bulk in duplex siRNA), reserving **Tier 0: FDA Core** strictly for clinical siRNA drugs (`M`, `F`, `D`, `S`, `1`, `2`, `3`, `4`, and position-7 `8`).
+- **Monotonic Calibration Clamping:** Integrated and bound the out-of-fold `StrictlyMonotonicCalibrator` ($\hat{y} = 1.5165 \cdot x - 25.892$) with deterministic $[0.00\%, 100.00\%]$ clamping across `predictor.py` and UI components (`scoreBar`, `scoreBarSmall`), preventing mathematical overshoots.
+- **Frontend Evidence Limit Badging:** Updated `getEvidenceLimitSummary` and `confidenceBadge` to aggregate all strand modifications while ignoring canonical ribonucleotides (`AUCG`), ensuring accurate synthesis budget and clinical prior tier display.
+
+---
+
+### Version 3.0.0 — Production Release (October 2026)
+`VERIFIED — PRIOR RELEASE`
 - **Architectural Consolidation:** Fully consolidated the production serving path into the **Single Unified Dose-Aware CatBoost Regressor** (517-D).
 - **Zero Sequence Leakage Certification:** Implemented strict 5-fold `GroupKFold` partitioning across 5,251 disjoint antisense sequence clusters ($N = 17,761$), certifying Pearson $r = 0.6776$ on novel genes and $r = 0.8359$ on held-out multi-dose screens.
 - **Closed-Form Hill Inversion:** Implemented microsecond-scale analytical $pIC_{50}$ derivation ($pIC_{50} = 9 - \log_{10}[IC_{50}]$), eliminating cascading two-stage error.
 - **Authoritative Benchmark Single Source of Truth:** Established `final_benchmarks/` as the immutable master repository for all benchmark numbers and deleted redundant historical draft markdown files.
 - **Continuous 3D Structural Modeling:** Engineered `pdb_generator.py` emitting 504-atom continuous A-form double-helices with B-factor encoded chemical modifications.
 - **Whole-Transcriptome 2-Bit SIMD Firewall:** Compiled the 863.8 MB binary packed index (`human_transcriptome.idx.pkl`) enabling sub-microsecond 15-mer slicer queries.
+
 
 ---
 

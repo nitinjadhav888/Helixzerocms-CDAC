@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Figure 3: Argonaute-2 Structural Gating & Biophysical Ontologies</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-page: #f8fafc;
+    --paper: #ffffff;
+    --paper-2: #f1f5f9;
+    --ink: #0f172a;
+    --ink-secondary: #334155;
+    --muted: #64748b;
+    --soft: #94a3b8;
+    --border: #e2e8f0;
+    --border-strong: #cbd5e1;
+    --accent-teal: #0d9488;
+    --accent-teal-bg: rgba(13, 148, 136, 0.08);
+    --accent-indigo: #4f46e5;
+    --accent-indigo-bg: rgba(79, 70, 229, 0.08);
+    --accent-rose: #e11d48;
+    --accent-rose-bg: rgba(225, 29, 72, 0.08);
+    --accent-amber: #d97706;
+    --accent-amber-bg: rgba(217, 119, 6, 0.08);
+    --font-heading: 'Plus Jakarta Sans', sans-serif;
+    --font-body: 'Inter', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg-page: #090d16;
+      --paper: #0f172a;
+      --paper-2: #1e293b;
+      --ink: #f8fafc;
+      --ink-secondary: #e2e8f0;
+      --muted: #94a3b8;
+      --soft: #64748b;
+      --border: #1e293b;
+      --border-strong: #334155;
+      --accent-teal: #14b8a6;
+      --accent-teal-bg: rgba(20, 184, 166, 0.14);
+      --accent-indigo: #818cf8;
+      --accent-indigo-bg: rgba(129, 140, 248, 0.14);
+      --accent-rose: #f43f5e;
+      --accent-rose-bg: rgba(244, 63, 94, 0.14);
+      --accent-amber: #fbbf24;
+      --accent-amber-bg: rgba(251, 191, 36, 0.14);
+    }
+  }
+
+  body[data-theme="dark"] {
+    --bg-page: #090d16;
+    --paper: #0f172a;
+    --paper-2: #1e293b;
+    --ink: #f8fafc;
+    --ink-secondary: #e2e8f0;
+    --muted: #94a3b8;
+    --soft: #64748b;
+    --border: #1e293b;
+    --border-strong: #334155;
+    --accent-teal: #14b8a6;
+    --accent-teal-bg: rgba(20, 184, 166, 0.14);
+    --accent-indigo: #818cf8;
+    --accent-indigo-bg: rgba(129, 140, 248, 0.14);
+    --accent-rose: #f43f5e;
+    --accent-rose-bg: rgba(244, 63, 94, 0.14);
+    --accent-amber: #fbbf24;
+    --accent-amber-bg: rgba(251, 191, 36, 0.14);
+  }
+
+  body[data-theme="light"] {
+    --bg-page: #f8fafc;
+    --paper: #ffffff;
+    --paper-2: #f1f5f9;
+    --ink: #0f172a;
+    --ink-secondary: #334155;
+    --muted: #64748b;
+    --soft: #94a3b8;
+    --border: #e2e8f0;
+    --border-strong: #cbd5e1;
+    --accent-teal: #0d9488;
+    --accent-teal-bg: rgba(13, 148, 136, 0.08);
+    --accent-indigo: #4f46e5;
+    --accent-indigo-bg: rgba(79, 70, 229, 0.08);
+    --accent-rose: #e11d48;
+    --accent-rose-bg: rgba(225, 29, 72, 0.08);
+    --accent-amber: #d97706;
+    --accent-amber-bg: rgba(217, 119, 6, 0.08);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background-color: var(--bg-page);
+    color: var(--ink);
+    font-family: var(--font-body);
+    padding: 32px 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+  }
+
+  .header-bar {
+    max-width: 1360px;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .title-group h1 {
+    font-family: var(--font-heading);
+    font-size: 1.55rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .title-group p {
+    font-size: 0.88rem;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  .badge-tag {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: var(--accent-rose-bg);
+    color: var(--accent-rose);
+    border: 1px solid var(--accent-rose);
+  }
+
+  .controls { display: flex; gap: 12px; }
+  .btn {
+    background: var(--paper);
+    color: var(--ink-secondary);
+    border: 1px solid var(--border-strong);
+    padding: 7px 14px;
+    border-radius: 6px;
+    font-family: var(--font-body);
+    font-size: 0.82rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .btn:hover { background: var(--paper-2); border-color: var(--accent-rose); }
+
+  .diagram-wrapper {
+    max-width: 1360px;
+    width: 100%;
+    background: var(--paper);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+    overflow-x: auto;
+    padding: 24px;
+  }
+
+  svg {
+    width: 100%;
+    height: auto;
+    min-width: 1300px;
+    display: block;
+  }
+
+  .caption-footer {
+    max-width: 1360px;
+    width: 100%;
+    margin-top: 20px;
+    padding: 16px 20px;
+    background: var(--paper);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 0.84rem;
+    line-height: 1.55;
+    color: var(--ink-secondary);
+  }
+
+  .caption-footer strong { color: var(--ink); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div class="header-bar">
+  <div class="title-group">
+    <h1>
+      <span class="badge-tag">Figure 3</span>
+      Argonaute-2 (Ago2) Structural Gating, Duplex Anatomy & Biophysical Guardrails
+    </h1>
+    <p>Crystallographic Interface Mapping (PDB 4W5N) &bull; Sugar Pucker Energetics &bull; 4 Deterministic Penalty Domains</p>
+  </div>
+  <div class="controls">
+    <button class="btn" onclick="toggleTheme()">🌓 Toggle Dark/Light</button>
+    <button class="btn" onclick="window.print()">🖨️ Export PDF / Print</button>
+  </div>
+</div>
+
+<div class="diagram-wrapper">
+  <svg viewBox="0 0 1320 920" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="var(--soft)" />
+      </marker>
+      <marker id="arr-rose" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="var(--accent-rose)" />
+      </marker>
+    </defs>
+
+    <!-- ══════════════════════════════════════════════════════════════════════
+         PANEL A: 21-MER THERAPEUTIC siRNA DUPLEX ARCHITECTURE & CHEMISTRY MAP
+         ══════════════════════════════════════════════════════════════════════ -->
+    <rect x="24" y="24" width="1272" height="230" rx="10" fill="var(--paper-2)" stroke="var(--border)" stroke-width="1.2" />
+    <text x="44" y="48" fill="var(--ink)" font-family="var(--font-heading)" font-size="13" font-weight="800">PANEL A | 21-mer Therapeutic siRNA Duplex Architecture &amp; Positional Modification Map</text>
+    <text x="690" y="48" fill="var(--muted)" font-family="var(--font-mono)" font-size="9">Canonical 19-bp Watson-Crick Hybridization + 2-nt 3' Dinucleotide Overhangs</text>
+
+    <!-- Duplex Backbone Tracks -->
+    <!-- Sense Strand (5' -> 3') -->
+    <rect x="44" y="68" width="1232" height="74" rx="8" fill="var(--paper)" stroke="var(--border)" stroke-width="1" />
+    <text x="60" y="90" fill="var(--ink-secondary)" font-family="var(--font-mono)" font-size="10" font-weight="700">Passenger (Sense) Strand (5' → 3'):</text>
+    <text x="320" y="90" fill="var(--muted)" font-family="var(--font-mono)" font-size="8.5">Nuclease-tolerant • Heavily alternating 2'-OMe / 2'-F • 3' GalNAc hepatic targeting ligand</text>
+
+    <!-- Sense Strand Nucleotide Nodes (1 to 21) -->
+    <!-- Positions 1-2 (5' PS cap) -->
+    <circle cx="100" cy="118" r="13" fill="var(--accent-teal-bg)" stroke="var(--accent-teal)" stroke-width="1.5" />
+    <text x="100" y="122" fill="var(--accent-teal)" font-family="var(--font-mono)" font-size="8.5" font-weight="700" text-anchor="middle">s1</text>
+    <line x1="113" y1="118" x2="135" y2="118" stroke="var(--accent-teal)" stroke-width="2.5" /> <!-- PS bond -->
+
+    <circle cx="148" cy="118" r="13" fill="var(--accent-teal-bg)" stroke="var(--accent-teal)" stroke-width="1.5" />
+    <text x="148" y="122" fill="var(--accent-teal)" font-family="var(--font-mono)" font-size="8.5" font-weight="700" text-anchor="middle">s2</text>
+    <line x1="161" y1="118" x2="183" y2="118" stroke="var(--border-strong)" stroke-width="1.2" />
+
+    <!-- Positions 3 to 19 (Body) -->
+    <circle cx="196" cy="118" r="13" fill="var(--accent-amber-bg)" stroke="var(--accent-amber)" stroke-width="1.2" />
+    <text x="196" y="122" fill="var(--accent-amber)" font-family="var(--font-mono)" font-size="8" text-anchor="middle">s3</text>
+    <line x1="209" y1="118" x2="231" y2="118" stroke="var(--border-strong)" stroke-width="1.2" />
+
+    <circle cx="244" cy="118" r="13" fill="var(--accent-rose-bg)" stroke="var(--accent-rose)" stroke-width="1.2" />
+    <text x="244" y="122" fill="var(--accent-rose)" font-family="var(--font-mono)" font-size="8" text-anchor="middle">s4</text>
+    <line x1="257" y1="118" x2="279" y2="118" stroke="var(--border-strong)" stroke-width="1.2" />
+
+    <circle cx="292" cy="118" r="13" fill="var(--accent-amber-bg)" stroke="var(--accent-amber)" stroke-width="1.2" />
+    <text x="292" y="122" fill="var(--accent-amber)" font-family="var(--font-mono)" font-size="8" text-anchor="middle">s5</text>
+    <line x1="305" y1="118" x2="327" y2="118" stroke="var(--border-strong)" stroke-width="1.2" />
+
+    <rect x="340" y="108" width="140" height="20" rx="4" fill="var(--paper-2)" stroke="var(--border)" />
+    <text x="410" y="122" fill="var(--muted)" font-family="var(--font-mono)" font-size="8" text-anchor="middle">• • •  Alternating 2'-OMe / 2'-F (s6–s16)  • • •</text>
+    <line x1="480" y1="118" x2="502" y2="118" stroke="var(--border-strong)" stroke-width="1.2" />
+
+    <circle cx="515" cy="118" r="13" fill="var(--accent-amber-bg)" stroke="var(--accent-amber)" stroke-width="1.2" />
+    <text x="515" y="122" fill="var(--accent-amber)" font-family="var(--font-mono)" font-size="8" text-anchor="middle">s17</text>
+    <line x1="528" y1="118" x2="550" y2="118" stroke="var(--border-strong)" stroke-width="1.2" />
+
+    <circle cx="563" cy="118" r="13" fill="var(--accent-rose-bg)" stroke="var(--accent-rose)" stroke-width="1.2" />
+    <text x="563" y="122" fill="var(--accent-rose)" font-family="var(--font-mono)" font-size="8" text-anchor="middle">s18</text>
+    <line x1="576" y1="118" x2="598" y2="118" stroke="var(--border-strong)" stroke-width="1.2" />
+
+    <circle cx="611" cy="118" r="13" fill="var(--accent-amber-bg)" stroke="var(--accent-amber)" stroke-width="1.2" />
+    <text x="611" y="122" fill="var(--accent-amber)" font-family="var(--font-mono)" font-size="8" text-anchor="middle">s19</text>
+    <line x1="624" y1="118" x2="646" y2="118" stroke="var(--accent-teal)" stroke-width="2.5" /> <!-- PS bond -->
+
+    <circle cx="659" cy="118" r="13" fill="var(--accent-teal-bg)" stroke="var(--accent-teal)" stroke-width="1.5" />
+    <text x="659" y="122" fill="var(--accent-teal)" font-family="var(--font-mono)" font-size="8" font-weight="700" text-anchor="middle">s20</text>
+    <line x1="672" y1="118" x2="694" y2="118" stroke="var(--accent-teal)" stroke-width="2.5" /> <!-- PS bond -->
+
+    <circle cx="707" cy="118" r="13" fill="var(--accent-teal-bg)" stroke="var(--accent-teal)" stroke-width="1.5" />
+    <text x="707" y="122" fill="var(--accent-teal)" font-family="var(--font-mono)" font-size="8" font-weight="700" text-anchor="middle">s21</text>
+    
+    <!-- 3' GalNAc Conjugate Linker -->
+    <line x1="720" y1="118" x2="770" y2="118" stroke="var(--accent-indigo)" stroke-width="2" stroke-dasharray="3,2" />
+    <rect x="774" y="104" width="160" height="28" rx="6" fill="var(--accent-indigo-bg)" stroke="var(--accent-indigo)" stroke-width="1.5" />
+    <text x="854" y="122" fill="var(--accent-indigo)" font-family="var(--font-heading)" font-size="10" font-weight="800" text-anchor="middle">Trivalent GalNAc (ASGPR)</text>
+
+    <!-- Antisense (Guide) Strand (3' -> 5') -->
+    <rect x="44" y="152" width="1232" height="90" rx="8" fill="var(--paper)" stroke="var(--border)" stroke-width="1" />
+    <text x="60" y="174" fill="var(--ink-secondary)" font-family="var(--font-mono)" font-size="10" font-weight="700">Guide (Antisense) Strand (3' ← 5'):</text>
+    <text x="320" y="174" fill="var(--muted)" font-family="var(--font-mono)" font-size="8.5">Active catalytic slicer • Strict functional compartments mapped to Human Ago2</text>
+
+    <!-- Antisense Compartments -->
+    <!-- PAZ Overhang (as21, as20) -->
+    <circle cx="100" cy="206" r="13" fill="var(--accent-teal-bg)" stroke="var(--accent-teal)" stroke-width="1.5" />
+    <text x="100" y="210" fill="var(--accent-teal)" font-family="var(--font-mono)" font-size="8" font-weight="700" text-anchor="middle">a21</text>
+    <line x1="113" y1="206" x2="135" y2="206" stroke="var(--accent-teal)" stroke-width="2.5" />
+    <circle cx="148" cy="206" r="13" fill="var(--accent-teal-bg)" stroke="var(--accent-teal)" stroke-width="1.5" />
+    <text x="148" y="210" fill="var(--accent-teal)" font-family="var(--font-mono)" font-size="8" font-weight="700" text-anchor="middle">a20</text>
+    <text x="124" y="234" fill="var(--accent-amber)" font-family="var(--font-mono)" font-size="7.5" font-weight="700" text-anchor="middle">PAZ Overhang</text>
+
+    <!-- Supplementary & Flanking (as19 to as12) -->
+    <line x1="161" y1="206" x2="183" y2="206" stroke="var(--border-strong)" stroke-width="1.2" />
+    <circle cx="196" cy="206" r="13" fill="var(--accent-amber-bg)" stroke="var(--accent-amber)" stroke-width="1.2" />
+    <text x="196" y="210" fill="var(--accent-amber)" font-family="var(--font-mono)" font-size="8" text-anchor="middle">a19</text>
+    <line x1="209" y1="206" x2="231" y2="206" stroke="var(--border-strong)" stroke-width="1.2" />
+    <circle cx="244" cy="206" r="13" fill="var(--accent-rose-bg)" stroke="var(--accent-rose)" stroke-width="1.2" />
+    <text x="244" y="210" fill="var(--accent-rose)" font-family="var(--font-mono)" font-size="8" text-anchor="middle">a18</text>
+
+    <rect x="270" y="196" width="130" height="20" rx="4" fill="var(--paper-2)" stroke="var(--border)" />
+    <text x="335" y="210" fill="var(--muted)" font-family="var(--font-mono)" font-size="8" text-anchor="middle">• • Flanking Body (a17–a12) • •</text>
+
+    <!-- Catalytic Slicing Window (as11, as10, as9) -->
+    <circle cx="430" cy="206" r="13" fill="var(--accent-rose-bg)" stroke="var(--accent-rose)" stroke-width="1.8" />
+    <text x="430" y="210" fill="var(--accent-rose)" font-family="var(--font-mono)" font-size="8" font-weight="700" text-anchor="middle">a11</text>
+    
+    <!-- Scissile Cleavage Marker -->
+    <line x1="443" y1="206" x2="465" y2="206" stroke="var(--accent-rose)" stroke-width="2" />
+    <polygon points="454,196 450,188 458,188" fill="var(--accent-rose)" />
+    <text x="454" y="184" fill="var(--accent-rose)" font-family="var(--font-mono)" font-size="7.5" font-weight="800" text-anchor="middle">SCISSILE CUT</text>
+
+    <circle cx="478" cy="206" r="13" fill="var(--accent-rose-bg)" stroke="var(--accent-rose)" stroke-width="2" />
+    <text x="478" y="210" fill="var(--accent-rose)" font-family="var(--font-mono)" font-size="8" font-weight="700" text-anchor="middle">a10</text>
+    <line x1="491" y1="206" x2="513" y2="206" stroke="var(--accent-rose)" stroke-width="1.5" />
+    <circle cx="526" cy="206" r="13" fill="var(--accent-rose-bg)" stroke="var(--accent-rose)" stroke-width="1.8" />
+    <text x="526" y="210" fill="var(--accent-rose)" font-family="var(--font-mono)" font-size="8" font-weight="700" text-anchor="middle">a9</text>
+    <text x="478" y="234" fill="var(--accent-rose)" font-family="var(--font-mono)" font-size="8" font-weight="800" text-anchor="middle">PIWI Cleavage Window (9–11)</text>
+
+    <!-- Seed Region (as8 to as2) with (S)-GNA at as7 -->
+    <line x1="539" y1="206" x2="557" y2="206" stroke="var(--border-strong)" stroke-width="1.2" />
+    <circle cx="570" cy="206" r="13" fill="var(--accent-indigo-bg)" stroke="var(--accent-indigo)" stroke-width="1.5" />
+    <text x="570" y="210" fill="var(--accent-indigo)" font-family="var(--font-mono)" font-size="8" text-anchor="middle">a8</text>
+    <line x1="583" y1="206" x2="601" y2="206" stroke="var(--border-strong)" stroke-width="1.2" />
+
+    <!-- AS POS 7 GNA SPECIAL NODE -->
+    <circle cx="614" cy="206" r="14" fill="var(--accent-teal-bg)" stroke="var(--accent-teal)" stroke-width="2.2" />
+    <text x="614" y="210" fill="var(--accent-teal)" font-family="var(--font-mono)" font-size="8" font-weight="800" text-anchor="middle">a7*</text>
+    <text x="614" y="234" fill="var(--accent-teal)" font-family="var(--font-mono)" font-size="7.5" font-weight="700" text-anchor="middle">(S)-GNA (ESC+)</text>
+
+    <line x1="628" y1="206" x2="646" y2="206" stroke="var(--border-strong)" stroke-width="1.2" />
+    <circle cx="659" cy="206" r="13" fill="var(--accent-indigo-bg)" stroke="var(--accent-indigo)" stroke-width="1.5" />
+    <text x="659" y="210" fill="var(--accent-indigo)" font-family="var(--font-mono)" font-size="8" text-anchor="middle">a6</text>
+    
+    <rect x="682" y="196" width="110" height="20" rx="4" fill="var(--accent-indigo-bg)" stroke="var(--accent-indigo)" />
+    <text x="737" y="210" fill="var(--accent-indigo)" font-family="var(--font-mono)" font-size="8" font-weight="700" text-anchor="middle">Seed Core (a5–a2)</text>
+
+    <!-- 5' MID Anchor (as1) -->
+    <line x1="800" y1="206" x2="822" y2="206" stroke="var(--accent-teal)" stroke-width="1.5" />
+    <circle cx="835" cy="206" r="14" fill="var(--accent-teal-bg)" stroke="var(--accent-teal)" stroke-width="2" />
+    <text x="835" y="210" fill="var(--accent-teal)" font-family="var(--font-mono)" font-size="8.5" font-weight="800" text-anchor="middle">a1</text>
+    
+    <!-- 5'-VP phosphate mimic -->
+    <line x1="849" y1="206" x2="880" y2="206" stroke="var(--accent-teal)" stroke-width="2" />
+    <rect x="884" y="196" width="140" height="22" rx="4" fill="var(--accent-teal-bg)" stroke="var(--accent-teal)" />
+    <text x="954" y="211" fill="var(--accent-teal)" font-family="var(--font-mono)" font-size="8" font-weight="800" text-anchor="middle">5'-(E)-VP / 5'-Phosphate</text>
+    <text x="835" y="234" fill="var(--accent-teal)" font-family="var(--font-mono)" font-size="7.5" font-weight="700" text-anchor="middle">MID 5' Anchor</text>
+
+    <!-- ══════════════════════════════════════════════════════════════════════
+         PANEL B: HUMAN ARGONAUTE-2 (Ago2) STRUCTURAL INTERFACE (PDB 4W5N)
+         ══════════════════════════════════════════════════════════════════════ -->
+    <rect x="24" y="270" width="1272" height="280" rx="10" fill="var(--paper-2)" stroke="var(--border)" stroke-width="1.2" />
+    <text x="44" y="294" fill="var(--ink)" font-family="var(--font-heading)" font-size="13" font-weight="800">PANEL B | Human Argonaute-2 (Ago2) Ternary Complex Interface &amp; Pocket Geometry (PDB 4W5N)</text>
+    <text x="740" y="294" fill="var(--muted)" font-family="var(--font-mono)" font-size="9">Crystallographic Tolerances • Catalytic Coordination • Steric Boundary Constraints</text>
+
+    <!-- 4 Ago2 Pocket Sub-Panels -->
+    <!-- Sub-Panel 1: MID Pocket -->
+    <g id="ago2-mid">
+      <rect x="44" y="312" width="290" height="220" rx="8" fill="var(--paper)" stroke="var(--accent-teal)" stroke-width="1.5" />
+      <rect x="44" y="312" width="290" height="4" fill="var(--accent-teal)" />
+      <text x="58" y="334" fill="var(--ink)" font-family="var(--font-heading)" font-size="12" font-weight="800">1. MID Domain 5' Pocket</text>
+      <text x="58" y="350" fill="var(--accent-teal)" font-family="var(--font-mono)" font-size="8.5" font-weight="700">Guide Residue a1 Anchor • Distance ≤ 4.5 Å</text>
+      <line x1="58" y1="360" x2="320" y2="360" stroke="var(--border)" />
+      <text x="58" y="378" fill="var(--ink-secondary)" font-family="var(--font-body)" font-size="8.5">• Conserved Basic Pocket: <tspan font-weight="700">K533, K570, R812, Y529</tspan></text>
+      <text x="58" y="394" fill="var(--ink-secondary)" font-family="var(--font-body)" font-size="8.5">• Strict coordinate hold of 5'-monophosphate mono-ester</text>
+      <text x="58" y="410" fill="var(--ink-secondary)" font-family="var(--font-body)" font-size="8.5">• <tspan font-weight="700">Permitted:</tspan> 5'-(E)-vinylphosphonate (5'-VP), 5'-P, 2'-deoxy</text>
+      <text x="58" y="430" fill="var(--accent-rose)" font-family="var(--font-mono)" font-size="8.5" font-weight="700">Physical Gating Violation:</text>
+      <text x="58" y="446" fill="var(--muted)" font-family="var(--font-body)" font-size="8">• Bulky conjugate at 5' end: <tspan font-weight="700" fill="var(--accent-rose)">Fatal (−35 pts)</tspan></text>
+      <text x="58" y="460" fill="var(--muted)" font-family="var(--font-body)" font-size="8">• Phosphorothioate at 5'-terminus: −15 pts</text>
+      <text x="58" y="474" fill="var(--muted)" font-family="var(--font-body)" font-size="8">• Loss of negative charge completely aborts RISC loading</text>
+      <rect x="58" y="492" width="262" height="26" rx="4" fill="var(--paper-2)" stroke="var(--border)" />
+      <text x="70" y="509" fill="var(--accent-teal)" font-family="var(--font-mono)" font-size="8" font-weight="700">Clinical Drug: Inclisiran preserves metabolic 5'-VP</text>
+    </g>
+
+    <!-- Sub-Panel 2: Seed Chamber -->
+    <g id="ago2-seed">
+      <rect x="354" y="312" width="300" height="220" rx="8" fill="var(--paper)" stroke="var(--accent-indigo)" stroke-width="1.5" />
+      <rect x="354" y="312" width="300" height="4" fill="var(--accent-indigo)" />
+      <text x="368" y="334" fill="var(--ink)" font-family="var(--font-heading)" font-size="12" font-weight="800">2. Seed Gating (Residues a2–a8)</text>
+      <text x="368" y="350" fill="var(--accent-indigo)" font-family="var(--font-mono)" font-size="8.5" font-weight="700">Pre-Organized A-Form Helix • C3'-endo</text>
+      <line x1="368" y1="360" x2="640" y2="360" stroke="var(--border)" />
+      <text x="368" y="378" fill="var(--ink-secondary)" font-family="var(--font-body)" font-size="8.5">• Enforces rigid C3'-endo North ribose pucker for rapid</text>
+      <text x="368" y="394" fill="var(--ink-secondary)" font-family="var(--font-body)" font-size="8.5">  target mRNA nucleation and base pairing</text>
+      <text x="368" y="410" fill="var(--ink-secondary)" font-family="var(--font-body)" font-size="8.5">• <tspan font-weight="700">Permitted:</tspan> Alternating 2'-F / 2'-OMe; (S)-GNA at pos 7</text>
+      <text x="368" y="430" fill="var(--accent-rose)" font-family="var(--font-mono)" font-size="8.5" font-weight="700">Physical Gating Violation:</text>
+      <text x="368" y="446" fill="var(--muted)" font-family="var(--font-body)" font-size="8">• Consecutive bulky 2'-OMe sugars: −18 pts (steric clash)</text>
+      <text x="368" y="460" fill="var(--muted)" font-family="var(--font-body)" font-size="8">• Unpaired mismatch at a2–a3: −40 pts</text>
+      <text x="368" y="474" fill="var(--muted)" font-family="var(--font-body)" font-size="8">• Internal PS linkages in seed: −12 pts (ΔTm drop)</text>
+      <rect x="368" y="492" width="272" height="26" rx="4" fill="var(--accent-indigo-bg)" stroke="var(--accent-indigo)" />
+      <text x="380" y="509" fill="var(--accent-indigo)" font-family="var(--font-mono)" font-size="8" font-weight="700">Alnylam ESC+: (S)-GNA at a7 relieves seed off-targets</text>
+    </g>
+
+    <!-- Sub-Panel 3: Catalytic Slicing Window -->
+    <g id="ago2-piwi">
+      <rect x="674" y="312" width="310" height="220" rx="8" fill="var(--paper)" stroke="var(--accent-rose)" stroke-width="1.8" />
+      <rect x="674" y="312" width="310" height="4" fill="var(--accent-rose)" />
+      <text x="688" y="334" fill="var(--ink)" font-family="var(--font-heading)" font-size="12" font-weight="800">3. PIWI Catalytic Window (a9–a11)</text>
+      <text x="688" y="350" fill="var(--accent-rose)" font-family="var(--font-mono)" font-size="8.5" font-weight="700">Active Slicing Tetrad: D597, E632, D669, H807 ≤ 5.5 Å</text>
+      <line x1="688" y1="360" x2="970" y2="360" stroke="var(--border)" />
+      <text x="688" y="378" fill="var(--ink-secondary)" font-family="var(--font-body)" font-size="8.5">• Coordinates divalent <tspan font-weight="700">Mg2+ ions</tspan> around target scissile bond</text>
+      <text x="688" y="394" fill="var(--ink-secondary)" font-family="var(--font-body)" font-size="8.5">• Strict minor groove hydration requirements for RNase H cleavage</text>
+      <text x="688" y="410" fill="var(--ink-secondary)" font-family="var(--font-body)" font-size="8.5">• <tspan font-weight="700">Permitted:</tspan> 2'-Fluoro (small VDW radius) or unmodified RNA</text>
+      <text x="688" y="430" fill="var(--accent-rose)" font-family="var(--font-mono)" font-size="8.5" font-weight="700">Fatal Structural Clashes:</text>
+      <text x="688" y="446" fill="var(--muted)" font-family="var(--font-body)" font-size="8">• 2'-OMe at position 10: <tspan font-weight="700" fill="var(--accent-rose)">−45 pts (Steric Ejection)</tspan></text>
+      <text x="688" y="460" fill="var(--muted)" font-family="var(--font-body)" font-size="8">• Locked LNA at position 10: <tspan font-weight="700" fill="var(--accent-rose)">Complete Catalytic Abort</tspan></text>
+      <text x="688" y="474" fill="var(--muted)" font-family="var(--font-body)" font-size="8">• Bulky modifications physically distort Ago2 slicing cleft</text>
+      <rect x="688" y="492" width="282" height="26" rx="4" fill="var(--accent-rose-bg)" stroke="var(--accent-rose)" />
+      <text x="700" y="509" fill="var(--accent-rose)" font-family="var(--font-mono)" font-size="8" font-weight="700">HelixZero Rule: Strictly preserves 2'-F / RNA at pos 9–11</text>
+    </g>
+
+    <!-- Sub-Panel 4: PAZ Overhang & Conjugates -->
+    <g id="ago2-paz">
+      <rect x="1004" y="312" width="276" height="220" rx="8" fill="var(--paper)" stroke="var(--accent-amber)" stroke-width="1.5" />
+      <rect x="1004" y="312" width="276" height="4" fill="var(--accent-amber)" />
+      <text x="1018" y="334" fill="var(--ink)" font-family="var(--font-heading)" font-size="12" font-weight="800">4. PAZ 3' Pocket &amp; Conjugates</text>
+      <text x="1018" y="350" fill="var(--accent-amber)" font-family="var(--font-mono)" font-size="8.5" font-weight="700">Guide Overhang (a20–a21) • Hydrophobic Clamp</text>
+      <line x1="1018" y1="360" x2="1265" y2="360" stroke="var(--border)" />
+      <text x="1018" y="378" fill="var(--ink-secondary)" font-family="var(--font-body)" font-size="8.5">• PAZ pocket cradles 2-nt dinucleotide guide overhang</text>
+      <text x="1018" y="394" fill="var(--ink-secondary)" font-family="var(--font-body)" font-size="8.5">• <tspan font-weight="700">Shielding:</tspan> Phosphorothioate linkages protect against exonucleases</text>
+      <text x="1018" y="410" fill="var(--ink-secondary)" font-family="var(--font-body)" font-size="8.5">• <tspan font-weight="700">Conjugation:</tspan> Trivalent GalNAc tethered to 3' sense strand</text>
+      <text x="1018" y="430" fill="var(--accent-rose)" font-family="var(--font-mono)" font-size="8.5" font-weight="700">Physical Gating Violation:</text>
+      <text x="1018" y="446" fill="var(--muted)" font-family="var(--font-body)" font-size="8">• Blunt duplexes lacking overhangs: −18 pts</text>
+      <text x="1018" y="460" fill="var(--muted)" font-family="var(--font-body)" font-size="8">• Excessive internal PS across whole duplex: −25 pts (cytotoxicity)</text>
+      <text x="1018" y="474" fill="var(--muted)" font-family="var(--font-body)" font-size="8">• Unprotected 3'-ends: serum half-life drops below 1 hour</text>
+      <rect x="1018" y="492" width="248" height="26" rx="4" fill="var(--paper-2)" stroke="var(--border)" />
+      <text x="1030" y="509" fill="var(--accent-amber)" font-family="var(--font-mono)" font-size="8" font-weight="700">Delivery: ASGPR receptor uptake via 3' GalNAc</text>
+    </g>
+
+    <!-- ══════════════════════════════════════════════════════════════════════
+         PANEL C: 4 DETERMINISTIC BIOPHYSICAL GUARDRAILS & EQUATIONS
+         ══════════════════════════════════════════════════════════════════════ -->
+    <rect x="24" y="570" width="1272" height="320" rx="10" fill="var(--paper-2)" stroke="var(--border)" stroke-width="1.2" />
+    <text x="44" y="594" fill="var(--ink)" font-family="var(--font-heading)" font-size="13" font-weight="800">PANEL C | Deterministic Biophysical Guardrails, Mismatch Gating &amp; Calibration Mathematics</text>
+    <text x="750" y="594" fill="var(--muted)" font-family="var(--font-mono)" font-size="9">Verified Formulations from Section 2.7 of Nucleic Acids Research Manuscript</text>
+
+    <!-- 4 Mathematical Guardrail Domain Cards -->
+    <g id="domain-1">
+      <rect x="44" y="612" width="290" height="150" rx="8" fill="var(--paper)" stroke="var(--border)" stroke-width="1.2" />
+      <text x="58" y="634" fill="var(--ink)" font-family="var(--font-heading)" font-size="11.5" font-weight="700">Domain 1: Helicase Barrier</text>
+      <text x="58" y="650" fill="var(--accent-rose)" font-family="var(--font-mono)" font-size="9" font-weight="700">ΔΔG°_37 &lt; −35.0 kcal/mol</text>
+      <text x="58" y="670" fill="var(--muted)" font-family="var(--font-body)" font-size="8.5">Extreme hybridization stability locks duplex,</text>
+      <text x="58" y="686" fill="var(--muted)" font-family="var(--font-body)" font-size="8.5">jamming Ago2 helicase unwinding and passenger</text>
+      <text x="58" y="702" fill="var(--muted)" font-family="var(--font-body)" font-size="8.5">strand ejection during pre-RISC assembly.</text>
+      <text x="58" y="726" fill="var(--accent-rose)" font-family="var(--font-mono)" font-size="9" font-weight="700">Penalty: −2.0 to −6.0 pts</text>
+      <text x="58" y="744" fill="var(--muted)" font-family="var(--font-mono)" font-size="8">Prevents kinetically dead duplexes</text>
+    </g>
+
+    <g id="domain-2">
+      <rect x="354" y="612" width="300" height="150" rx="8" fill="var(--paper)" stroke="var(--border)" stroke-width="1.2" />
+      <text x="368" y="634" fill="var(--ink)" font-family="var(--font-heading)" font-size="11.5" font-weight="700">Domain 2: Exonuclease Shield</text>
+      <text x="368" y="650" fill="var(--accent-teal)" font-family="var(--font-mono)" font-size="9" font-weight="700">Alnylam AT3 6-PS Benchmark</text>
+      <text x="368" y="670" fill="var(--muted)" font-family="var(--font-body)" font-size="8.5">Evaluates phosphorothioate protection against</text>
+      <text x="368" y="686" fill="var(--muted)" font-family="var(--font-body)" font-size="8.5">serum 3'- and 5'-exonucleolytic degradation:</text>
+      <text x="368" y="702" fill="var(--ink-secondary)" font-family="var(--font-mono)" font-size="8">Antisense (pos 0,1,20,21) + Sense (pos 0,1)</text>
+      <text x="368" y="726" fill="var(--accent-rose)" font-family="var(--font-mono)" font-size="9" font-weight="700">Penalty: −1.0 to −8.0 pts</text>
+      <text x="368" y="744" fill="var(--muted)" font-family="var(--font-mono)" font-size="8">Protects against serum chewing</text>
+    </g>
+
+    <g id="domain-3">
+      <rect x="674" y="612" width="310" height="150" rx="8" fill="var(--paper)" stroke="var(--border)" stroke-width="1.2" />
+      <text x="688" y="634" fill="var(--ink)" font-family="var(--font-heading)" font-size="11.5" font-weight="700">Domain 3: TLR7/8 Immune Masking</text>
+      <text x="688" y="650" fill="var(--accent-amber)" font-family="var(--font-mono)" font-size="9" font-weight="700">Pathogen Motif Recognition</text>
+      <text x="688" y="670" fill="var(--muted)" font-family="var(--font-body)" font-size="8.5">Scans for innate immunostimulatory motifs:</text>
+      <text x="688" y="686" fill="var(--accent-amber)" font-family="var(--font-mono)" font-size="8.5">`UGGC`, `GUUC`, `UGU`, `AUUU`, `GUCCUUCAA`</text>
+      <text x="688" y="702" fill="var(--muted)" font-family="var(--font-body)" font-size="8.5">Unmasked motifs lacking 2'-OMe trigger cytokines.</text>
+      <text x="688" y="726" fill="var(--accent-rose)" font-family="var(--font-mono)" font-size="9" font-weight="700">Penalty: −2.0 to −4.0 pts per unmasked motif</text>
+      <text x="688" y="744" fill="var(--muted)" font-family="var(--font-mono)" font-size="8">Suppresses lethal inflammatory cascades</text>
+    </g>
+
+    <g id="domain-4">
+      <rect x="1004" y="612" width="276" height="150" rx="8" fill="var(--paper)" stroke="var(--border)" stroke-width="1.2" />
+      <text x="1018" y="634" fill="var(--ink)" font-family="var(--font-heading)" font-size="11.5" font-weight="700">Domain 4: Janas Seed Cytotoxicity</text>
+      <text x="1018" y="650" fill="var(--accent-rose)" font-family="var(--font-mono)" font-size="9" font-weight="700">4,096-Hexamer Empirical Matrix</text>
+      <text x="1018" y="670" fill="var(--muted)" font-family="var(--font-body)" font-size="8.5">Queries guide seed (pos 2–7) against empirical</text>
+      <text x="1018" y="686" fill="var(--muted)" font-family="var(--font-body)" font-size="8.5">cell viability database (Janas et al., Nat Comm).</text>
+      <text x="1018" y="702" fill="var(--muted)" font-family="var(--font-body)" font-size="8.5">Viability &lt; 70% penalized unless rescued.</text>
+      <text x="1018" y="726" fill="var(--accent-rose)" font-family="var(--font-mono)" font-size="9" font-weight="700">Penalty: Up to −15.0 pts</text>
+      <text x="1018" y="744" fill="var(--accent-teal)" font-family="var(--font-mono)" font-size="8" font-weight="700">Rescued by 2'-OMe at position 2</text>
+    </g>
+
+    <!-- Mathematical Formulation Footer Box -->
+    <rect x="44" y="776" width="1236" height="96" rx="8" fill="var(--paper)" stroke="var(--accent-teal)" stroke-width="1.5" />
+    <text x="60" y="798" fill="var(--ink)" font-family="var(--font-heading)" font-size="12" font-weight="800">Unified Target Mismatch Gating &amp; Biophysical Calibration Formulation:</text>
+    
+    <text x="60" y="822" fill="var(--accent-indigo)" font-family="var(--font-mono)" font-size="9.5" font-weight="700">
+      M_weighted = 2.5 × M_seed + 1.0 × M_non-seed     |     f_gate = exp( −1.2 × (M_weighted − 3.0) )   [if M_weighted &gt; 3.0]
+    </text>
+
+    <text x="60" y="848" fill="var(--accent-teal)" font-family="var(--font-mono)" font-size="11" font-weight="800">
+      Final Calibrated Score = f_gate × max( 0.0,    y_raw − γ ∑ P_d )          [with calibrated scaling factor γ = 0.12]
+    </text>
+  </svg>
+</div>
+
+<div class="caption-footer">
+  <strong>Figure 3 | Argonaute-2 (Ago2) Structural Gating, Duplex Anatomy, and Deterministic Biophysical Guardrails.</strong>
+  <strong>Panel A (Duplex Architecture):</strong> Topological map of a 21-mer siRNA duplex depicting 19-bp canonical Watson-Crick pairing and 2-nt 3' dinucleotide overhangs. Chemical modification sites include terminal phosphorothioate linkages (teal), alternating 2'-OMe (amber) and 2'-F (pink), 5'-VP phosphate mimic at guide position 1, trivalent GalNAc conjugate on sense 3' terminus, and (S)-GNA at guide position 7 (Alnylam ESC+).
+  <strong>Panel B (Ago2 Structural Interface):</strong> Functional domain alignment with human Argonaute-2 (PDB 4W5N). (1) MID domain cradles the 5'-monophosphate mono-ester via basic residues K533, K570, R812, and Y529 (&le;4.5 &Aring;). (2) Seed region (positions 2–8) pre-organized in rigid C3'-endo A-form geometry for target nucleation. (3) PIWI catalytic tetrad (D597, E632, D669, H807) positions scissile phosphate cleavage between guide nucleotides 10 and 11 (&le;5.5 &Aring;); bulky 2'-OMe or LNA substitutions at position 10 physically clash with the catalytic cleft, aborting slicing. (4) PAZ hydrophobic domain anchors the 2-nt guide 3' overhang.
+  <strong>Panel C (Deterministic Biophysical Guardrails):</strong> Mathematical formulation of the 4 penalty domains (&gamma; = 0.12): Domain 1 (helicase unwinding barrier, &Delta;&Delta;G &lt; &minus;35 kcal/mol), Domain 2 (serum exonuclease shielding based on Alnylam AT3 6-PS benchmark), Domain 3 (TLR7/8 immune masking), and Domain 4 (Janas 4,096-hexamer empirical seed cytotoxicity). Mismatch gating factor $f_{\text{gate}}$ exponentially discounts candidates with high seed mismatches ($M_{\text{weighted}} &gt; 3.0$).
+</div>
+
+<script>
+  function toggleTheme() {
+    const currentTheme = document.body.getAttribute('data-theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    document.body.setAttribute('data-theme', newTheme);
+  }
+</script>
+
+</body>
+</html>

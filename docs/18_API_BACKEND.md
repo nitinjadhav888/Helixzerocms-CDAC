@@ -85,18 +85,23 @@ The backend microservice is implemented in **FastAPI** (`v2.1.0`) running on **U
 - **Response Fields:** Includes `efficacy_score`, `raw_efficacy_score`, `estimated_pIC50`, `estimated_IC50_nM`, `confidence_interval`, `penalties`, and `structural_properties`.
 
 #### 2.4 `POST /multi-mod-scan` — Autonomous Combinatorial Beam Search
-- **Description:** Launches a heuristic beam search ($W = 20$, depth 21) optimizing synergistic modifications and evaluating real-time biophysical guardrails.
+- **Description:** Launches a heuristic beam search with complete 42-position positional coverage ($W = 25$, depth up to 42 modifications across sense and antisense strands), optimizing synergistic modification patterns and evaluating real-time biophysical guardrails.
 - **Request Schema (`MultiModScanRequest`):**
   ```json
   {
     "sense": "CUACGAGACUGAUGACUAUTT",
     "antisense": "AUAGUCAUCAGUCUCGUAGTT",
-    "max_mods": 21,
-    "beam_width": 20,
+    "max_mods": 42,
+    "beam_width": 25,
     "fda_core_only": true,
     "conc_nM": 10.0
   }
   ```
+- **Parameter Nuances:**
+  - `max_mods`: Maximum modifications allowed across the duplex (1 to 42). Supports deep combinatorial shielding across all positions.
+  - `fda_core_only`: When `true`, restricts chemical search space strictly to **Tier 0 FDA Core** clinical siRNA chemistries (`M`, `F`, `D`, `S`, `1`, `2`, `3`, `4`, and position-7 `8`), with guaranteed seeding of (S)-GNA at antisense pos 7 (ESC+ standard). When `false`, explores the full 30-modification library including **Tier 1 Preclinical** (2'-MOE, LNA, ENA, UNA) and **Tier 2 Extrapolated** monomers.
+  - `efficacy_score`: Knockdown efficacy percentage bounded strictly within $[0.00\%, 100.00\%]$.
+
 
 #### 2.5 `POST /offtarget-scan` — Transcriptome-Wide Safety Firewall
 - **Description:** Queries the 2-bit packed human transcriptome index to detect contiguous 15-mer slicer matches and seed match frequencies.

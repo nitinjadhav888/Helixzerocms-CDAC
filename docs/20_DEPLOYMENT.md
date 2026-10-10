@@ -81,3 +81,12 @@ Configurable via `.env` or system environment:
 - **Liveness & Readiness Probe:** `GET /health` returns HTTP 200 with payload:
   `{"status": "ok", "version": "2.1.0", "service": "HelixZero-CMS"}`
 - **Memory Management:** The 863.8 MB transcriptome binary index is lazy-loaded upon first demand, keeping the idle startup memory footprint below 350 MB.
+
+---
+
+### 5. Git LFS Binary Integrity & Container Initialization
+
+- **Binary Checkpoints & Calibrators:** The production runtime relies on native model binaries and pickled calibrators located in `smepred/models/` (`model_normal.txt`, `unified_dose_catboost.cbm`, `calibrator_naked.pkl`, `calibrator_context.pkl`).
+- **Git LFS Requirement:** In containerized or cloned environments, execute `git lfs pull` before building or launching the container to ensure that files like `calibrator_naked.pkl` are real binary artifacts (2.2 KB) rather than 118-byte Git LFS pointer stubs.
+- **Port Standardization:** Both Docker container configurations and local development scripts standardize on port `8000` (`http://0.0.0.0:8000`), aligned with the frontend API Gateway configuration.
+
